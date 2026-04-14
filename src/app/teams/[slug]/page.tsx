@@ -146,17 +146,26 @@ export default async function TeamPage({ params }: { params: { slug: string } })
   const teamColor = getTeamColor(team.slug);
   const teamLogoPath = getTeamLogoPath(team.slug);
 
+  const BASE = 'https://tblstats.com';
   const jsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'SportsTeam',
-    name: team.team,
-    sport: 'Boxing',
-    url: `https://tblstats.com/teams/${team.slug}`,
-    memberOf: {
-      '@type': 'SportsOrganization',
-      name: 'Team Boxing League',
-      url: 'https://teamboxingleague.com',
-    },
+    '@graph': [
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'TBL Stats',       item: BASE },
+          { '@type': 'ListItem', position: 2, name: 'Team Standings',  item: `${BASE}/teams` },
+          { '@type': 'ListItem', position: 3, name: team.team,         item: `${BASE}/teams/${team.slug}` },
+        ],
+      },
+      {
+        '@type': 'SportsTeam',
+        name: team.team,
+        sport: 'Boxing',
+        url: `${BASE}/teams/${team.slug}`,
+        memberOf: { '@type': 'SportsOrganization', name: 'Team Boxing League', url: 'https://teamboxingleague.com' },
+      },
+    ],
   };
 
   return (

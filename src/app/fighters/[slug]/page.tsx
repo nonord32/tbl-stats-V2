@@ -41,24 +41,33 @@ export default async function FighterPage({ params }: { params: { slug: string }
   const teamColor = getTeamColor(teamSlug);
   const fullTeamName = getFullTeamName(teamSlug);
 
+  const BASE = 'https://tblstats.com';
   const jsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'Person',
-    name: fighter.name,
-    sport: 'Boxing',
-    url: `https://tblstats.com/fighters/${fighter.slug}`,
-    memberOf: {
-      '@type': 'SportsTeam',
-      name: fullTeamName,
-      sport: 'Boxing',
-      url: `https://tblstats.com/teams/${teamSlug}`,
-      memberOf: {
-        '@type': 'SportsOrganization',
-        name: 'Team Boxing League',
-        url: 'https://teamboxingleague.com',
+    '@graph': [
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'TBL Stats',     item: BASE },
+          { '@type': 'ListItem', position: 2, name: 'Fighter Stats', item: `${BASE}/fighters` },
+          { '@type': 'ListItem', position: 3, name: fighter.name,    item: `${BASE}/fighters/${fighter.slug}` },
+        ],
       },
-    },
-    ...(fighter.instagram ? { sameAs: [fighter.instagram] } : {}),
+      {
+        '@type': 'Person',
+        name: fighter.name,
+        sport: 'Boxing',
+        url: `${BASE}/fighters/${fighter.slug}`,
+        memberOf: {
+          '@type': 'SportsTeam',
+          name: fullTeamName,
+          sport: 'Boxing',
+          url: `${BASE}/teams/${teamSlug}`,
+          memberOf: { '@type': 'SportsOrganization', name: 'Team Boxing League', url: 'https://teamboxingleague.com' },
+        },
+        ...(fighter.instagram ? { sameAs: [fighter.instagram] } : {}),
+      },
+    ],
   };
 
   return (
