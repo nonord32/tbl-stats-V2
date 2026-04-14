@@ -1,23 +1,23 @@
-// src/app/teams/page.tsx
+// src/app/fighters/page.tsx
 import type { Metadata } from 'next';
 import { getAllData } from '@/lib/data';
-import { TeamsClient } from './TeamsClient';
+import { FightersClient } from './FightersClient';
 
 export const metadata: Metadata = {
-  title: 'Team Standings',
+  title: 'Fighter Stats',
   description:
-    'TBL team standings: records, Points For, Points Against, point differential, and streaks.',
+    'TBL fighter rankings by WAR, NPPR, Net Points, Win%, Record, and Rounds. Filter by weight class, team, or gender.',
 };
 
 export const revalidate = 300;
 export const dynamic = 'force-dynamic';
 
-export default async function TeamsPage() {
+export default async function FightersPage() {
   const data = await getAllData();
   return (
-    <TeamsClient
-      teams={data.teams}
-      teamMatches={data.teamMatches}
+    <FightersClient
+      fighters={data.fighters}
+      fighterHistory={data.fighterHistory}
       lastUpdated={data.lastUpdated}
     />
   );
