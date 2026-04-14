@@ -430,7 +430,18 @@ export async function getFighterBySlug(slug: string) {
   if (!fighter) return null;
   const history = data.fighterHistory[slug] || [];
   const streak = calcFighterStreak(history);
-  return { fighter, history, streak };
+
+  // Resolve full team name: the Leaderboard tab may store abbreviated names
+  // (e.g. "Las Vegas") while the Standings tab has the full name ("Las Vegas Hustle").
+  const fullTeamName =
+    data.teams.find(
+      (t) =>
+        t.team === fighter.team ||
+        t.team.startsWith(fighter.team) ||
+        fighter.team.startsWith(t.team)
+    )?.team ?? fighter.team;
+
+  return { fighter, history, streak, fullTeamName };
 }
 
 export async function getTeamBySlug(slug: string) {

@@ -16,9 +16,9 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const result = await getFighterBySlug(params.slug);
   if (!result) return { title: 'Fighter Not Found' };
-  const { fighter } = result;
+  const { fighter, fullTeamName } = result;
   return {
-    title: `${fighter.name} — ${fighter.team}`,
+    title: `${fighter.name} — ${fullTeamName}`,
     description: `${fighter.name} TBL stats: ${fighter.record} record, WAR ${fighter.war.toFixed(2)}, NPPR ${fighter.nppr.toFixed(3)}, Net Points ${fighter.netPts.toFixed(1)}. ${fighter.weightClass} · ${fighter.gender}.`,
     openGraph: {
       title: `${fighter.name} | TBL Stats`,
@@ -31,7 +31,7 @@ export default async function FighterPage({ params }: { params: { slug: string }
   const result = await getFighterBySlug(params.slug);
   if (!result) notFound();
 
-  const { fighter, history, streak } = result;
+  const { fighter, history, streak, fullTeamName } = result;
 
   const isWStreak = streak.startsWith('W');
 
@@ -49,7 +49,7 @@ export default async function FighterPage({ params }: { params: { slug: string }
 
         {/* SEO intro */}
         <p className="page-intro">
-          {fighter.name} is a {fighter.weightClass} fighter competing for the {fighter.team} in Team Boxing League.
+          {fighter.name} is a {fighter.weightClass} fighter competing for the {fullTeamName} in Team Boxing League.
           View their stats, performance, and results from the current season.
         </p>
 
