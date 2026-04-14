@@ -1,0 +1,30 @@
+// src/app/sitemap.ts
+import { MetadataRoute } from 'next';
+import { getAllData } from '@/lib/data';
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const data = await getAllData();
+  const base = 'https://tblstats.com';
+
+  const fighterUrls = data.fighters.map((f) => ({
+    url: `${base}/fighters/${f.slug}`,
+    lastModified: new Date(),
+    changeFrequency: 'weekly' as const,
+    priority: 0.7,
+  }));
+
+  const teamUrls = data.teams.map((t) => ({
+    url: `${base}/teams/${t.slug}`,
+    lastModified: new Date(),
+    changeFrequency: 'weekly' as const,
+    priority: 0.7,
+  }));
+
+  return [
+    { url: base, lastModified: new Date(), changeFrequency: 'daily', priority: 1 },
+    { url: `${base}/fighters`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.9 },
+    { url: `${base}/teams`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.9 },
+    ...fighterUrls,
+    ...teamUrls,
+  ];
+}
