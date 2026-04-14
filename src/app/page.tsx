@@ -81,6 +81,9 @@ export default async function HomePage() {
             <Link href="/teams" className="btn btn-outline">
               Team Standings
             </Link>
+            <Link href="/results" className="btn btn-outline">
+              Results
+            </Link>
             <a
               href="https://teamboxingleague.com"
               target="_blank"
@@ -88,6 +91,14 @@ export default async function HomePage() {
               className="btn btn-outline"
             >
               TBL Official Site ↗
+            </a>
+            <a
+              href="https://www.youtube.com/@teamboxingleague"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-outline"
+            >
+              YouTube ↗
             </a>
           </div>
         </div>
