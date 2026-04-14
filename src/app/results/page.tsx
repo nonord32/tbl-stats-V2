@@ -1,6 +1,7 @@
 // src/app/results/page.tsx
 import type { Metadata } from 'next';
-import { getAllData, extractUniqueMatches } from '@/lib/data';
+import { getAllData, extractUniqueMatches, toSlug } from '@/lib/data';
+import { getFullTeamName } from '@/lib/teams';
 import { ResultsClient } from './ResultsClient';
 
 export const metadata: Metadata = {
@@ -32,9 +33,12 @@ export default async function ResultsPage() {
           { '@type': 'ListItem', position: 2, name: 'Results',   item: `${BASE}/results` },
         ],
       },
-      ...matches.map((m) => ({
+      ...matches.map((m) => {
+        const t1 = getFullTeamName(toSlug(m.team1));
+        const t2 = getFullTeamName(toSlug(m.team2));
+        return {
         '@type': 'SportsEvent',
-        name: `${m.team1} vs ${m.team2}`,
+        name: `${t1} vs ${t2}`,
         startDate: toIso(m.date),
         endDate: toIso(m.date),
         eventStatus: 'https://schema.org/EventScheduled',
@@ -42,7 +46,7 @@ export default async function ResultsPage() {
         sport: 'Boxing',
         url: `${BASE}/results`,
         image: `${BASE}/tbl-logo.png`,
-        description: `${m.team1} ${m.score1.toFixed(1)} – ${m.score2.toFixed(1)} ${m.team2}. ${m.result === 'W' ? m.team1 : m.team2} wins.`,
+        description: `${t1} ${m.score1.toFixed(1)} – ${m.score2.toFixed(1)} ${t2}. ${m.result === 'W' ? t1 : t2} wins.`,
         location: {
           '@type': 'Place',
           name: 'Team Boxing League',
@@ -54,14 +58,15 @@ export default async function ResultsPage() {
           url: 'https://teamboxingleague.com',
         },
         competitor: [
-          { '@type': 'SportsTeam', name: m.team1 },
-          { '@type': 'SportsTeam', name: m.team2 },
+          { '@type': 'SportsTeam', name: t1 },
+          { '@type': 'SportsTeam', name: t2 },
         ],
         performer: [
-          { '@type': 'SportsTeam', name: m.team1 },
-          { '@type': 'SportsTeam', name: m.team2 },
+          { '@type': 'SportsTeam', name: t1 },
+          { '@type': 'SportsTeam', name: t2 },
         ],
-      })),
+      };
+      }),
     ],
   };
 

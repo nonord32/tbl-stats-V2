@@ -4,6 +4,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { toSlug } from '@/lib/data';
+import { getFullTeamName } from '@/lib/teams';
 import type { MatchResult, BoxScoreRound } from '@/types';
 
 interface Props {
@@ -70,6 +71,9 @@ function BoxScoreExpand({ boxScore, team1, team2 }: { boxScore: BoxScoreRound[];
 function MatchCard({ match }: { match: MatchResult }) {
   const [expanded, setExpanded] = useState(false);
 
+  const team1Name = getFullTeamName(toSlug(match.team1));
+  const team2Name = getFullTeamName(toSlug(match.team2));
+
   const team1Won = match.result === 'W';
   const team2Won = match.result === 'L';
   const isDraw  = match.result === 'D';
@@ -99,11 +103,11 @@ function MatchCard({ match }: { match: MatchResult }) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={`/logos/${toSlug(match.team1)}.png`}
-            alt={match.team1}
+            alt={team1Name}
             className="results-logo"
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
-          <span className="results-team-name">{match.team1}</span>
+          <span className="results-team-name">{team1Name}</span>
           {team1Won && <span className="results-winner-badge">W</span>}
         </div>
 
@@ -126,11 +130,11 @@ function MatchCard({ match }: { match: MatchResult }) {
         {/* Team 2 */}
         <div className={`results-team results-team--right ${team2Won ? 'results-team--winner' : team1Won ? 'results-team--loser' : ''}`}>
           {team2Won && <span className="results-winner-badge">W</span>}
-          <span className="results-team-name">{match.team2}</span>
+          <span className="results-team-name">{team2Name}</span>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={`/logos/${toSlug(match.team2)}.png`}
-            alt={match.team2}
+            alt={team2Name}
             className="results-logo"
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
@@ -154,18 +158,18 @@ function MatchCard({ match }: { match: MatchResult }) {
                 onClick={(e) => e.stopPropagation()}
                 style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--accent)' }}
               >
-                {match.team1} →
+                {team1Name} →
               </Link>
               <Link
                 href={`/teams/${toSlug(match.team2)}`}
                 onClick={(e) => e.stopPropagation()}
                 style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--accent)' }}
               >
-                {match.team2} →
+                {team2Name} →
               </Link>
             </div>
           </div>
-          <BoxScoreExpand boxScore={match.boxScore} team1={match.team1} team2={match.team2} />
+          <BoxScoreExpand boxScore={match.boxScore} team1={team1Name} team2={team2Name} />
         </div>
       )}
     </div>
