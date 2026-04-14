@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getAllData, getFighterBySlug, calcFighterStreak } from '@/lib/data';
-import { getTeamLogoPath, getTeamColor } from '@/lib/teams';
+import { getTeamLogoPath, getTeamColor, getFullTeamName } from '@/lib/teams';
 import { LogoImage } from '@/components/LogoImage';
 import type { FightHistory } from '@/types';
 
@@ -17,13 +17,15 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const result = await getFighterBySlug(params.slug);
   if (!result) return { title: 'Fighter Not Found' };
-  const { fighter, fullTeamName } = result;
+  const { fighter } = result;
+  const tSlug = fighter.team.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  const metaTeamName = getFullTeamName(tSlug);
   return {
-    title: `${fighter.name} — ${fullTeamName}`,
+    title: `${fighter.name} — ${metaTeamName}`,
     description: `${fighter.name} TBL stats: ${fighter.record} record, WAR ${fighter.war.toFixed(2)}, NPPR ${fighter.nppr.toFixed(3)}, Net Points ${fighter.netPts.toFixed(1)}. ${fighter.weightClass} · ${fighter.gender}.`,
     openGraph: {
       title: `${fighter.name} | TBL Stats`,
-      description: `${fighter.record} · WAR ${fighter.war.toFixed(2)} · ${fighter.team}`,
+      description: `${fighter.record} · WAR ${fighter.war.toFixed(2)} · ${metaTeamName}`,
     },
   };
 }
@@ -32,11 +34,12 @@ export default async function FighterPage({ params }: { params: { slug: string }
   const result = await getFighterBySlug(params.slug);
   if (!result) notFound();
 
-  const { fighter, history, streak, fullTeamName } = result;
+  const { fighter, history, streak } = result;
 
   const isWStreak = streak.startsWith('W');
   const teamSlug = fighter.team.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
   const teamColor = getTeamColor(teamSlug);
+  const fullTeamName = getFullTeamName(teamSlug);
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -113,7 +116,7 @@ export default async function FighterPage({ params }: { params: { slug: string }
               )}
             </div>
             <div className="fighter-hero-meta">
-              <span className="badge">{fighter.team}</span>
+              <span className="badge">{fullTeamName}</span>
               <span className="badge">{fighter.weightClass}</span>
               <span className="badge">{fighter.gender}</span>
               {streak && (

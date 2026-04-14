@@ -1,42 +1,48 @@
 // src/lib/teams.ts
-// Team color accents keyed by city slug (matches /public/logos/{city}.png filenames).
-// Full team name slugs (e.g. "las-vegas-hustle") are matched via prefix so you
-// don't need to update this file when the sheet nickname changes.
-// Update colors here to match official team branding.
+// Central team metadata: full names, colors, logo paths.
+// Keys are city slugs that match /public/logos/{city}.png filenames.
+// Add/update TEAM_FULL_NAMES when team nicknames are confirmed.
 
-export const CITY_COLORS: Record<string, string> = {
-  'atlanta':     '#c8102e',
-  'boston':      '#ba0c2f',
-  'dallas':      '#003594',
-  'houston':     '#ce1141',
-  'las-vegas':   '#b4975a',
-  'los-angeles': '#552583',
-  'miami':       '#98002e',
-  'nashville':   '#ffb81c',
-  'nyc':         '#e53e3e',
-  'philadelphia':'#003087',
-  'phoenix':     '#e56020',
-  'san-antonio': '#3d3d3d',
-};
-
-/** Returns a hex color for the given team slug, or '' if unknown. */
-export function getTeamColor(slug: string): string {
-  // Exact match first
-  if (CITY_COLORS[slug]) return CITY_COLORS[slug];
-  // Prefix match: "las-vegas-hustle" → "las-vegas"
-  for (const [city, color] of Object.entries(CITY_COLORS)) {
-    if (slug.startsWith(city)) return color;
-  }
-  return '';
+interface TeamMeta {
+  fullName: string;
+  color: string;
 }
 
-/** Returns the city-portion logo path for a given team slug. */
+const TEAMS: Record<string, TeamMeta> = {
+  'atlanta':     { fullName: 'Atlanta',            color: '#c8102e' },
+  'boston':      { fullName: 'Boston Butchers',    color: '#ba0c2f' },
+  'dallas':      { fullName: 'Dallas',             color: '#003594' },
+  'houston':     { fullName: 'Houston',            color: '#ce1141' },
+  'las-vegas':   { fullName: 'Las Vegas Hustle',   color: '#b4975a' },
+  'los-angeles': { fullName: 'Los Angeles',        color: '#552583' },
+  'miami':       { fullName: 'Miami',              color: '#98002e' },
+  'nashville':   { fullName: 'Nashville',          color: '#ffb81c' },
+  'nyc':         { fullName: 'NYC Attitude',       color: '#e53e3e' },
+  'philadelphia':{ fullName: 'Philadelphia Smoke', color: '#003087' },
+  'phoenix':     { fullName: 'Phoenix Fury',       color: '#e56020' },
+  'san-antonio': { fullName: 'San Antonio',        color: '#3d3d3d' },
+};
+
+/** Resolve city key from any slug (exact or prefix match). */
+function cityKey(slug: string): string | undefined {
+  if (TEAMS[slug]) return slug;
+  return Object.keys(TEAMS).find((c) => slug.startsWith(c));
+}
+
+/** Full team name, e.g. "Las Vegas Hustle". Falls back to slug if unknown. */
+export function getFullTeamName(slug: string): string {
+  const key = cityKey(slug);
+  return key ? TEAMS[key].fullName : slug;
+}
+
+/** Hex accent color for the team, or '' if unknown. */
+export function getTeamColor(slug: string): string {
+  const key = cityKey(slug);
+  return key ? TEAMS[key].color : '';
+}
+
+/** Logo path using the city-slug filename convention. */
 export function getTeamLogoPath(slug: string): string {
-  if (typeof window === 'undefined') {
-    // server-side: just use slug directly
-  }
-  // Try exact first
-  const cities = Object.keys(CITY_COLORS);
-  const city = cities.find((c) => slug === c || slug.startsWith(c));
-  return city ? `/logos/${city}.png` : `/logos/${slug}.png`;
+  const key = cityKey(slug);
+  return key ? `/logos/${key}.png` : `/logos/${slug}.png`;
 }

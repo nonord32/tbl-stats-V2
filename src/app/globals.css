@@ -161,12 +161,14 @@ img { max-width: 100%; height: auto; }
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255,255,255,0.6);
   line-height: 0;
-  transition: color 0.15s;
   padding: 2px;
+  transition: opacity 0.15s, transform 0.15s;
+  opacity: 0.85;
 }
-.nav-social-link:hover { color: #fff; }
+.nav-social-link:hover { opacity: 1; transform: scale(1.12); }
+.nav-social-link--instagram { color: #e1306c; }
+.nav-social-link--youtube   { color: #ff0000; }
 
 .theme-toggle {
   background: rgba(255,255,255,0.08);
