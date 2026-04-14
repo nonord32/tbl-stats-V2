@@ -36,20 +36,31 @@ export default async function ResultsPage() {
         '@type': 'SportsEvent',
         name: `${m.team1} vs ${m.team2}`,
         startDate: toIso(m.date),
+        endDate: toIso(m.date),
         eventStatus: 'https://schema.org/EventScheduled',
         eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
         sport: 'Boxing',
         url: `${BASE}/results`,
-        competitor: [
-          { '@type': 'SportsTeam', name: m.team1 },
-          { '@type': 'SportsTeam', name: m.team2 },
-        ],
+        image: `${BASE}/tbl-logo.png`,
         description: `${m.team1} ${m.score1.toFixed(1)} – ${m.score2.toFixed(1)} ${m.team2}. ${m.result === 'W' ? m.team1 : m.team2} wins.`,
+        location: {
+          '@type': 'Place',
+          name: 'Team Boxing League',
+          address: { '@type': 'PostalAddress', addressCountry: 'US' },
+        },
         organizer: {
           '@type': 'SportsOrganization',
           name: 'Team Boxing League',
           url: 'https://teamboxingleague.com',
         },
+        competitor: [
+          { '@type': 'SportsTeam', name: m.team1 },
+          { '@type': 'SportsTeam', name: m.team2 },
+        ],
+        performer: [
+          { '@type': 'SportsTeam', name: m.team1 },
+          { '@type': 'SportsTeam', name: m.team2 },
+        ],
       })),
     ],
   };
