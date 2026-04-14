@@ -12,9 +12,36 @@ export const metadata: Metadata = {
 export const revalidate = 300;
 export const dynamic = 'force-dynamic';
 
+const SITE_URL = 'https://tblstats.com';
+
 export default async function HomePage() {
   const data = await getAllData();
   const { fighters, teams } = data;
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'WebSite',
+        '@id': `${SITE_URL}/#website`,
+        url: SITE_URL,
+        name: 'TBL Stats',
+        description: 'Official statistics for Team Boxing League',
+      },
+      {
+        '@type': 'SportsOrganization',
+        '@id': `${SITE_URL}/#organization`,
+        name: 'Team Boxing League',
+        alternateName: 'TBL',
+        sport: 'Boxing',
+        url: 'https://teamboxingleague.com',
+        sameAs: [
+          'https://www.instagram.com/teamboxingleague/',
+          'https://www.youtube.com/@teamboxingleague',
+        ],
+      },
+    ],
+  };
 
   const topFighters = [...fighters]
     .sort((a, b) => b.war - a.war)
@@ -26,6 +53,10 @@ export default async function HomePage() {
 
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* ── Hero ── */}
       <section className="home-hero">
         <div className="container">

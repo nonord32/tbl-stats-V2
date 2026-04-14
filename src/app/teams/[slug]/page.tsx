@@ -146,7 +146,25 @@ export default async function TeamPage({ params }: { params: { slug: string } })
   const teamColor = getTeamColor(team.slug);
   const teamLogoPath = getTeamLogoPath(team.slug);
 
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'SportsTeam',
+    name: team.team,
+    sport: 'Boxing',
+    url: `https://tblstats.com/teams/${team.slug}`,
+    memberOf: {
+      '@type': 'SportsOrganization',
+      name: 'Team Boxing League',
+      url: 'https://teamboxingleague.com',
+    },
+  };
+
   return (
+    <>
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+    />
     <div className="page">
       <div className="container-wide">
         {/* Breadcrumb */}
@@ -259,5 +277,6 @@ export default async function TeamPage({ params }: { params: { slug: string } })
         </div>
       </div>
     </div>
+    </>
   );
 }

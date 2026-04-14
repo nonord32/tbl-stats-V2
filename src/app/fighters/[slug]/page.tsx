@@ -38,7 +38,32 @@ export default async function FighterPage({ params }: { params: { slug: string }
   const teamSlug = fighter.team.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
   const teamColor = getTeamColor(teamSlug);
 
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Person',
+    name: fighter.name,
+    sport: 'Boxing',
+    url: `https://tblstats.com/fighters/${fighter.slug}`,
+    memberOf: {
+      '@type': 'SportsTeam',
+      name: fullTeamName,
+      sport: 'Boxing',
+      url: `https://tblstats.com/teams/${teamSlug}`,
+      memberOf: {
+        '@type': 'SportsOrganization',
+        name: 'Team Boxing League',
+        url: 'https://teamboxingleague.com',
+      },
+    },
+    ...(fighter.instagram ? { sameAs: [fighter.instagram] } : {}),
+  };
+
   return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
     <div className="page">
       <div className="container">
         {/* Breadcrumb */}
@@ -222,5 +247,6 @@ export default async function FighterPage({ params }: { params: { slug: string }
         </div>
       </div>
     </div>
+    </>
   );
 }
