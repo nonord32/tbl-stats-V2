@@ -1,5 +1,5 @@
 // src/lib/data.ts
-// All data fetching & parsing. Called server-side (Next.js RSC / getStaticProps pattern).
+// All data fetching & parsing — column names matched to actual sheet headers.
 
 import Papa from 'papaparse';
 import type {
@@ -9,7 +9,6 @@ import type {
   FightHistory,
   BoxScoreRound,
   ParsedSheetData,
-  MatchRow,
 } from '@/types';
 
 // ─── Sheet URLs ────────────────────────────────────────────────────────────────
@@ -31,79 +30,146 @@ export function toSlug(name: string): string {
     .replace(/\s+/g, '-');
 }
 
-async function fetchCSV(url: string): Promise<Record<string, string>[]> {
-  const res = await fetch(url, { next: { revalidate: 300 } }); // 5-min cache
+// Fetch raw CSV rows as string arrays (no automatic header parsing)
+// so we can handle sheets with title rows before the real header
+async function fetchRawCSV(url: string): Promise<string[][]> {
+  const res = await fetch(url, { cache: 'no-store' });
   if (!res.ok) throw new Error(`Failed to fetch CSV: ${url}`);
   const text = await res.text();
-  const result = Papa.parse<Record<string, string>>(text, {
-    header: true,
+  const result = Papa.parse<string[]>(text, {
+    header: false,
     skipEmptyLines: true,
   });
   return result.data;
 }
 
 function safeNum(val: string | undefined, fallback = 0): number {
-  if (!val) return fallback;
-  const n = parseFloat(val.replace(/,/g, ''));
+  if (!val || val.trim() === '') return fallback;
+  const cleaned = val.replace(/,/g, '').replace(/%$/, '').trim();
+  const n = parseFloat(cleaned);
   return isNaN(n) ? fallback : n;
 }
 
 function safeInt(val: string | undefined, fallback = 0): number {
-  if (!val) return fallback;
-  const n = parseInt(val.replace(/,/g, ''), 10);
+  if (!val || val.trim() === '') return fallback;
+  const n = parseInt(val.replace(/,/g, '').trim(), 10);
   return isNaN(n) ? fallback : n;
 }
 
+// Convert raw rows + a header row index into array of objects
+function toObjects(rows: string[][], headerRowIndex: number): Record<string, string>[] {
+  if (headerRowIndex >= rows.length) return [];
+  const headers = rows[headerRowIndex].map((h) => h.trim());
+  return rows.slice(headerRowIndex + 1).map((row) => {
+    const obj: Record<string, string> = {};
+    headers.forEach((h, i) => {
+      obj[h] = (row[i] || '').trim();
+    });
+    return obj;
+  });
+}
+
 // ─── Fighter Stats Parser ──────────────────────────────────────────────────────
-// Expected columns (case-insensitive): Name, Team, Weight Class, Gender,
-// W, L, WAR, NPPR, Net Pts, Win%, Rounds
-function parseFighters(rows: Record<string, string>[]): FighterStat[] {
-  return rows
-    .filter((r) => r['Name'] || r['name'])
+// Leaderboard tab layout:
+//   Row 1: Title ("Team Boxing League – Fighter Rankings")
+//   Row 2: "Last Updated: 4/13/2026"
+//   Rows 3-6: Description text
+//   Row 7: Headers → Rank | Fighter | Team | Gender | Weight | Fighter WAR | NPPR | Total Net Points | Record | Win % | Rounds
+//   Row 8+: Data
+function parseFighters(rows: string[][]): { fighters: FighterStat[]; lastUpdated: string } {
+  // Extract Last Updated from row 2 (index 1)
+  let lastUpdated = new Date().toISOString();
+  try {
+    if (rows[1] && rows[1][0]) {
+      const dateStr = rows[1][0].replace(/last updated:?/i, '').trim();
+      if (dateStr) {
+        const parsed = new Date(dateStr);
+        if (!isNaN(parsed.getTime())) lastUpdated = parsed.toISOString();
+      }
+    }
+  } catch {}
+
+  // Find the header row by scanning for a row that contains "Fighter"
+  let headerRowIndex = 6; // default guess
+  for (let i = 0; i < Math.min(rows.length, 15); i++) {
+    if (rows[i].some((cell) => cell.trim() === 'Fighter')) {
+      headerRowIndex = i;
+      break;
+    }
+  }
+
+  const objects = toObjects(rows, headerRowIndex);
+
+  const fighters: FighterStat[] = objects
+    .filter((r) => r['Fighter'] && r['Fighter'].trim() !== '' && r['Fighter'] !== 'Fighter')
     .map((r) => {
-      const name = (r['Name'] || r['name'] || '').trim();
-      const wins = safeInt(r['W'] || r['Wins'] || r['wins']);
-      const losses = safeInt(r['L'] || r['Losses'] || r['losses']);
-      const winPct = safeNum(r['Win%'] || r['WinPct'] || r['Win Pct']);
+      const name = r['Fighter'].trim();
+      const recordStr = (r['Record'] || '0-0').trim();
+      const parts = recordStr.split('-');
+      const wins = safeInt(parts[0]);
+      const losses = safeInt(parts[1]);
+
+      // Win % stored as "100%" — convert to 0-1 decimal
+      const winPctRaw = safeNum(r['Win %'] || r['Win%'] || '0');
+      const winPct = winPctRaw > 1 ? winPctRaw / 100 : winPctRaw;
+
       return {
         name,
-        team: (r['Team'] || r['team'] || '').trim(),
-        weightClass: (r['Weight Class'] || r['WeightClass'] || r['weight_class'] || '').trim(),
-        gender: (r['Gender'] || r['gender'] || '').trim(),
+        team: (r['Team'] || '').trim(),
+        weightClass: (r['Weight'] || '').trim(),
+        gender: (r['Gender'] || '').trim(),
         wins,
         losses,
-        record: `${wins}-${losses}`,
-        war: safeNum(r['WAR'] || r['war']),
-        nppr: safeNum(r['NPPR'] || r['nppr']),
-        netPts: safeNum(r['Net Pts'] || r['NetPts'] || r['net_pts']),
+        record: recordStr,
+        war: safeNum(r['Fighter WAR']),
+        nppr: safeNum(r['NPPR']),
+        netPts: safeNum(r['Total Net Points']),
         winPct,
-        rounds: safeInt(r['Rounds'] || r['rounds']),
+        rounds: safeInt(r['Rounds']),
         slug: toSlug(name),
       } satisfies FighterStat;
     })
     .filter((f) => f.name !== '');
+
+  return { fighters, lastUpdated };
 }
 
 // ─── Team Standings Parser ─────────────────────────────────────────────────────
-// Expected columns: Team, W, L, PF, PA, Diff
-function parseTeams(rows: Record<string, string>[]): TeamStanding[] {
-  return rows
-    .filter((r) => r['Team'] || r['team'])
+// Standings tab layout:
+//   Row 1: Headers → Team | Record | Points Scored | Points Allowed | Point Differential
+//   Row 2+: Data
+// Note: column headers may be truncated to ~12 chars in CSV export
+function parseTeams(rows: string[][]): TeamStanding[] {
+  // Header is row 1 (index 0)
+  const objects = toObjects(rows, 0);
+
+  return objects
+    .filter((r) => r['Team'] && r['Team'].trim() !== '' && r['Team'] !== 'Team')
     .map((r) => {
-      const team = (r['Team'] || r['team'] || '').trim();
-      const wins = safeInt(r['W'] || r['Wins']);
-      const losses = safeInt(r['L'] || r['Losses']);
-      const pf = safeNum(r['PF'] || r['Points For']);
-      const pa = safeNum(r['PA'] || r['Points Against']);
+      const team = r['Team'].trim();
+      const recordStr = (r['Record'] || '0-0').trim();
+      const parts = recordStr.split('-');
+      const wins = safeInt(parts[0]);
+      const losses = safeInt(parts[1]);
+
+      // Try all possible truncated column name variants
+      const pfVal = r['Points Scored'] || r['Points Scor'] || r['Points For'] || r['PF'] || '0';
+      const paVal = r['Points Allowed'] || r['Points Allow'] || r['Points Against'] || r['PA'] || '0';
+      const diffVal = r['Point Differential'] || r['Point Differ'] || r['Point Different'] || r['Diff'] || '0';
+
+      const pf = safeNum(pfVal);
+      const pa = safeNum(paVal);
+      const diff = safeNum(diffVal) || (pf - pa);
+
       return {
         team,
         wins,
         losses,
-        record: `${wins}-${losses}`,
+        record: recordStr,
         pf,
         pa,
-        diff: safeNum(r['Diff'] || r['Differential']) || pf - pa,
-        streak: r['Streak'] || r['streak'] || '',
+        diff,
+        streak: (r['Streak'] || '').trim(),
         slug: toSlug(team),
       } satisfies TeamStanding;
     })
@@ -111,90 +177,92 @@ function parseTeams(rows: Record<string, string>[]): TeamStanding[] {
 }
 
 // ─── Match Data Parser ─────────────────────────────────────────────────────────
-// Expected columns: Date, Team 1, Team 2, Fighter 1, Fighter 2,
-// Weight Class, Gender, Round, Phase, Winner, Net Pts
-// May also have per-round score cols
-
-function parseMatchData(rows: Record<string, string>[]): {
+// Data tab layout:
+//   Row 1: Headers → Fighter Name | Team | Gender | Weight Class | Date of Fight |
+//                    Round Num | Match ID | Round ID | Opponent Name | Round Phase | Result | ...
+//   Row 2+: Data
+//
+// Structure: each row = one fighter's perspective for one round.
+// Two rows share the same Match ID + Round ID (one per fighter).
+function parseMatchData(rows: string[][]): {
   teamMatches: Record<string, TeamMatch[]>;
   fighterHistory: Record<string, FightHistory[]>;
-  lastUpdated: string;
 } {
+  const objects = toObjects(rows, 0);
   const teamMatches: Record<string, TeamMatch[]> = {};
   const fighterHistory: Record<string, FightHistory[]> = {};
 
-  // Group rows by match index (same date + team1 + team2 = same match)
-  // We track per-match accumulation for team box scores
-  const matchGroups: Map<string, { rows: Record<string, string>[]; idx: number }> = new Map();
-  let matchCounter = 0;
-
-  rows.forEach((row) => {
-    const date = (row['Date'] || row['date'] || '').trim();
-    const team1 = (row['Team 1'] || row['Team1'] || row['team1'] || '').trim();
-    const team2 = (row['Team 2'] || row['Team2'] || row['team2'] || '').trim();
-    if (!date || !team1 || !team2) return;
-
-    const key = `${date}|${team1}|${team2}`;
-    if (!matchGroups.has(key)) {
-      matchGroups.set(key, { rows: [], idx: matchCounter++ });
-    }
-    matchGroups.get(key)!.rows.push(row);
+  // Group all rows by Match ID
+  const matchGroups: Map<string, Record<string, string>[]> = new Map();
+  objects.forEach((row) => {
+    const matchId = (row['Match ID'] || '').trim();
+    if (!matchId) return;
+    if (!matchGroups.has(matchId)) matchGroups.set(matchId, []);
+    matchGroups.get(matchId)!.push(row);
   });
 
-  // Process each match group
-  matchGroups.forEach(({ rows: matchRows, idx }, key) => {
-    const [date, team1, team2] = key.split('|');
+  matchGroups.forEach((matchRows, matchId) => {
+    if (matchRows.length === 0) return;
 
-    // Build box score from individual bout rows
-    const boxScore: BoxScoreRound[] = matchRows.map((r, i) => {
-      const fighter1 = (r['Fighter 1'] || r['Fighter1'] || '').trim();
-      const fighter2 = (r['Fighter 2'] || r['Fighter2'] || '').trim();
-      // Score columns: try "Score 1"/"Score 2", "Pts 1"/"Pts 2", or "Net Pts" from each fighter's perspective
-      const score1 = safeNum(r['Score 1'] || r['Score1'] || r['Pts 1'] || r['Pts1']);
-      const score2 = safeNum(r['Score 2'] || r['Score2'] || r['Pts 2'] || r['Pts2']);
-      const winner = (r['Winner'] || r['winner'] || '').trim();
-      const phase = (r['Phase'] || r['Round Phase'] || r['phase'] || '').trim();
-      const roundNum = safeInt(r['Round'] || r['round']) || i + 1;
-      return { round: roundNum, phase, fighter1, fighter2, score1, score2, winner };
+    const firstRow = matchRows[0];
+    const date = firstRow['Date of Fight'] || '';
+
+    // Get the two teams in this match
+    const teamsInMatch = Array.from(new Set(matchRows.map((r) => r['Team']).filter(Boolean)));
+    if (teamsInMatch.length < 2) return;
+    const team1 = teamsInMatch[0];
+    const team2 = teamsInMatch[1];
+
+    // Group rows by Round ID to build box score
+    const roundGroups: Map<string, Record<string, string>[]> = new Map();
+    matchRows.forEach((row) => {
+      const roundId = (row['Round ID'] || row['Round Num'] || '').trim();
+      if (!roundGroups.has(roundId)) roundGroups.set(roundId, []);
+      roundGroups.get(roundId)!.push(row);
     });
 
-    // Calculate team totals for this match
-    let pf1 = 0, pf2 = 0, wins1 = 0, wins2 = 0;
-    boxScore.forEach((b) => {
-      pf1 += b.score1;
-      pf2 += b.score2;
-      if (b.winner === team1 || b.winner === b.fighter1) wins1++;
-      else if (b.winner === team2 || b.winner === b.fighter2) wins2++;
-    });
+    const boxScore: BoxScoreRound[] = [];
+    let wins1 = 0;
+    let wins2 = 0;
 
-    const result1: 'W' | 'L' | 'D' = wins1 > wins2 ? 'W' : wins1 < wins2 ? 'L' : 'D';
-    const result2: 'W' | 'L' | 'D' = wins2 > wins1 ? 'W' : wins2 < wins1 ? 'L' : 'D';
+    roundGroups.forEach((roundRows) => {
+      // Find the row for each team in this round
+      const f1Row = roundRows.find((r) => r['Team'] === team1);
+      const f2Row = roundRows.find((r) => r['Team'] === team2);
+      if (!f1Row || !f2Row) return;
 
-    // Add to team match history
-    const addTeamMatch = (team: string, opponent: string, result: 'W' | 'L' | 'D', pf: number, pa: number) => {
-      if (!teamMatches[team]) teamMatches[team] = [];
-      teamMatches[team].push({ date, opponent, result, pf, pa, boxScore, matchIndex: idx });
-    };
-    if (team1) addTeamMatch(team1, team2, result1, pf1, pf2);
-    if (team2) addTeamMatch(team2, team1, result2, pf2, pf1);
+      const fighter1 = (f1Row['Fighter Name'] || '').trim();
+      const fighter2 = (f2Row['Fighter Name'] || '').trim();
+      const phase = (f1Row['Round Phase'] || '').trim();
+      const roundNum = safeInt(f1Row['Round Num']) || safeInt(f1Row['Round ID']);
+      const weightClass = (f1Row['Weight Class'] || '').trim();
+      const gender = (f1Row['Gender'] || '').trim();
 
-    // Build fighter histories from this match
-    matchRows.forEach((r) => {
-      const fighter1 = (r['Fighter 1'] || r['Fighter1'] || '').trim();
-      const fighter2 = (r['Fighter 2'] || r['Fighter2'] || '').trim();
-      const winner = (r['Winner'] || r['winner'] || '').trim();
-      const round = (r['Round'] || r['round'] || '').toString().trim();
-      const phase = (r['Phase'] || r['Round Phase'] || r['phase'] || '').trim();
-      const netPts = safeNum(r['Net Pts'] || r['NetPts'] || r['net_pts']);
-      const weightClass = (r['Weight Class'] || r['WeightClass'] || '').trim();
-      const gender = (r['Gender'] || r['gender'] || '').trim();
+      // Result: "W - Decision", "L - Decision", "W - Unanimous", etc.
+      const result1Raw = (f1Row['Result'] || '').trim().toUpperCase();
+      const isWin1 = result1Raw.startsWith('W');
+      const isLoss1 = result1Raw.startsWith('L');
 
-      const addFighterHistory = (
+      // Try to get individual points scored
+      const pts1 = safeNum(f1Row['Points'] || f1Row['Net Points'] || f1Row['Score'] || f1Row['Pts'] || f1Row['Points Scored']);
+      const pts2 = safeNum(f2Row['Points'] || f2Row['Net Points'] || f2Row['Score'] || f2Row['Pts'] || f2Row['Points Scored']);
+
+      const winner = isWin1 ? fighter1 : isLoss1 ? fighter2 : '';
+      if (isWin1) wins1++;
+      else if (isLoss1) wins2++;
+
+      boxScore.push({ round: roundNum, phase, fighter1, fighter2, score1: pts1, score2: pts2, winner });
+
+      // Add to fighter history
+      const r1: 'W' | 'L' | 'D' = isWin1 ? 'W' : isLoss1 ? 'L' : 'D';
+      const r2: 'W' | 'L' | 'D' = isWin1 ? 'L' : isLoss1 ? 'W' : 'D';
+
+      const addHistory = (
         fighter: string,
         opponent: string,
-        opponentTeam: string,
+        oppTeam: string,
         result: 'W' | 'L' | 'D',
-        pts: number
+        netPts: number
       ) => {
         if (!fighter) return;
         const slug = toSlug(fighter);
@@ -202,29 +270,41 @@ function parseMatchData(rows: Record<string, string>[]): {
         fighterHistory[slug].push({
           date,
           opponent,
-          opponentTeam,
+          opponentTeam: oppTeam,
           weightClass,
           gender,
-          round,
+          round: String(roundNum),
           roundPhase: phase,
           result,
-          netPts: pts,
-          matchIndex: idx,
+          netPts,
+          matchIndex: safeInt(matchId),
         });
       };
 
-      // Determine individual bout result
-      let r1: 'W' | 'L' | 'D' = 'D';
-      let r2: 'W' | 'L' | 'D' = 'D';
-      if (winner === fighter1 || winner === team1) { r1 = 'W'; r2 = 'L'; }
-      else if (winner === fighter2 || winner === team2) { r1 = 'L'; r2 = 'W'; }
-
-      if (fighter1) addFighterHistory(fighter1, fighter2, team2, r1, netPts);
-      if (fighter2) addFighterHistory(fighter2, fighter1, team1, r2, -netPts);
+      addHistory(fighter1, fighter2, team2, r1, pts1 - pts2);
+      addHistory(fighter2, fighter1, team1, r2, pts2 - pts1);
     });
+
+    boxScore.sort((a, b) => a.round - b.round);
+
+    const pf1 = boxScore.reduce((s, r) => s + r.score1, 0);
+    const pf2 = boxScore.reduce((s, r) => s + r.score2, 0);
+    const result1: 'W' | 'L' | 'D' = wins1 > wins2 ? 'W' : wins1 < wins2 ? 'L' : 'D';
+    const result2: 'W' | 'L' | 'D' = wins2 > wins1 ? 'W' : wins2 < wins1 ? 'L' : 'D';
+
+    const addTeamMatch = (team: string, opp: string, result: 'W' | 'L' | 'D', pf: number, pa: number) => {
+      if (!teamMatches[team]) teamMatches[team] = [];
+      const exists = teamMatches[team].some((m) => m.date === date && m.opponent === opp);
+      if (!exists) {
+        teamMatches[team].push({ date, opponent: opp, result, pf, pa, boxScore, matchIndex: safeInt(matchId) });
+      }
+    };
+
+    addTeamMatch(team1, team2, result1, pf1, pf2);
+    addTeamMatch(team2, team1, result2, pf2, pf1);
   });
 
-  // Sort all histories by date desc
+  // Sort by date desc
   Object.keys(fighterHistory).forEach((slug) => {
     fighterHistory[slug].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   });
@@ -232,12 +312,10 @@ function parseMatchData(rows: Record<string, string>[]): {
     teamMatches[team].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   });
 
-  const lastUpdated = new Date().toISOString();
-  return { teamMatches, fighterHistory, lastUpdated };
+  return { teamMatches, fighterHistory };
 }
 
 // ─── Streak Calculators ────────────────────────────────────────────────────────
-// Fighter streak: round-based (each bout row = 1 round)
 export function calcFighterStreak(history: FightHistory[]): string {
   if (!history.length) return '';
   const sorted = [...history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -250,7 +328,6 @@ export function calcFighterStreak(history: FightHistory[]): string {
   return `${first}${count}`;
 }
 
-// Team streak: match-based
 export function calcTeamStreak(matches: TeamMatch[]): string {
   if (!matches.length) return '';
   const sorted = [...matches].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -264,33 +341,25 @@ export function calcTeamStreak(matches: TeamMatch[]): string {
 }
 
 // ─── Main export ───────────────────────────────────────────────────────────────
-let cache: ParsedSheetData | null = null;
-let cacheTime = 0;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
 export async function getAllData(): Promise<ParsedSheetData> {
-  const now = Date.now();
-  if (cache && now - cacheTime < CACHE_TTL) return cache;
-
-  const [fighterRows, teamRows, matchRows] = await Promise.all([
-    fetchCSV(SHEETS.fighters),
-    fetchCSV(SHEETS.teams),
-    fetchCSV(SHEETS.matches),
+  const [fighterRawRows, teamRawRows, matchRawRows] = await Promise.all([
+    fetchRawCSV(SHEETS.fighters),
+    fetchRawCSV(SHEETS.teams),
+    fetchRawCSV(SHEETS.matches),
   ]);
 
-  const fighters = parseFighters(fighterRows);
-  const teams = parseTeams(teamRows);
-  const { teamMatches, fighterHistory, lastUpdated } = parseMatchData(matchRows);
+  const { fighters, lastUpdated } = parseFighters(fighterRawRows);
+  const teams = parseTeams(teamRawRows);
+  const { teamMatches, fighterHistory } = parseMatchData(matchRawRows);
 
-  // Enrich teams with match-based streak (from Data tab)
+  // Enrich teams with streak from match data if not in sheet
   teams.forEach((t) => {
-    const matches = teamMatches[t.team] || [];
-    if (!t.streak) t.streak = calcTeamStreak(matches);
+    if (!t.streak) {
+      t.streak = calcTeamStreak(teamMatches[t.team] || []);
+    }
   });
 
-  cache = { fighters, teams, teamMatches, fighterHistory, lastUpdated };
-  cacheTime = now;
-  return cache;
+  return { fighters, teams, teamMatches, fighterHistory, lastUpdated };
 }
 
 export async function getFighterBySlug(slug: string) {
