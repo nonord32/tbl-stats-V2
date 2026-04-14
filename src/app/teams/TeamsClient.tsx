@@ -12,6 +12,7 @@ interface Props {
   teams: TeamStanding[];
   teamMatches: Record<string, TeamMatch[]>;
   lastUpdated: string;
+  seoText?: string;
 }
 
 function StreakBadge({ streak }: { streak: string }) {
@@ -131,7 +132,7 @@ function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; s
   return <span style={{ marginLeft: 3 }}>{sortDir === 'desc' ? '↓' : '↑'}</span>;
 }
 
-export function TeamsClient({ teams, teamMatches, lastUpdated }: Props) {
+export function TeamsClient({ teams, teamMatches, lastUpdated, seoText }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>('record');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [modalTeam, setModalTeam] = useState<TeamStanding | null>(null);
@@ -171,6 +172,7 @@ export function TeamsClient({ teams, teamMatches, lastUpdated }: Props) {
           <h1>Team Standings</h1>
           <div className="subtitle">Team Rankings · 2026 TBL Season</div>
         </div>
+        {seoText && <p className="page-intro">{seoText}</p>}
 
         <div className="card">
           <div className="card-header">

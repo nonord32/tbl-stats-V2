@@ -258,7 +258,10 @@ function parseMatchData(rows: string[][]): {
       const fighter1 = (f1Row['Fighter Name'] || '').trim();
       const fighter2 = (f2Row['Fighter Name'] || '').trim();
       const phase = (f1Row['Round Phase'] || '').trim();
-      const roundNum = safeInt(f1Row['Round Num']);
+      const roundNum = safeInt(
+        f1Row['Round Num'] || f1Row['Round #'] || f1Row['Round Number'] ||
+        f1Row['Rnd'] || f1Row['Round'] || f1Row['Bout'] || f1Row['Bout #']
+      );
       const weightClass = (f1Row['Weight Class'] || '').trim();
       const gender = (f1Row['Gender'] || '').trim();
 

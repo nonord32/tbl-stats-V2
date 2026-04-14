@@ -12,6 +12,7 @@ interface Props {
   fighters: FighterStat[];
   fighterHistory: Record<string, FightHistory[]>;
   lastUpdated: string;
+  seoText?: string;
 }
 
 function StreakBadge({ streak }: { streak: string }) {
@@ -142,7 +143,7 @@ function FighterModal({
   );
 }
 
-export function FightersClient({ fighters, fighterHistory, lastUpdated }: Props) {
+export function FightersClient({ fighters, fighterHistory, lastUpdated, seoText }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>('war');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [weightFilter, setWeightFilter] = useState('');
@@ -223,6 +224,7 @@ export function FightersClient({ fighters, fighterHistory, lastUpdated }: Props)
           <h1>Fighter Stats</h1>
           <div className="subtitle">Individual Rankings · 2026 TBL Season</div>
         </div>
+        {seoText && <p className="page-intro">{seoText}</p>}
 
         <div className="card">
           <div className="card-header">

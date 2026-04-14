@@ -205,6 +205,9 @@ export function ResultsClient({ matches }: Props) {
           <h1>Results</h1>
           <div className="subtitle">All Matches · 2026 TBL Season</div>
         </div>
+        <p className="page-intro">
+          All Team Boxing League match results for the 2026 season, grouped by date. Click any match to view the full round-by-round box score.
+        </p>
 
         {matches.length === 0 ? (
           <div className="card">

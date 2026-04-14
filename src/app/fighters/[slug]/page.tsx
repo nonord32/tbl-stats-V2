@@ -47,6 +47,12 @@ export default async function FighterPage({ params }: { params: { slug: string }
           <span style={{ color: 'var(--text)' }}>{fighter.name}</span>
         </div>
 
+        {/* SEO intro */}
+        <p className="page-intro">
+          {fighter.name} is a {fighter.weightClass} fighter competing for the {fighter.team} in Team Boxing League.
+          View their stats, performance, and results from the current season.
+        </p>
+
         {/* Hero card */}
         <div className="card fighter-hero" style={{ marginBottom: 24 }}>
           <LogoImage

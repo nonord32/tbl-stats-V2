@@ -163,6 +163,12 @@ export default async function TeamPage({ params }: { params: { slug: string } })
           <span style={{ color: 'var(--text)' }}>{team.team}</span>
         </div>
 
+        {/* SEO intro */}
+        <p className="page-intro">
+          The {team.team} are a Team Boxing League team with a {team.record} record this season.
+          View their recent match results and overall performance throughout the season.
+        </p>
+
         {/* Hero */}
         <div className="card team-hero" style={{ marginBottom: 24 }}>
           <LogoImage

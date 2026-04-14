@@ -49,8 +49,8 @@ export default async function HomePage() {
             <span>Team Boxing League</span>
           </h1>
           <p>
-            Fighter rankings, WAR, NPPR, team standings, and full fight history for
-            every round of the 2026 TBL season.
+            TBL Stats provides real-time statistics, standings, and results for Team Boxing League.
+            Explore fighter performance, team results, and match outcomes throughout the season.
           </p>
           <div className="home-hero-btns">
             <Link href="/fighters" className="btn btn-primary">
