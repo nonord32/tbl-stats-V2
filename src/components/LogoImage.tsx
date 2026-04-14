@@ -1,6 +1,4 @@
 'use client';
-// src/components/LogoImage.tsx
-// Client component wrapper for logo images so onError works in server pages
 
 import { useState } from 'react';
 
@@ -15,7 +13,6 @@ export function LogoImage({ src, alt, className, style }: LogoImageProps) {
   const [hidden, setHidden] = useState(false);
   if (hidden) return null;
   return (
-    // eslint-disable-next-line @next/next/no-img-element
     <img
       src={src}
       alt={alt}
