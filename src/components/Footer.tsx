@@ -7,15 +7,17 @@ export function Footer() {
       <div className="container">
         <p>
           &copy; {new Date().getFullYear()}{' '}
-          <a href="https://teamboxingleague.com" target="_blank" rel="noopener noreferrer">
+          <a href="https://www.teamboxingleague.com/" target="_blank" rel="noopener noreferrer">
             Team Boxing League
           </a>
           {' '}·{' '}
-          <a href="https://instagram.com/teamboxingleague" target="_blank" rel="noopener noreferrer">
-            @teamboxingleague
+          <a href="https://www.instagram.com/teamboxingleague/" target="_blank" rel="noopener noreferrer">
+            Instagram
           </a>
           {' '}·{' '}
-          <Link href="/">TBLStats.com</Link>
+          <a href="https://www.youtube.com/@teamboxingleague" target="_blank" rel="noopener noreferrer">
+            YouTube
+          </a>
         </p>
       </div>
     </footer>

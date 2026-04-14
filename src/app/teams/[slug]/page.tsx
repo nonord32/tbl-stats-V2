@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getAllData, getTeamBySlug, calcTeamStreak } from '@/lib/data';
+import { LogoImage } from '@/components/LogoImage';
 import type { TeamMatch, BoxScoreRound } from '@/types';
 
 export const revalidate = 300;
@@ -164,12 +165,10 @@ export default async function TeamPage({ params }: { params: { slug: string } })
 
         {/* Hero */}
         <div className="card team-hero" style={{ marginBottom: 24 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <LogoImage
             src={`/logos/${teamLogoSlug}.png`}
             alt={team.team}
             className="team-hero-logo"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
           <div>
             <h1>{team.team}</h1>
