@@ -127,7 +127,7 @@ export function TeamsClient({ teams, teamMatches, lastUpdated }: Props) {
   const sorted = useMemo(() => {
     return [...teams].sort((a, b) => {
       switch (sortKey) {
-        case 'record': return b.wins - a.wins || b.diff - a.diff;
+        case 'record': return b.wins - a.wins || a.losses - b.losses || b.diff - a.diff;
         case 'pf':     return b.pf - a.pf;
         case 'pa':     return a.pa - b.pa; // lower PA = better
         case 'diff':   return b.diff - a.diff;

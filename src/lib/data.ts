@@ -216,7 +216,8 @@ function parseMatchData(rows: string[][]): {
     // Group rows by Round ID to build box score
     const roundGroups: Map<string, Record<string, string>[]> = new Map();
     matchRows.forEach((row) => {
-      const roundId = (row['Round ID'] || row['Round Num'] || '').trim();
+      // Group by Round ID (unique per bout) but display Round Num
+      const roundId = (row['Round ID'] || '').trim();
       if (!roundGroups.has(roundId)) roundGroups.set(roundId, []);
       roundGroups.get(roundId)!.push(row);
     });
@@ -234,7 +235,7 @@ function parseMatchData(rows: string[][]): {
       const fighter1 = (f1Row['Fighter Name'] || '').trim();
       const fighter2 = (f2Row['Fighter Name'] || '').trim();
       const phase = (f1Row['Round Phase'] || '').trim();
-      const roundNum = safeInt(f1Row['Round Num']) || safeInt(f1Row['Round ID']);
+      const roundNum = safeInt(f1Row['Round Num']);
       const weightClass = (f1Row['Weight Class'] || '').trim();
       const gender = (f1Row['Gender'] || '').trim();
 
