@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getAllData, getFighterBySlug, calcFighterStreak } from '@/lib/data';
+import { LogoImage } from '@/components/LogoImage';
 import type { FightHistory } from '@/types';
 
 export const revalidate = 300;
@@ -48,12 +49,10 @@ export default async function FighterPage({ params }: { params: { slug: string }
 
         {/* Hero card */}
         <div className="card fighter-hero" style={{ marginBottom: 24 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <LogoImage
             src={`/logos/${fighter.team.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}.png`}
             alt={fighter.team}
             className="fighter-hero-logo"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
           <div className="fighter-hero-info">
             <h1>{fighter.name}</h1>

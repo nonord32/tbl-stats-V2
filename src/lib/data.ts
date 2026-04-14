@@ -125,7 +125,7 @@ function parseFighters(rows: string[][]): { fighters: FighterStat[]; lastUpdated
         nppr: safeNum(r['NPPR']),
         netPts: safeNum(r['Total Net Points']),
         winPct,
-        rounds: safeInt(r['Rounds'] || r['Round'] || r['Total Rounds'] || r['Rounds Fought'] || r['# Rounds'] || r['Num Rounds']),
+        rounds: safeInt(r['Rounds Fought'] || r['Rounds'] || r['Round'] || r['Total Rounds'] || r['# Rounds'] || r['Num Rounds']),
         slug: toSlug(name),
       } satisfies FighterStat;
     })
