@@ -155,7 +155,18 @@ img { max-width: 100%; height: auto; }
   text-decoration: none;
 }
 .nav-link.active { color: var(--accent); }
-.nav-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.nav-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+.nav-social-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.6);
+  line-height: 0;
+  transition: color 0.15s;
+  padding: 2px;
+}
+.nav-social-link:hover { color: #fff; }
 
 .theme-toggle {
   background: rgba(255,255,255,0.08);

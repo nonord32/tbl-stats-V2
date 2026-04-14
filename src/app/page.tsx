@@ -92,14 +92,6 @@ export default async function HomePage() {
             >
               TBL Official Site ↗
             </a>
-            <a
-              href="https://www.youtube.com/@teamboxingleague"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-outline"
-            >
-              YouTube ↗
-            </a>
           </div>
         </div>
       </section>
