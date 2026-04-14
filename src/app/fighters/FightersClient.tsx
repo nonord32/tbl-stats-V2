@@ -134,11 +134,11 @@ export function FightersClient({ fighters, fighterHistory, lastUpdated }: Props)
 
   // Unique filter options
   const weightClasses = useMemo(
-    () => [...new Set(fighters.map((f) => f.weightClass).filter(Boolean))].sort(),
+    () => Array.from(new Set(fighters.map((f) => f.weightClass).filter(Boolean))).sort(),
     [fighters]
   );
   const teams = useMemo(
-    () => [...new Set(fighters.map((f) => f.team).filter(Boolean))].sort(),
+    () => Array.from(new Set(fighters.map((f) => f.team).filter(Boolean))).sort(),
     [fighters]
   );
 
