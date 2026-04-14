@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getAllData, getTeamBySlug, calcTeamStreak } from '@/lib/data';
+import { getTeamColor, getTeamLogoPath } from '@/lib/teams';
 import { LogoImage } from '@/components/LogoImage';
 import type { TeamMatch, BoxScoreRound } from '@/types';
 
@@ -142,7 +143,8 @@ export default async function TeamPage({ params }: { params: { slug: string } })
   const streak = team.streak || calcTeamStreak(matches);
   const isWStreak = streak.startsWith('W');
 
-  const teamLogoSlug = team.slug;
+  const teamColor = getTeamColor(team.slug);
+  const teamLogoPath = getTeamLogoPath(team.slug);
 
   return (
     <div className="page">
@@ -170,9 +172,15 @@ export default async function TeamPage({ params }: { params: { slug: string } })
         </p>
 
         {/* Hero */}
-        <div className="card team-hero" style={{ marginBottom: 24 }}>
+        <div
+          className="card team-hero"
+          style={{
+            marginBottom: 24,
+            borderTop: teamColor ? `4px solid ${teamColor}` : undefined,
+          }}
+        >
           <LogoImage
-            src={`/logos/${teamLogoSlug}.png`}
+            src={teamLogoPath}
             alt={team.team}
             className="team-hero-logo"
           />

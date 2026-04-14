@@ -5,13 +5,13 @@ import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import type { TeamStanding, TeamMatch } from '@/types';
 import { calcTeamStreak } from '@/lib/data';
+import { getTeamColor, getTeamLogoPath } from '@/lib/teams';
 
 type SortKey = 'record' | 'pf' | 'pa' | 'diff' | 'streak';
 
 interface Props {
   teams: TeamStanding[];
   teamMatches: Record<string, TeamMatch[]>;
-  lastUpdated: string;
   seoText?: string;
 }
 
@@ -132,7 +132,7 @@ function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; s
   return <span style={{ marginLeft: 3 }}>{sortDir === 'desc' ? '↓' : '↑'}</span>;
 }
 
-export function TeamsClient({ teams, teamMatches, lastUpdated, seoText }: Props) {
+export function TeamsClient({ teams, teamMatches, seoText }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>('record');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [modalTeam, setModalTeam] = useState<TeamStanding | null>(null);
@@ -160,11 +160,6 @@ export function TeamsClient({ teams, teamMatches, lastUpdated, seoText }: Props)
     return [...teams].sort((a, b) => sortDir === 'desc' ? base(a, b) : -base(a, b));
   }, [teams, sortKey, sortDir]);
 
-  const updatedStr = new Date(lastUpdated).toLocaleString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-    hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
-  });
-
   return (
     <div className="page">
       <div className="container">
@@ -175,9 +170,6 @@ export function TeamsClient({ teams, teamMatches, lastUpdated, seoText }: Props)
         {seoText && <p className="page-intro">{seoText}</p>}
 
         <div className="card">
-          <div className="card-header">
-            <span className="last-updated">Updated: {updatedStr}</span>
-          </div>
 
           {/* Stat key */}
           <div style={{ padding: '8px 20px', display: 'flex', gap: 16, flexWrap: 'wrap', borderBottom: '1px solid var(--border)', background: 'var(--bg-table-alt)' }}>
@@ -226,9 +218,20 @@ export function TeamsClient({ teams, teamMatches, lastUpdated, seoText }: Props)
                       <td className="rank-cell">{i + 1}</td>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          {/* Color accent stripe */}
+                          {getTeamColor(t.slug) && (
+                            <span style={{
+                              display: 'inline-block',
+                              width: 3,
+                              height: 22,
+                              borderRadius: 2,
+                              background: getTeamColor(t.slug),
+                              flexShrink: 0,
+                            }} />
+                          )}
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
-                            src={`/logos/${t.slug}.png`}
+                            src={getTeamLogoPath(t.slug)}
                             alt={t.team}
                             style={{ width: 24, height: 24, objectFit: 'contain', flexShrink: 0 }}
                             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}

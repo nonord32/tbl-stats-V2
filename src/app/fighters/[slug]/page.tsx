@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getAllData, getFighterBySlug, calcFighterStreak } from '@/lib/data';
+import { getTeamLogoPath, getTeamColor } from '@/lib/teams';
 import { LogoImage } from '@/components/LogoImage';
 import type { FightHistory } from '@/types';
 
@@ -34,6 +35,8 @@ export default async function FighterPage({ params }: { params: { slug: string }
   const { fighter, history, streak, fullTeamName } = result;
 
   const isWStreak = streak.startsWith('W');
+  const teamSlug = fighter.team.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  const teamColor = getTeamColor(teamSlug);
 
   return (
     <div className="page">
@@ -54,9 +57,12 @@ export default async function FighterPage({ params }: { params: { slug: string }
         </p>
 
         {/* Hero card */}
-        <div className="card fighter-hero" style={{ marginBottom: 24 }}>
+        <div
+          className="card fighter-hero"
+          style={{ marginBottom: 24, borderTop: teamColor ? `4px solid ${teamColor}` : undefined }}
+        >
           <LogoImage
-            src={`/logos/${fighter.team.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}.png`}
+            src={getTeamLogoPath(teamSlug)}
             alt={fighter.team}
             className="fighter-hero-logo"
           />
@@ -98,7 +104,7 @@ export default async function FighterPage({ params }: { params: { slug: string }
         <div className="card" style={{ marginBottom: 24 }}>
           <div className="card-header">
             <span className="card-title">Career Stats</span>
-            <span className="last-updated">2026 TBL Season</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>2026 TBL Season</span>
           </div>
           <div className="stat-grid">
             <div className="stat-box">

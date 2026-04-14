@@ -11,7 +11,6 @@ type SortKey = 'war' | 'nppr' | 'netPts' | 'winPct' | 'rounds' | 'record' | 'nam
 interface Props {
   fighters: FighterStat[];
   fighterHistory: Record<string, FightHistory[]>;
-  lastUpdated: string;
   seoText?: string;
 }
 
@@ -143,9 +142,10 @@ function FighterModal({
   );
 }
 
-export function FightersClient({ fighters, fighterHistory, lastUpdated, seoText }: Props) {
+export function FightersClient({ fighters, fighterHistory, seoText }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>('war');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [search, setSearch] = useState('');
   const [weightFilter, setWeightFilter] = useState('');
   const [teamFilter, setTeamFilter] = useState('');
   const [genderFilter, setGenderFilter] = useState('');
@@ -173,13 +173,15 @@ export function FightersClient({ fighters, fighterHistory, lastUpdated, seoText 
   );
 
   const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
     return fighters.filter((f) => {
+      if (q && !f.name.toLowerCase().includes(q)) return false;
       if (weightFilter && f.weightClass !== weightFilter) return false;
       if (teamFilter && f.team !== teamFilter) return false;
       if (genderFilter && f.gender !== genderFilter) return false;
       return true;
     });
-  }, [fighters, weightFilter, teamFilter, genderFilter]);
+  }, [fighters, search, weightFilter, teamFilter, genderFilter]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -212,11 +214,6 @@ export function FightersClient({ fighters, fighterHistory, lastUpdated, seoText 
     </th>
   );
 
-  const updatedStr = new Date(lastUpdated).toLocaleString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-    hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
-  });
-
   return (
     <div className="page">
       <div className="container">
@@ -229,6 +226,14 @@ export function FightersClient({ fighters, fighterHistory, lastUpdated, seoText 
         <div className="card">
           <div className="card-header">
             <div className="filters">
+              <input
+                type="search"
+                className="filter-search"
+                placeholder="Search fighters…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                aria-label="Search fighters by name"
+              />
               <select className="filter-select" value={weightFilter} onChange={(e) => setWeightFilter(e.target.value)}>
                 <option value="">All weights</option>
                 {weightClasses.map((w) => <option key={w} value={w}>{w}</option>)}
@@ -243,7 +248,6 @@ export function FightersClient({ fighters, fighterHistory, lastUpdated, seoText 
                 <option value="Female">Female</option>
               </select>
             </div>
-            <div className="last-updated">Updated: {updatedStr}</div>
           </div>
 
           <div style={{ padding: '8px 20px', display: 'flex', gap: 16, flexWrap: 'wrap', borderBottom: '1px solid var(--border)', background: 'var(--bg-table-alt)' }}>

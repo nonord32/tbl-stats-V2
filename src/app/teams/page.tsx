@@ -18,7 +18,6 @@ export default async function TeamsPage() {
     <TeamsClient
       teams={data.teams}
       teamMatches={data.teamMatches}
-      lastUpdated={data.lastUpdated}
       seoText="Team Boxing League standings based on match results and performance across the season. Sorted by wins, with Points For, Points Against, and point differential."
     />
   );

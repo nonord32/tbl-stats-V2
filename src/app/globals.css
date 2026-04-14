@@ -297,6 +297,22 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
 }
 .fighter-name-btn:hover { text-decoration: underline; opacity: 0.85; }
 
+/* Fighter search input */
+.filter-search {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  min-width: 160px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.filter-search:focus { border-color: var(--accent); }
+.filter-search::placeholder { color: var(--text-muted); opacity: 0.7; }
+
 /* SEO intro text */
 .page-intro {
   font-size: 13px;

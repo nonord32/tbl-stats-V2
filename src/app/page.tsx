@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function HomePage() {
   const data = await getAllData();
-  const { fighters, teams, lastUpdated } = data;
+  const { fighters, teams } = data;
 
   const topFighters = [...fighters]
     .sort((a, b) => b.war - a.war)
@@ -23,15 +23,6 @@ export default async function HomePage() {
   const topTeams = [...teams]
     .sort((a, b) => b.wins - a.wins || b.diff - a.diff)
     .slice(0, 5);
-
-  const updatedStr = new Date(lastUpdated).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZoneName: 'short',
-  });
 
   return (
     <>
@@ -68,9 +59,6 @@ export default async function HomePage() {
               TBL Official Site ↗
             </a>
           </div>
-          <p style={{ marginTop: 20, fontSize: 11, opacity: 0.45, fontFamily: 'IBM Plex Mono, monospace', letterSpacing: '0.05em' }}>
-            Last updated: {updatedStr}
-          </p>
         </div>
       </section>
 
