@@ -8,6 +8,7 @@ import type {
   TeamMatch,
   FightHistory,
   BoxScoreRound,
+  MatchResult,
   ParsedSheetData,
 } from '@/types';
 
@@ -363,6 +364,39 @@ export function calcTeamStreak(matches: TeamMatch[]): string {
     else break;
   }
   return `${first}${count}`;
+}
+
+// ─── Results extractor ────────────────────────────────────────────────────────
+// Deduplicate teamMatches (each match is stored once per team) into a flat
+// list of unique match results, sorted by date descending.
+export function extractUniqueMatches(teamMatches: Record<string, TeamMatch[]>): MatchResult[] {
+  const seen = new Set<number>();
+  const results: MatchResult[] = [];
+
+  Object.entries(teamMatches).forEach(([team, matches]) => {
+    matches.forEach((match) => {
+      if (seen.has(match.matchIndex)) return;
+      seen.add(match.matchIndex);
+
+      const wins1 = match.boxScore.filter((r) => r.winner === r.fighter1).length;
+      const wins2 = match.boxScore.filter((r) => r.winner === r.fighter2).length;
+
+      results.push({
+        matchIndex: match.matchIndex,
+        date: match.date,
+        team1: team,
+        team2: match.opponent,
+        score1: match.pf,
+        score2: match.pa,
+        wins1,
+        wins2,
+        result: match.result,
+        boxScore: match.boxScore,
+      });
+    });
+  });
+
+  return results.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 // ─── Main export ───────────────────────────────────────────────────────────────

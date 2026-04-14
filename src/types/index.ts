@@ -76,6 +76,19 @@ export interface TeamMatch {
   matchIndex: number;
 }
 
+export interface MatchResult {
+  matchIndex: number;
+  date: string;
+  team1: string;
+  team2: string;
+  score1: number;
+  score2: number;
+  wins1: number;
+  wins2: number;
+  result: 'W' | 'L' | 'D'; // from team1's perspective
+  boxScore: BoxScoreRound[];
+}
+
 export interface ParsedSheetData {
   fighters: FighterStat[];
   teams: TeamStanding[];

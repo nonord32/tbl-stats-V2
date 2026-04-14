@@ -42,6 +42,12 @@ export function Nav() {
           >
             Team Standings
           </Link>
+          <Link
+            href="/results"
+            className={`nav-link ${isActive('/results') ? 'active' : ''}`}
+          >
+            Results
+          </Link>
         </div>
 
         <div className="nav-actions">
