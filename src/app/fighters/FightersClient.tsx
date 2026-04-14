@@ -38,7 +38,26 @@ function FighterModal({
       <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         <div className="modal-header">
           <div>
-            <div className="modal-title">{fighter.name}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div className="modal-title">{fighter.name}</div>
+              {fighter.instagram && (
+                <a
+                  href={fighter.instagram}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${fighter.name} on Instagram`}
+                  title="Instagram"
+                  style={{ color: 'var(--text-muted)', lineHeight: 0, flexShrink: 0 }}
+                  className="ig-link"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                    <circle cx="12" cy="12" r="4"/>
+                    <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
+                  </svg>
+                </a>
+              )}
+            </div>
             <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
               <span className="badge">{fighter.team}</span>
               <span className="badge">{fighter.weightClass}</span>

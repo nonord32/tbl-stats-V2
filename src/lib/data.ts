@@ -74,8 +74,26 @@ function toObjects(rows: string[][], headerRowIndex: number): Record<string, str
 //   Row 1: Title ("Team Boxing League – Fighter Rankings")
 //   Row 2: "Last Updated: 4/13/2026"
 //   Rows 3-6: Description text
-//   Row 7: Headers → Rank | Fighter | Team | Gender | Weight | Fighter WAR | NPPR | Total Net Points | Record | Win % | Rounds
+//   Row 7: Headers → Rank | Fighter | Team | Gender | Weight | Fighter WAR | NPPR | Total Net Points | Record | Win % | Rounds | Instagram
 //   Row 8+: Data
+
+function cleanInstagramUrl(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  try {
+    // Accept bare usernames like "@username" or "username"
+    if (!trimmed.startsWith('http')) {
+      const username = trimmed.replace(/^@/, '');
+      return `https://www.instagram.com/${username}/`;
+    }
+    const url = new URL(trimmed);
+    // Keep only origin + pathname, strip query/hash
+    const clean = url.origin + url.pathname.replace(/\/?$/, '/');
+    return clean;
+  } catch {
+    return '';
+  }
+}
 function parseFighters(rows: string[][]): { fighters: FighterStat[]; lastUpdated: string } {
   // Extract Last Updated from row 2 (index 1)
   let lastUpdated = new Date().toISOString();
@@ -113,6 +131,9 @@ function parseFighters(rows: string[][]): { fighters: FighterStat[]; lastUpdated
       const winPctRaw = safeNum(r['Win %'] || r['Win%'] || '0');
       const winPct = winPctRaw > 1 ? winPctRaw / 100 : winPctRaw;
 
+      const instagramRaw = r['Instagram'] || r['Instagram URL'] || r['IG'] || r['Instagram Handle'] || '';
+      const instagram = cleanInstagramUrl(instagramRaw) || undefined;
+
       return {
         name,
         team: (r['Team'] || '').trim(),
@@ -127,6 +148,7 @@ function parseFighters(rows: string[][]): { fighters: FighterStat[]; lastUpdated
         winPct,
         rounds: safeInt(r['Rounds Fought'] || r['Rounds'] || r['Round'] || r['Total Rounds'] || r['# Rounds'] || r['Num Rounds']),
         slug: toSlug(name),
+        instagram,
       } satisfies FighterStat;
     })
     .filter((f) => f.name !== '');

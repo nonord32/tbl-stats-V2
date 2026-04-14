@@ -14,6 +14,7 @@ export interface FighterStat {
   winPct: number;
   rounds: number;
   slug: string;
+  instagram?: string;
 }
 
 export interface MatchRow {

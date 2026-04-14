@@ -55,7 +55,26 @@ export default async function FighterPage({ params }: { params: { slug: string }
             className="fighter-hero-logo"
           />
           <div className="fighter-hero-info">
-            <h1>{fighter.name}</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <h1 style={{ margin: 0 }}>{fighter.name}</h1>
+              {fighter.instagram && (
+                <a
+                  href={fighter.instagram}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`${fighter.name} on Instagram`}
+                  title="Instagram"
+                  style={{ color: 'var(--text-muted)', lineHeight: 0, flexShrink: 0 }}
+                  className="ig-link"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                    <circle cx="12" cy="12" r="4"/>
+                    <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
+                  </svg>
+                </a>
+              )}
+            </div>
             <div className="fighter-hero-meta">
               <span className="badge">{fighter.team}</span>
               <span className="badge">{fighter.weightClass}</span>

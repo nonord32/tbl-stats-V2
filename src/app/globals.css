@@ -297,6 +297,10 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
 }
 .fighter-name-btn:hover { text-decoration: underline; opacity: 0.85; }
 
+/* Instagram link */
+.ig-link { opacity: 0.55; transition: opacity 0.15s, color 0.15s; }
+.ig-link:hover { opacity: 1; color: #e1306c; }
+
 /* Result indicators */
 .result-w { color: var(--result-w); font-weight: 700; font-family: var(--font-mono); }
 .result-l { color: var(--result-l); font-weight: 700; font-family: var(--font-mono); }
