@@ -6,7 +6,7 @@ import Link from 'next/link';
 import type { TeamStanding, TeamMatch } from '@/types';
 import { calcTeamStreak } from '@/lib/data';
 
-type SortKey = 'record' | 'pf' | 'pa' | 'diff';
+type SortKey = 'record' | 'pf' | 'pa' | 'diff' | 'streak';
 
 interface Props {
   teams: TeamStanding[];
@@ -120,21 +120,44 @@ function BoxScoreModal({
   );
 }
 
+function streakVal(s: string): number {
+  if (!s) return 0;
+  const n = parseInt(s.slice(1)) || 0;
+  return s.startsWith('W') ? n : -n;
+}
+
+function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: 'asc' | 'desc' }) {
+  if (col !== sortKey) return <span style={{ opacity: 0.25, marginLeft: 3 }}>↕</span>;
+  return <span style={{ marginLeft: 3 }}>{sortDir === 'desc' ? '↓' : '↑'}</span>;
+}
+
 export function TeamsClient({ teams, teamMatches, lastUpdated }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>('record');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [modalTeam, setModalTeam] = useState<TeamStanding | null>(null);
 
+  const handleSort = (key: SortKey) => {
+    if (key === sortKey) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDir('desc');
+    }
+  };
+
   const sorted = useMemo(() => {
-    return [...teams].sort((a, b) => {
+    const base = (a: TeamStanding, b: TeamStanding): number => {
       switch (sortKey) {
         case 'record': return b.wins - a.wins || a.losses - b.losses || b.diff - a.diff;
         case 'pf':     return b.pf - a.pf;
-        case 'pa':     return a.pa - b.pa; // lower PA = better
+        case 'pa':     return a.pa - b.pa;
         case 'diff':   return b.diff - a.diff;
+        case 'streak': return streakVal(b.streak || '') - streakVal(a.streak || '');
         default:       return 0;
       }
-    });
-  }, [teams, sortKey]);
+    };
+    return [...teams].sort((a, b) => sortDir === 'desc' ? base(a, b) : -base(a, b));
+  }, [teams, sortKey, sortDir]);
 
   const updatedStr = new Date(lastUpdated).toLocaleString('en-US', {
     month: 'short', day: 'numeric', year: 'numeric',
@@ -151,20 +174,6 @@ export function TeamsClient({ teams, teamMatches, lastUpdated }: Props) {
 
         <div className="card">
           <div className="card-header">
-            <div className="sort-btns">
-              <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)', marginRight: 4 }}>
-                Sort by:
-              </span>
-              {(['record', 'pf', 'pa', 'diff'] as SortKey[]).map((k) => (
-                <button
-                  key={k}
-                  className={`sort-btn ${sortKey === k ? 'active' : ''}`}
-                  onClick={() => setSortKey(k)}
-                >
-                  {k === 'record' ? 'Record' : k.toUpperCase()}
-                </button>
-              ))}
-            </div>
             <span className="last-updated">Updated: {updatedStr}</span>
           </div>
 
@@ -187,11 +196,23 @@ export function TeamsClient({ teams, teamMatches, lastUpdated }: Props) {
                 <tr>
                   <th style={{ width: 32 }}>#</th>
                   <th>Team</th>
-                  <th className="num-cell">Record</th>
-                  <th className="num-cell">PF</th>
-                  <th className="num-cell">PA</th>
-                  <th className="num-cell">Diff</th>
-                  <th>Streak</th>
+                  {(['record', 'pf', 'pa', 'diff'] as SortKey[]).map((col) => (
+                    <th
+                      key={col}
+                      className="num-cell"
+                      onClick={() => handleSort(col)}
+                      style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+                    >
+                      {col === 'record' ? 'Record' : col.toUpperCase()}
+                      <SortIcon col={col} sortKey={sortKey} sortDir={sortDir} />
+                    </th>
+                  ))}
+                  <th
+                    onClick={() => handleSort('streak')}
+                    style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+                  >
+                    Streak<SortIcon col="streak" sortKey={sortKey} sortDir={sortDir} />
+                  </th>
                 </tr>
               </thead>
               <tbody>

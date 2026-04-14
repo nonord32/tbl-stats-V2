@@ -244,9 +244,11 @@ function parseMatchData(rows: string[][]): {
       const isWin1 = result1Raw.startsWith('W');
       const isLoss1 = result1Raw.startsWith('L');
 
-      // Try to get individual points scored
-      const pts1 = safeNum(f1Row['Points'] || f1Row['Net Points'] || f1Row['Score'] || f1Row['Pts'] || f1Row['Points Scored']);
-      const pts2 = safeNum(f2Row['Points'] || f2Row['Net Points'] || f2Row['Score'] || f2Row['Pts'] || f2Row['Points Scored']);
+      // Points Earned = actual score, Net Points = pts earned minus pts allowed
+      const pts1 = safeNum(f1Row['Points Earned'] || f1Row['Points'] || f1Row['Score'] || f1Row['Pts']);
+      const pts2 = safeNum(f2Row['Points Earned'] || f2Row['Points'] || f2Row['Score'] || f2Row['Pts']);
+      const netPts1 = safeNum(f1Row['Net Points'] || f1Row['Diff'] || f1Row['Point Diff']);
+      const netPts2 = safeNum(f2Row['Net Points'] || f2Row['Diff'] || f2Row['Point Diff']);
 
       const winner = isWin1 ? fighter1 : isLoss1 ? fighter2 : '';
       if (isWin1) wins1++;
@@ -282,8 +284,8 @@ function parseMatchData(rows: string[][]): {
         });
       };
 
-      addHistory(fighter1, fighter2, team2, r1, pts1 - pts2);
-      addHistory(fighter2, fighter1, team1, r2, pts2 - pts1);
+      addHistory(fighter1, fighter2, team2, r1, netPts1);
+      addHistory(fighter2, fighter1, team1, r2, netPts2);
     });
 
     boxScore.sort((a, b) => a.round - b.round);
