@@ -964,6 +964,15 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
   color: var(--text);
   line-height: 1.4;
 }
+.highlight-thumb-btn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
 
 /* ─── About section ───────────────────────────────────────────────────────── */
 .about-section {
