@@ -311,9 +311,9 @@ export function FightersClient({ fighters, fighterHistory, seoText, lastUpdated 
                             }} />
                           )}
                           <div>
-                            <button className="fighter-name-btn" onClick={() => setModalFighter(f)}>
+                            <Link href={`/fighters/${f.slug}`} className="fighter-name-btn">
                               {f.name}
-                            </button>
+                            </Link>
                             {/* Team shown as subtitle on mobile when Team column is hidden */}
                             <div className="fighter-team-sub">{f.team}</div>
                           </div>

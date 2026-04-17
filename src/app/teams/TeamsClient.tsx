@@ -316,9 +316,9 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
                                 style={{ width: 24, height: 24, objectFit: 'contain', flexShrink: 0 }}
                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                               />
-                              <button className="fighter-name-btn" onClick={() => setModalTeam(t)}>
+                              <Link href={`/teams/${t.slug}`} className="fighter-name-btn">
                                 {t.team}
-                              </button>
+                              </Link>
                             </div>
                           </td>
                           <td className="num-cell mono col-result">{t.record}</td>
