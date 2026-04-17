@@ -112,7 +112,7 @@ export default async function HomePage() {
       <section className="page" style={{ paddingTop: 24 }}>
         <div className="container">
           {/* ── Top Performers Preview ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginTop: 0 }}>
+          <div className="home-stats-grid">
             {/* Top Fighters by WAR */}
             <div className="card">
               <div className="card-header">

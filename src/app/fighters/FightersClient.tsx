@@ -279,15 +279,15 @@ export function FightersClient({ fighters, fighterHistory, seoText, lastUpdated 
                 <tr>
                   <th className="col-rank" style={{ width: 32 }}>#</th>
                   <SortTh col="name" label="Fighter" className="always-show" />
-                  <th>Team</th>
-                  <th>Weight</th>
-                  <th>Gender</th>
+                  <th className="col-hide-mobile">Team</th>
+                  <th className="col-hide-mobile">Weight</th>
+                  <th className="col-hide-mobile">Gender</th>
                   <SortTh col="record" label="Record" title="W-L" className="col-record" />
                   <SortTh col="war" label="WAR" title="Wins Above Replacement" className="col-war" />
-                  <SortTh col="nppr" label="NPPR" title="Net Points Per Round" />
-                  <SortTh col="netPts" label="Net Pts" title="Total Net Points" />
-                  <SortTh col="winPct" label="Win%" title="Win Percentage" />
-                  <SortTh col="rounds" label="Rounds" title="Total Rounds Fought" />
+                  <SortTh col="nppr" label="NPPR" title="Net Points Per Round" className="col-hide-mobile" />
+                  <SortTh col="netPts" label="Net Pts" title="Total Net Points" className="col-hide-mobile" />
+                  <SortTh col="winPct" label="Win%" title="Win Percentage" className="col-hide-mobile" />
+                  <SortTh col="rounds" label="Rounds" title="Total Rounds Fought" className="col-hide-mobile" />
                   <th>Streak</th>
                 </tr>
               </thead>
@@ -310,12 +310,16 @@ export function FightersClient({ fighters, fighterHistory, seoText, lastUpdated 
                               flexShrink: 0,
                             }} />
                           )}
-                          <button className="fighter-name-btn" onClick={() => setModalFighter(f)}>
-                            {f.name}
-                          </button>
+                          <div>
+                            <button className="fighter-name-btn" onClick={() => setModalFighter(f)}>
+                              {f.name}
+                            </button>
+                            {/* Team shown as subtitle on mobile when Team column is hidden */}
+                            <div className="fighter-team-sub">{f.team}</div>
+                          </div>
                         </div>
                       </td>
-                      <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                      <td className="col-hide-mobile" style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           {getTeamLogoPathByName(f.team) && (
                             // eslint-disable-next-line @next/next/no-img-element
@@ -329,14 +333,14 @@ export function FightersClient({ fighters, fighterHistory, seoText, lastUpdated 
                           {f.team}
                         </div>
                       </td>
-                      <td style={{ fontSize: 12 }}>{f.weightClass}</td>
-                      <td style={{ fontSize: 12 }}>{f.gender}</td>
+                      <td className="col-hide-mobile" style={{ fontSize: 12 }}>{f.weightClass}</td>
+                      <td className="col-hide-mobile" style={{ fontSize: 12 }}>{f.gender}</td>
                       <td className="num-cell mono col-record">{f.record}</td>
                       <td className="num-cell mono col-war">{f.war.toFixed(2)}</td>
-                      <td className="num-cell mono">{f.nppr.toFixed(3)}</td>
-                      <td className="num-cell mono">{f.netPts.toFixed(1)}</td>
-                      <td className="num-cell mono">{(f.winPct * 100).toFixed(1)}%</td>
-                      <td className="num-cell mono">{f.rounds}</td>
+                      <td className="num-cell mono col-hide-mobile">{f.nppr.toFixed(3)}</td>
+                      <td className="num-cell mono col-hide-mobile">{f.netPts.toFixed(1)}</td>
+                      <td className="num-cell mono col-hide-mobile">{(f.winPct * 100).toFixed(1)}%</td>
+                      <td className="num-cell mono col-hide-mobile">{f.rounds}</td>
                       <td>{streak && <StreakBadge streak={streak} />}</td>
                     </tr>
                   );

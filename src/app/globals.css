@@ -40,6 +40,7 @@
   --radius: 6px;
   --radius-lg: 10px;
   --nav-h: 64px;
+  --bottom-nav-h: 56px;
 }
 
 [data-theme='dark'] {
@@ -83,6 +84,7 @@ body {
   transition: background 0.2s, color 0.2s;
   min-height: 100vh;
   min-height: 100dvh;
+  overflow-x: hidden;
 }
 
 a { color: var(--accent); text-decoration: none; }
@@ -894,6 +896,7 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
   gap: 24px;
   align-items: start;
 }
+.home-main-grid > * { min-width: 0; }
 @media (max-width: 860px) {
   .home-main-grid { grid-template-columns: 1fr; }
 }
@@ -903,6 +906,20 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
 }
 .home-standings-table td:nth-child(2) {
   white-space: normal;
+}
+
+/* ─── Homepage stats grid (fighters + standings) ──────────────────────────── */
+.home-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.home-stats-grid > * { min-width: 0; }
+@media (max-width: 640px) {
+  .home-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
 }
 
 /* ─── Highlights Marquee ─────────────────────────────────────────────────── */
@@ -1177,17 +1194,114 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
 .footer a { color: rgba(255,60,0,0.7); }
 .footer a:hover { color: var(--accent); }
 
+/* ─── Bottom Tab Bar (mobile only) ───────────────────────────────────────── */
+.bottom-nav {
+  display: none; /* hidden on desktop */
+}
+
+@media (max-width: 640px) {
+  /* Show the bottom nav */
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #13111a;
+    border-top: 1px solid rgba(255,60,0,0.25);
+    z-index: 9998;
+    /* iPhone safe area (home indicator) */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .bottom-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    color: rgba(255,255,255,0.45);
+    text-decoration: none;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 10px 4px 8px;
+    transition: color 0.15s;
+    min-height: 56px;
+  }
+  .bottom-nav-item.active { color: var(--accent); }
+  .bottom-nav-item:hover { color: #fff; text-decoration: none; }
+
+  /* Push page content up so it's not hidden behind bottom nav */
+  main {
+    padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* ─── Mobile column hiding ────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .col-hide-mobile { display: none !important; }
+
+  /* Fighter name cell: show team as subtitle when Team column is hidden */
+  .fighter-team-sub {
+    display: block;
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 2px;
+    font-weight: 400;
+  }
+}
+
+/* Fighter team sub is hidden on desktop */
+.fighter-team-sub { display: none; }
+
 /* ─── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .modal { max-height: 95vh; max-height: 95dvh; }
   .fighter-hero, .team-hero { padding: 16px; }
   .stat-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 12px; }
   .nav-link { padding: 6px 8px; font-size: 11px; }
+
+  /* Highlights: single column on mobile */
+  .mq-static-row {
+    grid-template-columns: 1fr;
+    padding: 0 16px 4px;
+  }
+  .mq-card { width: 100%; }
+
+  /* Hero: tighter on mobile */
+  .home-hero { padding: 32px 16px 24px; }
+
+  /* Filters: stack vertically */
+  .filters { flex-direction: column; align-items: stretch; }
+  .filter-search,
+  .filter-select { min-width: 0; width: 100%; }
+
+  /* Modal: near-fullscreen on mobile */
+  .modal-overlay { padding: calc(var(--nav-h) + 8px) 8px 8px; }
+  .modal { max-width: 100%; }
+  .modal-body { padding: 14px; }
 }
 
 @media (max-width: 480px) {
   .nav-links { display: none; }
-  .home-hero { padding: 40px 16px; }
+
+  /* Results card: more compact on narrow screens */
+  .results-card-main { padding: 10px 12px; gap: 4px; }
+  .results-score { font-size: 16px; }
+  .results-score-block { min-width: 80px; }
+  .results-team-name { font-size: 12px; }
+  .results-logo { width: 20px; height: 20px; }
+
+  /* Page headers: tighter */
+  .page-header { margin-bottom: 20px; }
+  .page { padding: 20px 0 48px; }
+
+  /* Stat grid: 3 cols on phone */
+  .stat-grid { grid-template-columns: repeat(3, 1fr); }
 }
 
 /* ─── Schedule ───────────────────────────────────────────────────────────── */
