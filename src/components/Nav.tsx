@@ -5,6 +5,19 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTheme } from './ThemeProvider';
 
+const NAV_STYLE: React.CSSProperties = {
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  right: 0,
+  zIndex: 9999,
+  height: 64,
+  background: '#13111a',
+  borderBottom: '1px solid rgba(255,60,0,0.2)',
+  display: 'flex',
+  alignItems: 'center',
+};
+
 export function Nav() {
   const pathname = usePathname();
   const { theme, toggle } = useTheme();
@@ -13,7 +26,7 @@ export function Nav() {
     path === '/' ? pathname === '/' : pathname.startsWith(path);
 
   return (
-    <nav className="nav">
+    <nav style={NAV_STYLE}>
       <div className="nav-inner">
         <Link href="/" className="nav-brand">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -24,34 +37,19 @@ export function Nav() {
         </Link>
 
         <div className="nav-links">
-          <Link
-            href="/"
-            className={`nav-link ${isActive('/') && pathname === '/' ? 'active' : ''}`}
-          >
+          <Link href="/" className={`nav-link ${isActive('/') && pathname === '/' ? 'active' : ''}`}>
             Home
           </Link>
-          <Link
-            href="/fighters"
-            className={`nav-link ${isActive('/fighters') ? 'active' : ''}`}
-          >
-            Fighter Stats
+          <Link href="/fighters" className={`nav-link ${isActive('/fighters') ? 'active' : ''}`}>
+            Fighters
           </Link>
-          <Link
-            href="/teams"
-            className={`nav-link ${isActive('/teams') ? 'active' : ''}`}
-          >
-            Team Standings
+          <Link href="/teams" className={`nav-link ${isActive('/teams') ? 'active' : ''}`}>
+            Standings
           </Link>
-          <Link
-            href="/results"
-            className={`nav-link ${isActive('/results') ? 'active' : ''}`}
-          >
+          <Link href="/results" className={`nav-link ${isActive('/results') ? 'active' : ''}`}>
             Results
           </Link>
-          <Link
-            href="/schedule"
-            className={`nav-link ${isActive('/schedule') ? 'active' : ''}`}
-          >
+          <Link href="/schedule" className={`nav-link ${isActive('/schedule') ? 'active' : ''}`}>
             Schedule
           </Link>
         </div>
@@ -83,7 +81,7 @@ export function Nav() {
             </svg>
           </a>
           <button className="theme-toggle" onClick={toggle} aria-label="Toggle theme">
-            {theme === 'light' ? '☽ DARK' : '☀ LIGHT'}
+            {theme === 'light' ? '☽' : '☀'}
           </button>
         </div>
       </div>

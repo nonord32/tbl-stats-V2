@@ -30,17 +30,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     try { localStorage.setItem('tbl-theme', next); } catch {}
   };
 
-  // Avoid flash: render invisible until mounted
-  if (!mounted) {
-    return (
-      <div style={{ visibility: 'hidden' }}>
-        <ThemeContext.Provider value={{ theme, toggle }}>
-          {children}
-        </ThemeContext.Provider>
-      </div>
-    );
-  }
-
   return (
     <ThemeContext.Provider value={{ theme, toggle }}>
       {children}

@@ -956,12 +956,10 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
   .modal { max-height: 95vh; max-height: 95dvh; }
   .fighter-hero, .team-hero { padding: 16px; }
   .stat-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 12px; }
-  /* Tighten nav links on tablet */
-  .nav-link { padding: 6px 7px; font-size: 11px; }
+  .nav-link { padding: 6px 8px; font-size: 11px; }
 }
 
-@media (max-width: 600px) {
-  /* On phones, hide nav links — show only brand */
+@media (max-width: 480px) {
   .nav-links { display: none; }
   .home-hero { padding: 40px 16px; }
 }
