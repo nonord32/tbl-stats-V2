@@ -267,13 +267,13 @@ export function FightersClient({ fighters, fighterHistory, seoText }: Props) {
             <table>
               <thead>
                 <tr>
-                  <th style={{ width: 32 }}>#</th>
+                  <th className="col-rank" style={{ width: 32 }}>#</th>
                   <SortTh col="name" label="Fighter" className="always-show" />
                   <th>Team</th>
                   <th>Weight</th>
                   <th>Gender</th>
-                  <SortTh col="record" label="Record" title="W-L" />
-                  <SortTh col="war" label="WAR" title="Wins Above Replacement" />
+                  <SortTh col="record" label="Record" title="W-L" className="col-record" />
+                  <SortTh col="war" label="WAR" title="Wins Above Replacement" className="col-war" />
                   <SortTh col="nppr" label="NPPR" title="Net Points Per Round" />
                   <SortTh col="netPts" label="Net Pts" title="Total Net Points" />
                   <SortTh col="winPct" label="Win%" title="Win Percentage" />
@@ -287,7 +287,7 @@ export function FightersClient({ fighters, fighterHistory, seoText }: Props) {
                   const streak = calcFighterStreak(history);
                   return (
                     <tr key={f.slug}>
-                      <td className="rank-cell">{i + 1}</td>
+                      <td className="rank-cell col-rank">{i + 1}</td>
                       <td className="always-show">
                         <button className="fighter-name-btn" onClick={() => setModalFighter(f)}>
                           {f.name}
@@ -296,8 +296,8 @@ export function FightersClient({ fighters, fighterHistory, seoText }: Props) {
                       <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{f.team}</td>
                       <td style={{ fontSize: 12 }}>{f.weightClass}</td>
                       <td style={{ fontSize: 12 }}>{f.gender}</td>
-                      <td className="num-cell mono">{f.record}</td>
-                      <td className="num-cell mono">{f.war.toFixed(2)}</td>
+                      <td className="num-cell mono col-record">{f.record}</td>
+                      <td className="num-cell mono col-war">{f.war.toFixed(2)}</td>
                       <td className="num-cell mono">{f.nppr.toFixed(3)}</td>
                       <td className="num-cell mono">{f.netPts.toFixed(1)}</td>
                       <td className="num-cell mono">{(f.winPct * 100).toFixed(1)}%</td>

@@ -188,12 +188,12 @@ export function TeamsClient({ teams, teamMatches, seoText }: Props) {
             <table>
               <thead>
                 <tr>
-                  <th style={{ width: 32 }}>#</th>
-                  <th>Team</th>
+                  <th className="col-team-rank" style={{ width: 32 }}>#</th>
+                  <th className="col-team">Team</th>
                   {(['record', 'pf', 'pa', 'diff'] as SortKey[]).map((col) => (
                     <th
                       key={col}
-                      className="num-cell"
+                      className={`num-cell${col === 'record' ? ' col-result' : col === 'diff' ? ' col-diff' : ''}`}
                       onClick={() => handleSort(col)}
                       style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
                     >
@@ -215,8 +215,8 @@ export function TeamsClient({ teams, teamMatches, seoText }: Props) {
                   const streak = t.streak || calcTeamStreak(matches);
                   return (
                     <tr key={t.slug}>
-                      <td className="rank-cell">{i + 1}</td>
-                      <td>
+                      <td className="rank-cell col-team-rank">{i + 1}</td>
+                      <td className="col-team">
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           {/* Color accent stripe */}
                           {getTeamColor(t.slug) && (
@@ -244,11 +244,11 @@ export function TeamsClient({ teams, teamMatches, seoText }: Props) {
                           </button>
                         </div>
                       </td>
-                      <td className="num-cell mono">{t.record}</td>
+                      <td className="num-cell mono col-result">{t.record}</td>
                       <td className="num-cell mono">{t.pf.toFixed(1)}</td>
                       <td className="num-cell mono">{t.pa.toFixed(1)}</td>
                       <td
-                        className="num-cell mono"
+                        className="num-cell mono col-diff"
                         style={{ color: t.diff >= 0 ? 'var(--result-w)' : 'var(--result-l)', fontWeight: 600 }}
                       >
                         {t.diff >= 0 ? '+' : ''}{t.diff.toFixed(1)}
