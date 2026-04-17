@@ -1,6 +1,8 @@
 // src/app/layout.tsx
 import type { Metadata } from 'next';
 import './globals.css';
+import Script from 'next/script';
+import { Analytics } from '@vercel/analytics/react';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { Nav } from '@/components/Nav';
 import { Footer } from '@/components/Footer';
@@ -38,6 +40,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <main>{children}</main>
           <Footer />
         </ThemeProvider>
+        <Analytics />
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-2G5HV9RKGS"
+          strategy="afterInteractive"
+        />
+        <Script id="ga-init" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-2G5HV9RKGS');
+          `}
+        </Script>
       </body>
     </html>
   );
