@@ -99,25 +99,6 @@ export default async function HomePage() {
             Independent stats, standings, and fight results for Team Boxing League.
             Track fighter performance, team trends, and match outcomes all season long.
           </p>
-          <div className="home-hero-btns">
-            <Link href="/fighters" className="btn btn-primary">
-              Fighter Stats
-            </Link>
-            <Link href="/teams" className="btn btn-outline">
-              Team Standings
-            </Link>
-            <Link href="/results" className="btn btn-outline">
-              Results
-            </Link>
-            <a
-              href="https://teamboxingleague.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-outline"
-            >
-              TBL Official Site ↗
-            </a>
-          </div>
         </div>
       </section>
 
@@ -125,7 +106,7 @@ export default async function HomePage() {
       <section className="page">
         <div className="container">
           {/* ── Top Performers Preview ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginTop: 40 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginTop: 0 }}>
             {/* Top Fighters by WAR */}
             <div className="card">
               <div className="card-header">
