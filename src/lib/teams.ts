@@ -47,14 +47,25 @@ export function getTeamLogoPath(slug: string): string {
   return key ? `/logos/${key}.png` : `/logos/${slug}.png`;
 }
 
-/** Hex accent color looked up by full team name, e.g. "Los Angeles Elite". */
-export function getTeamColorByName(name: string): string {
-  const entry = Object.values(TEAMS).find((t) => t.fullName === name);
-  return entry ? entry.color : '';
+/** Resolve a key from either a full name ("Dallas Enforcers") or a short/raw
+ *  name ("Dallas", "NYC") as stored in the CSV data. */
+function nameKey(name: string): string | undefined {
+  // 1. exact fullName match
+  const exact = Object.keys(TEAMS).find((k) => TEAMS[k].fullName === name);
+  if (exact) return exact;
+  // 2. convert to slug and do prefix match (handles "Dallas" → "dallas")
+  const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  return cityKey(slug);
 }
 
-/** Logo path looked up by full team name, e.g. "Los Angeles Elite". */
+/** Hex accent color looked up by team name (full or abbreviated). */
+export function getTeamColorByName(name: string): string {
+  const key = nameKey(name);
+  return key ? TEAMS[key].color : '';
+}
+
+/** Logo path looked up by team name (full or abbreviated). */
 export function getTeamLogoPathByName(name: string): string {
-  const key = Object.keys(TEAMS).find((k) => TEAMS[k].fullName === name);
+  const key = nameKey(name);
   return key ? `/logos/${key}.png` : '';
 }

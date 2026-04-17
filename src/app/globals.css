@@ -705,6 +705,78 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
   .results-logo { width: 22px; height: 22px; }
 }
 
+/* ─── Results Scorecard Strip (Option B) ─────────────────────────────────── */
+.results-scorecard-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+}
+.results-scorecard {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.results-scorecard thead th {
+  background: var(--bg-table-alt);
+  padding: 8px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.results-scorecard-team-col { text-align: left; min-width: 140px; }
+.results-scorecard-phase-col { text-align: center; min-width: 90px; }
+.results-scorecard-total-col { text-align: center; min-width: 80px; border-left: 1px solid var(--border); }
+.results-scorecard tbody tr { border-bottom: 1px solid var(--border); }
+.results-scorecard tbody tr:last-child { border-bottom: none; }
+.results-scorecard-team-name {
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+.results-scorecard-cell {
+  padding: 10px 14px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+}
+.results-scorecard-total {
+  border-left: 1px solid var(--border);
+  font-size: 17px;
+}
+
+/* ─── Phase-sectioned rounds ──────────────────────────────────────────────── */
+.results-phases { display: flex; flex-direction: column; gap: 12px; }
+.results-phase-section {}
+.results-phase-header {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 6px 0 6px 2px;
+  border-bottom: 2px solid var(--accent);
+  margin-bottom: 0;
+}
+.results-phase-subtotal {
+  background: var(--bg-table-alt);
+  font-weight: 700;
+}
+.results-phase-subtotal td {
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+}
+
 /* ─── Box Score ───────────────────────────────────────────────────────────── */
 .match-card { margin-bottom: 16px; }
 .match-card-header {
