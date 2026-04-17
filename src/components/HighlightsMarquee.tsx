@@ -185,12 +185,6 @@ export function HighlightsMarquee({ highlights }: { highlights: HighlightEntry[]
 
   return (
     <div className="mq-root" ref={rootRef}>
-      <div className="mq-header">
-        <span className="mq-title">
-          <span className="mq-dot" />
-          Highlights
-        </span>
-      </div>
       <div className="mq-static-row">
         {highlights.map((h, i) => (
           <MarqueeCard key={i} entry={h} forcePlay={i === autoPlayIndex} />

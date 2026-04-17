@@ -329,8 +329,8 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
                           <td className="num-cell mono col-diff" style={{ color: t.diff >= 0 ? 'var(--result-w)' : 'var(--result-l)', fontWeight: 600 }}>
                             {t.diff >= 0 ? '+' : ''}{t.diff.toFixed(1)}
                           </td>
-                          <td className="num-cell mono" style={{ color: gb === 0 ? 'var(--result-w)' : 'var(--result-l)', fontWeight: gb === 0 ? 700 : 400 }}>
-                            {gb === 0 ? (inPlayoffs ? '—' : 'E') : `+${gb % 1 === 0 ? gb : gb.toFixed(1)}`}
+                          <td className="num-cell mono" style={{ color: gb === 0 ? 'var(--text-muted)' : 'var(--result-l)', fontWeight: 400 }}>
+                            {gb === 0 ? '—' : `${gb % 1 === 0 ? gb : gb.toFixed(1)}`}
                           </td>
                           <td>{streak && <StreakBadge streak={streak} />}</td>
                         </tr>
