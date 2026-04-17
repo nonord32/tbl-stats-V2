@@ -66,17 +66,11 @@ export default async function HomePage() {
       {/* ── Hero ── */}
       <section className="home-hero">
         <div className="container">
-          {/* TBLStats brand lockup — same as nav but larger */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 24 }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/tbl-logo.png"
-              alt="TBL Stats"
-              style={{ height: 96, objectFit: 'contain' }}
-            />
+          {/* TBLStats wordmark */}
+          <div style={{ marginBottom: 24 }}>
             <span style={{
               fontFamily: 'IBM Plex Mono, monospace',
-              fontSize: 'clamp(32px, 6vw, 52px)',
+              fontSize: 'clamp(40px, 8vw, 72px)',
               fontWeight: 700,
               color: '#fff',
               letterSpacing: '-0.02em',

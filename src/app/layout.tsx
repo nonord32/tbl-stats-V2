@@ -35,9 +35,11 @@ export const metadata: Metadata = {
     siteName: 'TBL Stats',
     type: 'website',
     url: 'https://tblstats.com',
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'TBL Stats' }],
   },
   twitter: {
-    card: 'summary',
+    card: 'summary_large_image',
+    images: ['/og-image.png'],
   },
 };
 

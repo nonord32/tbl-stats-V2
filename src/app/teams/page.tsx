@@ -7,6 +7,10 @@ export const metadata: Metadata = {
   title: 'Team Standings',
   description:
     'TBL team standings: records, Points For, Points Against, point differential, and streaks.',
+  openGraph: {
+    url: 'https://tblstats.com/teams',
+    images: [{ url: '/og-image.png', width: 1200, height: 630 }],
+  },
 };
 
 export const revalidate = 300;

@@ -7,6 +7,10 @@ export const metadata: Metadata = {
   title: 'Fighter Stats',
   description:
     'TBL fighter rankings by WAR, NPPR, Net Points, Win%, Record, and Rounds. Filter by weight class, team, or gender.',
+  openGraph: {
+    url: 'https://tblstats.com/fighters',
+    images: [{ url: '/og-image.png', width: 1200, height: 630 }],
+  },
 };
 
 export const revalidate = 300;

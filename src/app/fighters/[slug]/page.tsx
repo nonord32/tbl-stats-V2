@@ -24,8 +24,10 @@ export async function generateMetadata({
     title: `${fighter.name} — ${metaTeamName}`,
     description: `${fighter.name} TBL stats: ${fighter.record} record, WAR ${fighter.war.toFixed(2)}, NPPR ${fighter.nppr.toFixed(3)}, Net Points ${fighter.netPts.toFixed(1)}. ${fighter.weightClass} · ${fighter.gender}.`,
     openGraph: {
+      url: `https://tblstats.com/fighters/${params.slug}`,
       title: `${fighter.name} | TBL Stats`,
       description: `${fighter.record} · WAR ${fighter.war.toFixed(2)} · ${metaTeamName}`,
+      images: [{ url: '/og-image.png', width: 1200, height: 630 }],
     },
   };
 }

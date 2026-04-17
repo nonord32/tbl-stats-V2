@@ -22,8 +22,10 @@ export async function generateMetadata({
     title: `${team.team} — Team Standings`,
     description: `${team.team} TBL record: ${team.record}, PF ${team.pf.toFixed(1)}, PA ${team.pa.toFixed(1)}, Diff ${team.diff >= 0 ? '+' : ''}${team.diff.toFixed(1)}. Full box scores and round-by-round breakdown.`,
     openGraph: {
+      url: `https://tblstats.com/teams/${params.slug}`,
       title: `${team.team} | TBL Stats`,
       description: `${team.record} · ${team.pf.toFixed(1)} PF · ${team.pa.toFixed(1)} PA`,
+      images: [{ url: '/og-image.png', width: 1200, height: 630 }],
     },
   };
 }

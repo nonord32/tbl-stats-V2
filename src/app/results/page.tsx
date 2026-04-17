@@ -5,9 +5,13 @@ import { getFullTeamName } from '@/lib/teams';
 import { ResultsClient } from './ResultsClient';
 
 export const metadata: Metadata = {
-  title: 'Match Results — TBL Stats',
+  title: 'Match Results',
   description:
     'All Team Boxing League match results. Team scores, winners, and round-by-round box scores for every TBL event.',
+  openGraph: {
+    url: 'https://tblstats.com/results',
+    images: [{ url: '/og-image.png', width: 1200, height: 630 }],
+  },
 };
 
 export const revalidate = 300;
