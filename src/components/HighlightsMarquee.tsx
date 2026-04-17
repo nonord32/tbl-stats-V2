@@ -48,8 +48,9 @@ function InstagramModal({ postId, label, onClose }: { postId: string; label: str
   );
 }
 
-function MarqueeCard({ entry }: { entry: HighlightEntry }) {
+function MarqueeCard({ entry, forcePlay = false }: { entry: HighlightEntry; forcePlay?: boolean }) {
   const [playing, setPlaying] = useState(false);
+  const [muted, setMuted] = useState(true); // auto-play starts muted
   const [igOpen, setIgOpen] = useState(false);
   const [thumbUrl, setThumbUrl] = useState('');
 
@@ -60,21 +61,44 @@ function MarqueeCard({ entry }: { entry: HighlightEntry }) {
     if (ytId) setThumbUrl(`https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`);
   }, [ytId]);
 
+  // Trigger auto-play when parent says so
+  React.useEffect(() => {
+    if (forcePlay && ytId) setPlaying(true);
+  }, [forcePlay, ytId]);
+
   if (ytId) {
+    const embedSrc = playing
+      ? `https://www.youtube.com/embed/${ytId}?autoplay=1${muted ? '&mute=1' : ''}&rel=0`
+      : '';
     return (
       <div className="mq-card" onClick={(e) => e.stopPropagation()}>
         {playing ? (
           <div className="mq-thumb" style={{ background: '#000' }}>
             <iframe
-              src={`https://www.youtube.com/embed/${ytId}?autoplay=1`}
+              src={embedSrc}
               title={entry.label}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
               style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }}
             />
+            {/* Unmute button shown during auto-play */}
+            {muted && (
+              <button
+                onClick={() => setMuted(false)}
+                style={{
+                  position: 'absolute', bottom: 10, right: 10, zIndex: 10,
+                  background: 'rgba(0,0,0,0.7)', border: '1px solid rgba(255,255,255,0.3)',
+                  borderRadius: 6, color: '#fff', cursor: 'pointer',
+                  fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, fontWeight: 700,
+                  padding: '4px 10px', letterSpacing: '0.04em',
+                }}
+              >
+                🔇 Tap to unmute
+              </button>
+            )}
           </div>
         ) : (
-          <button className="mq-thumb-btn" onClick={() => setPlaying(true)} aria-label={`Play ${entry.label}`}>
+          <button className="mq-thumb-btn" onClick={() => { setMuted(false); setPlaying(true); }} aria-label={`Play ${entry.label}`}>
             <div className="mq-thumb" style={{ background: '#111' }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -134,24 +158,43 @@ function MarqueeCard({ entry }: { entry: HighlightEntry }) {
 }
 
 export function HighlightsMarquee({ highlights }: { highlights: HighlightEntry[] }) {
+  const rootRef = React.useRef<HTMLDivElement>(null);
+  const [autoPlayIndex, setAutoPlayIndex] = React.useState<number | null>(null);
+
+  // Find first YouTube clip index for auto-play
+  const firstYtIndex = highlights.findIndex((h) => getYouTubeId(h.url) !== null);
+
+  React.useEffect(() => {
+    if (firstYtIndex === -1) return;
+    const el = rootRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setAutoPlayIndex(firstYtIndex);
+          observer.disconnect(); // only trigger once
+        }
+      },
+      { threshold: 0.4 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [firstYtIndex]);
+
   if (highlights.length === 0) return null;
-  // Duplicate items so the loop is seamless
-  const items = highlights.length < 4 ? [...highlights, ...highlights, ...highlights] : [...highlights, ...highlights];
 
   return (
-    <div className="mq-root">
+    <div className="mq-root" ref={rootRef}>
       <div className="mq-header">
         <span className="mq-title">
           <span className="mq-dot" />
           Highlights
         </span>
       </div>
-      <div className="mq-track-wrap">
-        <div className="mq-track" style={{ '--item-count': items.length } as React.CSSProperties}>
-          {items.map((h, i) => (
-            <MarqueeCard key={i} entry={h} />
-          ))}
-        </div>
+      <div className="mq-static-row">
+        {highlights.map((h, i) => (
+          <MarqueeCard key={i} entry={h} forcePlay={i === autoPlayIndex} />
+        ))}
       </div>
     </div>
   );

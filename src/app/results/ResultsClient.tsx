@@ -5,11 +5,12 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { toSlug } from '@/lib/data';
 import { getFullTeamName } from '@/lib/teams';
-import type { MatchResult, BoxScoreRound } from '@/types';
+import type { MatchResult, BoxScoreRound, HighlightEntry } from '@/types';
 
 interface Props {
   matches: MatchResult[];
   lastUpdated?: string;
+  highlights?: HighlightEntry[];
 }
 
 function ScorecardStrip({
@@ -80,7 +81,7 @@ function ScorecardStrip({
   );
 }
 
-function MatchCard({ match }: { match: MatchResult }) {
+function MatchCard({ match, hasHighlights }: { match: MatchResult; hasHighlights: boolean }) {
   const [expanded, setExpanded] = useState(false);
 
   const team1Name = getFullTeamName(toSlug(match.team1));
@@ -144,13 +145,24 @@ function MatchCard({ match }: { match: MatchResult }) {
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               Box Score · {formattedDate}
             </span>
-            <Link
-              href={`/matches/${match.matchIndex}`}
-              onClick={(e) => e.stopPropagation()}
-              style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--accent)', fontWeight: 600 }}
-            >
-              Full match →
-            </Link>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              {hasHighlights && (
+                <Link
+                  href={`/matches/${match.matchIndex}`}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#fff', fontWeight: 700, background: 'var(--accent)', padding: '3px 10px', borderRadius: 4, textDecoration: 'none' }}
+                >
+                  ▶ Watch
+                </Link>
+              )}
+              <Link
+                href={`/matches/${match.matchIndex}`}
+                onClick={(e) => e.stopPropagation()}
+                style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--accent)', fontWeight: 600 }}
+              >
+                Full match →
+              </Link>
+            </div>
           </div>
           <ScorecardStrip
             boxScore={match.boxScore}
@@ -165,7 +177,7 @@ function MatchCard({ match }: { match: MatchResult }) {
   );
 }
 
-export function ResultsClient({ matches, lastUpdated }: Props) {
+export function ResultsClient({ matches, lastUpdated, highlights = [] }: Props) {
   const formattedUpdate = lastUpdated || null;
   const grouped: { date: string; matches: MatchResult[] }[] = [];
   const dateMap = new Map<string, MatchResult[]>();
@@ -210,7 +222,13 @@ export function ResultsClient({ matches, lastUpdated }: Props) {
           grouped.map(({ date, matches: dayMatches }) => (
             <div key={date} className="results-date-group">
               <div className="results-date-heading">{formatDateHeading(date)}</div>
-              {dayMatches.map((m) => <MatchCard key={m.matchIndex} match={m} />)}
+              {dayMatches.map((m) => (
+                <MatchCard
+                  key={m.matchIndex}
+                  match={m}
+                  hasHighlights={highlights.some((h) => h.page === String(m.matchIndex))}
+                />
+              ))}
             </div>
           ))
         )}

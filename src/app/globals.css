@@ -935,20 +935,12 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.5; transform: scale(0.7); }
 }
-.mq-track-wrap {
-  overflow: hidden;
-  cursor: grab;
-}
-.mq-track-wrap:active { cursor: grabbing; }
-.mq-track {
-  display: flex;
+.mq-static-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 14px;
-  padding: 0 24px;
-  animation: mq-scroll 30s linear infinite;
-  width: max-content;
+  padding: 0 24px 4px;
 }
-/* Pause on hover anywhere in the banner */
-.mq-root:hover .mq-track { animation-play-state: paused; }
 @keyframes mq-scroll {
   0%   { transform: translateX(0); }
   100% { transform: translateX(-50%); }
