@@ -4,9 +4,9 @@ import Link from 'next/link';
 import { getAllData } from '@/lib/data';
 
 export const metadata: Metadata = {
-  title: 'TBL Stats — Official Stats of Team Boxing League',
+  title: 'TBL Stats | Rankings, Leaders, & Results',
   description:
-    'Official Fighter Rankings, Team Standings, WAR, NPPR, and full fight history for Team Boxing League (TBL). Updated live from the official data sheet.',
+    'Independent stats, standings, and fight results for Team Boxing League. Track fighter performance, team trends, and match outcomes all season long.',
 };
 
 export const revalidate = 300;
@@ -66,19 +66,31 @@ export default async function HomePage() {
       {/* ── Hero ── */}
       <section className="home-hero">
         <div className="container">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/tbl-logo.png"
-            alt="Team Boxing League"
-            style={{ height: 72, marginBottom: 20, objectFit: 'contain' }}
-          />
+          {/* TBLStats brand lockup — same as nav but larger */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 24 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/tbl-logo.png"
+              alt="TBL Stats"
+              style={{ height: 96, objectFit: 'contain' }}
+            />
+            <span style={{
+              fontFamily: 'IBM Plex Mono, monospace',
+              fontSize: 'clamp(32px, 6vw, 52px)',
+              fontWeight: 700,
+              color: '#fff',
+              letterSpacing: '-0.02em',
+              lineHeight: 1,
+            }}>
+              TBL<span style={{ color: 'var(--accent)' }}>Stats</span>
+            </span>
+          </div>
           <h1>
-            Official Stats of{' '}
-            <span>Team Boxing League</span>
+            TBL Stats | Rankings, Leaders, &amp; Results
           </h1>
           <p>
-            TBL Stats provides real-time statistics, standings, and results for Team Boxing League.
-            Explore fighter performance, team results, and match outcomes throughout the season.
+            Independent stats, standings, and fight results for Team Boxing League.
+            Track fighter performance, team trends, and match outcomes all season long.
           </p>
           <div className="home-hero-btns">
             <Link href="/fighters" className="btn btn-primary">

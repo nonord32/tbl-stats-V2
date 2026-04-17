@@ -16,11 +16,21 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL('https://tblstats.com'),
   title: {
-    default: 'TBL Stats — Official Stats of Team Boxing League',
+    default: 'TBL Stats | Rankings, Leaders, & Results',
     template: '%s | TBL Stats',
   },
   description:
-    'Official statistics for Team Boxing League (TBL). Fighter rankings, WAR, NPPR, team standings, box scores, and fight history.',
+    'Independent stats, standings, and fight results for Team Boxing League. Track fighter performance, team trends, and match outcomes all season long.',
+  icons: {
+    icon: [
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon.ico',       sizes: 'any' },
+    ],
+    apple: [
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+  },
   openGraph: {
     siteName: 'TBL Stats',
     type: 'website',
