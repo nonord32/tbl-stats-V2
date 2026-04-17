@@ -40,7 +40,7 @@ export function toSlug(name: string): string {
 // Fetch raw CSV rows as string arrays (no automatic header parsing)
 // so we can handle sheets with title rows before the real header
 async function fetchRawCSV(url: string): Promise<string[][]> {
-  const res = await fetch(url, { next: { revalidate: 300 } });
+  const res = await fetch(url, { next: { revalidate: 120 } });
   if (!res.ok) throw new Error(`Failed to fetch CSV: ${url}`);
   const text = await res.text();
   const result = Papa.parse<string[]>(text, {

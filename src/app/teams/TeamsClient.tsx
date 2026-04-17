@@ -243,7 +243,7 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
               { k: 'PF', v: 'Points For' },
               { k: 'PA', v: 'Points Against' },
               { k: 'Diff', v: 'Point Differential' },
-              { k: 'GB', v: 'Games Behind playoff cutoff' },
+              { k: 'GB', v: 'Games from playoff cutoff (+ahead / behind)' },
             ].map((s) => (
               <span key={s.k} style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)' }}>
                 <strong style={{ color: 'var(--text)' }}>{s.k}</strong> {s.v}
@@ -283,10 +283,11 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
                   // Games back always relative to natural standings (wins-based), regardless of current sort
                   const byWins = [...teams].sort((a, b) => b.wins - a.wins || a.losses - b.losses || b.diff - a.diff);
                   const cutoffTeam = byWins[PLAYOFF_SPOTS - 1]; // 8th place in wins order
+                  // Positive = games ahead of cutoff (in playoffs), negative = games behind
                   const calcGB = (t: typeof teams[0]) => {
                     if (!cutoffTeam) return 0;
-                    const gb = ((cutoffTeam.wins - t.wins) + (t.losses - cutoffTeam.losses)) / 2;
-                    return Math.max(0, gb);
+                    // (team wins - cutoff wins + cutoff losses - team losses) / 2
+                    return ((t.wins - cutoffTeam.wins) + (cutoffTeam.losses - t.losses)) / 2;
                   };
                   // Track which rank each team is in natural standings for the playoff line
                   const naturalRank = new Map(byWins.map((t, i) => [t.slug, i]));
@@ -329,8 +330,15 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
                           <td className="num-cell mono col-diff" style={{ color: t.diff >= 0 ? 'var(--result-w)' : 'var(--result-l)', fontWeight: 600 }}>
                             {t.diff >= 0 ? '+' : ''}{t.diff.toFixed(1)}
                           </td>
-                          <td className="num-cell mono" style={{ color: gb === 0 ? 'var(--text-muted)' : 'var(--result-l)', fontWeight: 400 }}>
-                            {gb === 0 ? '—' : `${gb % 1 === 0 ? gb : gb.toFixed(1)}`}
+                          <td className="num-cell mono" style={{
+                            color: gb > 0 ? 'var(--result-w)' : gb < 0 ? 'var(--result-l)' : 'var(--text-muted)',
+                            fontWeight: gb !== 0 ? 600 : 400,
+                          }}>
+                            {gb === 0
+                              ? '0'
+                              : gb > 0
+                                ? `+${gb % 1 === 0 ? gb : gb.toFixed(1)}`
+                                : `${gb % 1 === 0 ? Math.abs(gb) : Math.abs(gb).toFixed(1)}`}
                           </td>
                           <td>{streak && <StreakBadge streak={streak} />}</td>
                         </tr>
