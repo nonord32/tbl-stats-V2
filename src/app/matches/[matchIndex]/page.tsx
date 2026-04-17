@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { getMatchByIndex, toSlug } from '@/lib/data';
 import { getFullTeamName, getTeamColor } from '@/lib/teams';
 import { LogoImage } from '@/components/LogoImage';
+import { HighlightsSection } from '@/components/HighlightsSection';
 
 export const revalidate = 300;
 export const dynamic = 'force-dynamic';
@@ -50,7 +51,7 @@ export default async function MatchPage({
   const result = await getMatchByIndex(mi);
   if (!result) notFound();
 
-  const { match, scheduleEntry } = result!;
+  const { match, scheduleEntry, highlights } = result!;
 
   const team1Slug = toSlug(match.team1);
   const team2Slug = toSlug(match.team2);
@@ -374,6 +375,13 @@ export default async function MatchPage({
               )}
             </div>
           </div>
+
+          {/* Highlights */}
+          {highlights.length > 0 && (
+            <div className="card" style={{ marginBottom: 24, padding: '20px 20px 8px' }}>
+              <HighlightsSection highlights={highlights} title="Match Highlights" />
+            </div>
+          )}
 
           {/* Navigation */}
           <div style={{ marginTop: 20, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>

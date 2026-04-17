@@ -102,11 +102,19 @@ export interface ScheduleEntry {
   matchIndex: number | null; // links to match detail for Completed rows
 }
 
+export interface HighlightEntry {
+  page: string;      // team slug, matchIndex as string, or 'home'
+  label: string;
+  url: string;
+  type: 'instagram' | 'youtube' | string;
+}
+
 export interface ParsedSheetData {
   fighters: FighterStat[];
   teams: TeamStanding[];
   teamMatches: Record<string, TeamMatch[]>;
   fighterHistory: Record<string, FightHistory[]>;
   schedule: ScheduleEntry[];
+  highlights: HighlightEntry[];
   lastUpdated: string;
 }

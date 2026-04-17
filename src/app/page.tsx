@@ -1,9 +1,7 @@
 // src/app/page.tsx
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getAllData, toSlug } from '@/lib/data';
-import { getTeamLogoPath } from '@/lib/teams';
-import { LogoImage } from '@/components/LogoImage';
+import { getAllData } from '@/lib/data';
 
 export const metadata: Metadata = {
   // absolute bypasses the layout template so we don't get double-suffix
@@ -68,7 +66,9 @@ export default async function HomePage() {
     .sort((a, b) => b.war - a.war)
     .slice(0, 5);
 
-  const sortedTeams = [...teams].sort((a, b) => b.wins - a.wins || b.diff - a.diff);
+  const topTeams = [...teams]
+    .sort((a, b) => b.wins - a.wins || b.diff - a.diff)
+    .slice(0, 8);
 
   return (
     <>
@@ -103,73 +103,23 @@ export default async function HomePage() {
       </section>
 
       {/* ── Quick Nav Cards ── */}
-      <section className="page">
+      <section className="page" style={{ paddingTop: 24 }}>
         <div className="container">
-          {/* ── Standings + Top Fighters ── */}
-          <div className="home-main-grid">
-            {/* Full Standings Table */}
-            <div className="card home-standings-card">
-              <div className="card-header">
-                <span className="card-title">Team Standings</span>
-                <Link href="/teams" style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--accent)', letterSpacing: '0.04em' }}>
-                  Full page →
-                </Link>
-              </div>
-              <div className="table-wrap">
-                <table className="home-standings-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: 28 }}>#</th>
-                      <th>Team</th>
-                      <th className="num-cell">W</th>
-                      <th className="num-cell">L</th>
-                      <th className="num-cell">PF</th>
-                      <th className="num-cell">PA</th>
-                      <th className="num-cell">Diff</th>
-                      <th className="num-cell">Str</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedTeams.map((t, i) => {
-                      const isWStreak = t.streak?.startsWith('W');
-                      return (
-                        <tr key={t.slug}>
-                          <td className="rank-cell">{i + 1}</td>
-                          <td>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <LogoImage
-                                src={getTeamLogoPath(t.slug)}
-                                alt={t.team}
-                                style={{ width: 20, height: 20, objectFit: 'contain', flexShrink: 0 }}
-                              />
-                              <Link href={`/teams/${t.slug}`} style={{ color: 'var(--text)', fontWeight: 600, fontSize: 13 }}>
-                                {t.team}
-                              </Link>
-                            </div>
-                          </td>
-                          <td className="num-cell mono" style={{ color: 'var(--result-w)', fontWeight: 700 }}>{t.wins}</td>
-                          <td className="num-cell mono" style={{ color: 'var(--result-l)' }}>{t.losses}</td>
-                          <td className="num-cell mono">{t.pf.toFixed(1)}</td>
-                          <td className="num-cell mono">{t.pa.toFixed(1)}</td>
-                          <td className="num-cell mono" style={{ color: t.diff >= 0 ? 'var(--result-w)' : 'var(--result-l)', fontWeight: 600 }}>
-                            {t.diff >= 0 ? '+' : ''}{t.diff.toFixed(1)}
-                          </td>
-                          <td className="num-cell mono" style={{ fontSize: 11, color: isWStreak ? 'var(--result-w)' : t.streak ? 'var(--result-l)' : 'var(--text-muted)' }}>
-                            {t.streak || '—'}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
+          {/* ── Top Performers Preview ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginTop: 0 }}>
             {/* Top Fighters by WAR */}
             <div className="card">
               <div className="card-header">
-                <span className="card-title">Top Fighters</span>
-                <Link href="/fighters" style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--accent)', letterSpacing: '0.04em' }}>
+                <span className="card-title">Top Fighters by WAR</span>
+                <Link
+                  href="/fighters"
+                  style={{
+                    fontFamily: 'IBM Plex Mono, monospace',
+                    fontSize: 11,
+                    color: 'var(--accent)',
+                    letterSpacing: '0.04em',
+                  }}
+                >
                   View all →
                 </Link>
               </div>
@@ -180,7 +130,7 @@ export default async function HomePage() {
                       <th style={{ width: 28 }}>#</th>
                       <th>Fighter</th>
                       <th className="num-cell">WAR</th>
-                      <th className="num-cell">W-L</th>
+                      <th className="num-cell">Record</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -188,7 +138,7 @@ export default async function HomePage() {
                       <tr key={f.slug}>
                         <td className="rank-cell">{i + 1}</td>
                         <td>
-                          <Link href={`/fighters/${f.slug}`} style={{ color: 'var(--accent)', fontWeight: 600, fontSize: 13 }}>
+                          <Link href={`/fighters/${f.slug}`} style={{ color: 'var(--accent)', fontWeight: 600 }}>
                             {f.name}
                           </Link>
                           <br />
@@ -196,6 +146,52 @@ export default async function HomePage() {
                         </td>
                         <td className="num-cell mono">{f.war.toFixed(2)}</td>
                         <td className="num-cell mono">{f.record}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Top Teams */}
+            <div className="card">
+              <div className="card-header">
+                <span className="card-title">Team Standings</span>
+                <Link
+                  href="/teams"
+                  style={{
+                    fontFamily: 'IBM Plex Mono, monospace',
+                    fontSize: 11,
+                    color: 'var(--accent)',
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  View all →
+                </Link>
+              </div>
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style={{ width: 28 }}>#</th>
+                      <th>Team</th>
+                      <th className="num-cell">W-L</th>
+                      <th className="num-cell">Diff</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topTeams.map((t, i) => (
+                      <tr key={t.slug}>
+                        <td className="rank-cell">{i + 1}</td>
+                        <td>
+                          <Link href={`/teams/${t.slug}`} style={{ color: 'var(--accent)', fontWeight: 600 }}>
+                            {t.team}
+                          </Link>
+                        </td>
+                        <td className="num-cell mono">{t.record}</td>
+                        <td className="num-cell mono" style={{ color: t.diff >= 0 ? 'var(--result-w)' : 'var(--result-l)' }}>
+                          {t.diff >= 0 ? '+' : ''}{t.diff.toFixed(1)}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

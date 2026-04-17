@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { getTeamBySlug, calcTeamStreak, toSlug } from '@/lib/data';
 import { getTeamColor, getTeamLogoPath, getFullTeamName } from '@/lib/teams';
 import { LogoImage } from '@/components/LogoImage';
+import { HighlightsSection } from '@/components/HighlightsSection';
 import type { TeamMatch, BoxScoreRound, FighterStat, ScheduleEntry } from '@/types';
 
 export const revalidate = 300;
@@ -224,7 +225,7 @@ export default async function TeamPage({ params }: { params: { slug: string } })
   const result = await getTeamBySlug(params.slug);
   if (!result) notFound();
 
-  const { team, matches, roster, nextMatch } = result;
+  const { team, matches, roster, nextMatch, highlights } = result;
   const streak = team.streak || calcTeamStreak(matches);
   const isWStreak = streak.startsWith('W');
 
@@ -358,6 +359,9 @@ export default async function TeamPage({ params }: { params: { slug: string } })
             <MatchSummaryCard key={i} match={match} teamName={team.team} />
           ))
         )}
+
+        {/* Highlights */}
+        <HighlightsSection highlights={highlights} />
 
         {/* Roster */}
         <RosterSection fighters={roster} />

@@ -10,6 +10,7 @@ import type {
   BoxScoreRound,
   MatchResult,
   ScheduleEntry,
+  HighlightEntry,
   ParsedSheetData,
 } from '@/types';
 
@@ -23,6 +24,8 @@ const SHEETS = {
     'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=0&single=true&output=csv',
   schedule:
     'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=1716719705&single=true&output=csv',
+  highlights:
+    'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=1508158260&single=true&output=csv',
 };
 
 // ─── Utility ───────────────────────────────────────────────────────────────────
@@ -452,13 +455,37 @@ function parseSchedule(rows: string[][]): ScheduleEntry[] {
     .filter((e) => e.team1 || e.team2); // must have at least one team
 }
 
+// ─── Highlights Parser ────────────────────────────────────────────────────────
+// Expected columns: Page | Label | URL | Type
+// Page: team slug (e.g. "dallas"), matchIndex as string (e.g. "7"), or "home"
+function parseHighlights(rows: string[][]): HighlightEntry[] {
+  if (rows.length === 0) return [];
+  let headerRowIndex = 0;
+  for (let i = 0; i < Math.min(rows.length, 5); i++) {
+    if (rows[i].some((c) => /page|label|url|type/i.test(c))) {
+      headerRowIndex = i;
+      break;
+    }
+  }
+  const objects = toObjects(rows, headerRowIndex);
+  return objects
+    .filter((r) => r['URL'] && r['URL'].trim())
+    .map((r) => ({
+      page:  (r['Page']  || '').trim().toLowerCase(),
+      label: (r['Label'] || '').trim(),
+      url:   (r['URL']   || '').trim(),
+      type:  (r['Type']  || '').trim().toLowerCase(),
+    } satisfies HighlightEntry));
+}
+
 // ─── Main export ───────────────────────────────────────────────────────────────
 export async function getAllData(): Promise<ParsedSheetData> {
-  const [fighterRawRows, teamRawRows, matchRawRows, scheduleRawRows] = await Promise.all([
+  const [fighterRawRows, teamRawRows, matchRawRows, scheduleRawRows, highlightsRawRows] = await Promise.all([
     fetchRawCSV(SHEETS.fighters),
     fetchRawCSV(SHEETS.teams),
     fetchRawCSV(SHEETS.matches),
     fetchRawCSV(SHEETS.schedule).catch(() => [] as string[][]),
+    fetchRawCSV(SHEETS.highlights).catch(() => [] as string[][]),
   ]);
 
   const { fighters, lastUpdated } = parseFighters(fighterRawRows);
@@ -466,6 +493,8 @@ export async function getAllData(): Promise<ParsedSheetData> {
   const { teamMatches, fighterHistory } = parseMatchData(matchRawRows);
   let schedule: ReturnType<typeof parseSchedule> = [];
   try { schedule = parseSchedule(scheduleRawRows); } catch { schedule = []; }
+  let highlights: HighlightEntry[] = [];
+  try { highlights = parseHighlights(highlightsRawRows); } catch { highlights = []; }
 
   // Enrich teams with streak from match data if not in sheet
   teams.forEach((t) => {
@@ -474,7 +503,7 @@ export async function getAllData(): Promise<ParsedSheetData> {
     }
   });
 
-  return { fighters, teams, teamMatches, fighterHistory, schedule, lastUpdated };
+  return { fighters, teams, teamMatches, fighterHistory, schedule, highlights, lastUpdated };
 }
 
 export async function getFighterBySlug(slug: string) {
@@ -528,7 +557,9 @@ export async function getTeamBySlug(slug: string) {
     })
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0] ?? null;
 
-  return { team: { ...team, streak }, matches, roster, nextMatch };
+  const teamHighlights = data.highlights.filter((h) => h.page === slug || h.page === team.slug);
+
+  return { team: { ...team, streak }, matches, roster, nextMatch, highlights: teamHighlights };
 }
 
 export async function getMatchByIndex(matchIndex: number) {
@@ -537,5 +568,6 @@ export async function getMatchByIndex(matchIndex: number) {
   const match = allMatches.find((m) => m.matchIndex === matchIndex) ?? null;
   if (!match) return null;
   const scheduleEntry = data.schedule.find((s) => s.matchIndex === matchIndex) ?? null;
-  return { match, scheduleEntry };
+  const highlights = data.highlights.filter((h) => h.page === String(matchIndex));
+  return { match, scheduleEntry, highlights };
 }
