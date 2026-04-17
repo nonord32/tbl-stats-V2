@@ -496,11 +496,20 @@ export async function getAllData(): Promise<ParsedSheetData> {
   let highlights: HighlightEntry[] = [];
   try { highlights = parseHighlights(highlightsRawRows); } catch { highlights = []; }
 
-  // Enrich teams with streak from match data if not in sheet
+  // Always recompute streak from match data — never trust the sheet's Streak column
+  // since it can be stale or manually entered incorrectly.
+  // Use fuzzy name matching in case the match data uses abbreviated team names
+  // (e.g. "NYC" vs "NYC Attitude").
   teams.forEach((t) => {
-    if (!t.streak) {
-      t.streak = calcTeamStreak(teamMatches[t.team] || []);
+    let matches = teamMatches[t.team];
+    if (!matches || matches.length === 0) {
+      const key = Object.keys(teamMatches).find(
+        (k) => k === t.team || t.team.startsWith(k) || k.startsWith(t.team)
+      );
+      matches = key ? teamMatches[key] : [];
     }
+    const computed = calcTeamStreak(matches);
+    t.streak = computed; // override sheet value entirely
   });
 
   return { fighters, teams, teamMatches, fighterHistory, schedule, highlights, lastUpdated };
