@@ -2,6 +2,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getAllData } from '@/lib/data';
+import { HighlightsSection } from '@/components/HighlightsSection';
 
 export const metadata: Metadata = {
   // absolute bypasses the layout template so we don't get double-suffix
@@ -29,7 +30,8 @@ const SITE_URL = 'https://tblstats.com';
 
 export default async function HomePage() {
   const data = await getAllData();
-  const { fighters, teams } = data;
+  const { fighters, teams, highlights } = data;
+  const homeHighlights = highlights.filter((h) => h.page === 'home');
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -199,6 +201,13 @@ export default async function HomePage() {
               </div>
             </div>
           </div>
+
+          {/* ── Highlights ── */}
+          {homeHighlights.length > 0 && (
+            <div style={{ marginTop: 40 }}>
+              <HighlightsSection highlights={homeHighlights} title="Highlights" />
+            </div>
+          )}
 
           {/* ── About TBL ── */}
           <div className="about-section">
