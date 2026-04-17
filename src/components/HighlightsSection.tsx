@@ -24,7 +24,8 @@ function getInstagramPostId(url: string): string | null {
 
 function YouTubeCard({ videoId, label }: { videoId: string; label: string }) {
   const [playing, setPlaying] = useState(false);
-  const thumb = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+  // Try maxresdefault (creator-set thumbnail, clean), fall back to hqdefault
+  const [thumbUrl, setThumbUrl] = useState(`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`);
 
   return (
     <div className="highlight-card">
@@ -44,7 +45,14 @@ function YouTubeCard({ videoId, label }: { videoId: string; label: string }) {
           className="highlight-thumb-btn"
           aria-label={`Play ${label}`}
         >
-          <div className="highlight-thumb" style={{ backgroundImage: `url(${thumb})` }}>
+          <div className="highlight-thumb">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={thumbUrl}
+              alt={label}
+              onError={() => setThumbUrl(`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`)}
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+            />
             <div className="highlight-play">
               <svg width="52" height="36" viewBox="0 0 68 48" fill="none">
                 <rect width="68" height="48" rx="10" fill="#FF0000" fillOpacity="0.9"/>

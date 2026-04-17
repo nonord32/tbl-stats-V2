@@ -907,8 +907,11 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
 /* ─── Highlights ─────────────────────────────────────────────────────────── */
 .highlights-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  gap: 20px;
+}
+@media (max-width: 520px) {
+  .highlights-grid { grid-template-columns: 1fr; }
 }
 .highlight-card {
   background: var(--bg-card);
