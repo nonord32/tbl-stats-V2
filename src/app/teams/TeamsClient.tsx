@@ -13,6 +13,7 @@ interface Props {
   teams: TeamStanding[];
   teamMatches: Record<string, TeamMatch[]>;
   seoText?: string;
+  lastUpdated?: string;
 }
 
 function StreakBadge({ streak }: { streak: string }) {
@@ -189,7 +190,10 @@ function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; s
   return <span style={{ marginLeft: 3 }}>{sortDir === 'desc' ? '↓' : '↑'}</span>;
 }
 
-export function TeamsClient({ teams, teamMatches, seoText }: Props) {
+export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props) {
+  const formattedUpdate = lastUpdated
+    ? (() => { try { return new Date(lastUpdated).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch { return null; } })()
+    : null;
   const [sortKey, setSortKey] = useState<SortKey>('record');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [modalTeam, setModalTeam] = useState<TeamStanding | null>(null);
@@ -222,7 +226,14 @@ export function TeamsClient({ teams, teamMatches, seoText }: Props) {
       <div className="container">
         <div className="page-header">
           <h1>Team Standings</h1>
-          <div className="subtitle">Team Rankings · 2026 TBL Season</div>
+          <div className="subtitle">
+            Team Rankings · 2026 TBL Season
+            {formattedUpdate && (
+              <span style={{ marginLeft: 10, fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>
+                · Updated {formattedUpdate}
+              </span>
+            )}
+          </div>
         </div>
         {seoText && <p className="page-intro">{seoText}</p>}
 

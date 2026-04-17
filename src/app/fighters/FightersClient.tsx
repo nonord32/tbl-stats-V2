@@ -13,6 +13,7 @@ interface Props {
   fighters: FighterStat[];
   fighterHistory: Record<string, FightHistory[]>;
   seoText?: string;
+  lastUpdated?: string;
 }
 
 function StreakBadge({ streak }: { streak: string }) {
@@ -143,7 +144,10 @@ function FighterModal({
   );
 }
 
-export function FightersClient({ fighters, fighterHistory, seoText }: Props) {
+export function FightersClient({ fighters, fighterHistory, seoText, lastUpdated }: Props) {
+  const formattedUpdate = lastUpdated
+    ? (() => { try { return new Date(lastUpdated).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch { return null; } })()
+    : null;
   const [sortKey, setSortKey] = useState<SortKey>('war');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [search, setSearch] = useState('');
@@ -220,7 +224,14 @@ export function FightersClient({ fighters, fighterHistory, seoText }: Props) {
       <div className="container">
         <div className="page-header">
           <h1>Fighter Stats</h1>
-          <div className="subtitle">Individual Rankings · 2026 TBL Season</div>
+          <div className="subtitle">
+            Individual Rankings · 2026 TBL Season
+            {formattedUpdate && (
+              <span style={{ marginLeft: 10, fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>
+                · Updated {formattedUpdate}
+              </span>
+            )}
+          </div>
         </div>
         {seoText && <p className="page-intro">{seoText}</p>}
 

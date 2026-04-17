@@ -9,6 +9,7 @@ import type { MatchResult, BoxScoreRound } from '@/types';
 
 interface Props {
   matches: MatchResult[];
+  lastUpdated?: string;
 }
 
 function ScorecardStrip({
@@ -164,7 +165,10 @@ function MatchCard({ match }: { match: MatchResult }) {
   );
 }
 
-export function ResultsClient({ matches }: Props) {
+export function ResultsClient({ matches, lastUpdated }: Props) {
+  const formattedUpdate = lastUpdated
+    ? (() => { try { return new Date(lastUpdated).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch { return null; } })()
+    : null;
   const grouped: { date: string; matches: MatchResult[] }[] = [];
   const dateMap = new Map<string, MatchResult[]>();
 
@@ -189,7 +193,14 @@ export function ResultsClient({ matches }: Props) {
       <div className="container">
         <div className="page-header">
           <h1>Results</h1>
-          <div className="subtitle">All Matches · 2026 TBL Season</div>
+          <div className="subtitle">
+            All Matches · 2026 TBL Season
+            {formattedUpdate && (
+              <span style={{ marginLeft: 10, fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>
+                · Updated {formattedUpdate}
+              </span>
+            )}
+          </div>
         </div>
         <p className="page-intro">
           All Team Boxing League match results for the 2026 season. Click any match to see the phase box score, or view the full round-by-round breakdown.

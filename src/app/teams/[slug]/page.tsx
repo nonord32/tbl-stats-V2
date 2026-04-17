@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { getTeamBySlug, calcTeamStreak, toSlug } from '@/lib/data';
 import { getTeamColor, getTeamLogoPath, getFullTeamName } from '@/lib/teams';
 import { LogoImage } from '@/components/LogoImage';
-import type { TeamMatch, BoxScoreRound } from '@/types';
+import type { TeamMatch, BoxScoreRound, FighterStat, ScheduleEntry } from '@/types';
 
 export const revalidate = 300;
 export const dynamic = 'force-dynamic';
@@ -142,11 +142,89 @@ function MatchSummaryCard({ match, teamName }: { match: TeamMatch; teamName: str
   );
 }
 
+function NextMatchCard({ entry, teamName }: { entry: ScheduleEntry; teamName: string }) {
+  const formattedDate = (() => {
+    try {
+      return new Date(entry.date).toLocaleDateString('en-US', {
+        weekday: 'short', month: 'short', day: 'numeric',
+      });
+    } catch { return entry.date; }
+  })();
+
+  const opponent = entry.team1.toLowerCase().includes(teamName.split(' ')[0].toLowerCase())
+    ? entry.team2
+    : entry.team1;
+  const opponentSlug = toSlug(opponent);
+  const opponentFullName = getFullTeamName(opponentSlug);
+
+  return (
+    <div className="card" style={{ marginBottom: 24, borderLeft: '4px solid var(--accent)', padding: '14px 20px' }}>
+      <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 8 }}>
+        Next Match
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 20px', alignItems: 'baseline' }}>
+        <span style={{ fontWeight: 700, fontSize: 15 }}>
+          vs{' '}
+          <Link href={`/teams/${opponentSlug}`} style={{ color: 'var(--accent)' }}>
+            {opponentFullName}
+          </Link>
+        </span>
+        <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 12, color: 'var(--text-muted)' }}>{formattedDate}</span>
+        {entry.time && <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 12, color: 'var(--text-muted)' }}>{entry.time}</span>}
+        {entry.venueName && (
+          <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 12, color: 'var(--text-muted)' }}>
+            {entry.venueName}{entry.venueCity ? `, ${entry.venueCity}` : ''}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RosterSection({ fighters }: { fighters: FighterStat[] }) {
+  if (fighters.length === 0) return null;
+  const sorted = [...fighters].sort((a, b) => b.war - a.war);
+  return (
+    <div style={{ marginBottom: 32 }}>
+      <div className="page-header" style={{ marginBottom: 16 }}>
+        <h2 style={{ fontSize: 18 }}>Roster</h2>
+        <div className="subtitle">{sorted.length} fighter{sorted.length !== 1 ? 's' : ''}</div>
+      </div>
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid var(--border)' }}>
+              <th style={{ textAlign: 'left', padding: '10px 16px', fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Fighter</th>
+              <th style={{ textAlign: 'left', padding: '10px 8px', fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Weight</th>
+              <th style={{ textAlign: 'center', padding: '10px 8px', fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Record</th>
+              <th style={{ textAlign: 'right', padding: '10px 16px', fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>WAR</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((f, i) => (
+              <tr key={f.slug} style={{ borderBottom: i < sorted.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                <td style={{ padding: '10px 16px' }}>
+                  <Link href={`/fighters/${f.slug}`} style={{ fontWeight: 600, color: 'var(--text)' }}>
+                    {f.name}
+                  </Link>
+                </td>
+                <td style={{ padding: '10px 8px', fontSize: 13, color: 'var(--text-muted)' }}>{f.weightClass}</td>
+                <td style={{ padding: '10px 8px', textAlign: 'center', fontFamily: 'IBM Plex Mono, monospace', fontSize: 13 }}>{f.record}</td>
+                <td style={{ padding: '10px 16px', textAlign: 'right', fontFamily: 'IBM Plex Mono, monospace', fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>{f.war.toFixed(2)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default async function TeamPage({ params }: { params: { slug: string } }) {
   const result = await getTeamBySlug(params.slug);
   if (!result) notFound();
 
-  const { team, matches } = result;
+  const { team, matches, roster, nextMatch } = result;
   const streak = team.streak || calcTeamStreak(matches);
   const isWStreak = streak.startsWith('W');
 
@@ -260,6 +338,9 @@ export default async function TeamPage({ params }: { params: { slug: string } })
           </div>
         </div>
 
+        {/* Next match callout */}
+        {nextMatch && <NextMatchCard entry={nextMatch} teamName={team.team} />}
+
         {/* Match history */}
         <div className="page-header" style={{ marginBottom: 16 }}>
           <h1 style={{ fontSize: 18 }}>Match Box Scores</h1>
@@ -277,6 +358,9 @@ export default async function TeamPage({ params }: { params: { slug: string } })
             <MatchSummaryCard key={i} match={match} teamName={team.team} />
           ))
         )}
+
+        {/* Roster */}
+        <RosterSection fighters={roster} />
 
         {/* Back link */}
         <div style={{ marginTop: 20 }}>

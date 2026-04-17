@@ -78,7 +78,7 @@ export default async function ResultsPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <ResultsClient matches={matches} />
+      <ResultsClient matches={matches} lastUpdated={data.lastUpdated} />
     </>
   );
 }

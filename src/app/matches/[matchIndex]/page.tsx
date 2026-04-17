@@ -268,6 +268,35 @@ export default async function MatchPage({
             </div>
           </div>
 
+          {/* Weight class breakdown */}
+          {(() => {
+            const weightClasses = Array.from(new Set(match.boxScore.map((r) => r.weightClass).filter(Boolean))) as string[];
+            if (weightClasses.length === 0) return null;
+            const rows = weightClasses.map((wc) => {
+              const wcRounds = match.boxScore.filter((r) => r.weightClass === wc);
+              const wins1 = wcRounds.filter((r) => r.winner === r.fighter1).length;
+              const wins2 = wcRounds.filter((r) => r.winner === r.fighter2).length;
+              return { wc, wins1, wins2 };
+            });
+            return (
+              <div className="card" style={{ marginBottom: 24 }}>
+                <div className="card-header">
+                  <span className="card-title">By Weight Class</span>
+                </div>
+                <div style={{ padding: '4px 0' }}>
+                  {rows.map(({ wc, wins1, wins2 }) => (
+                    <div key={wc} style={{ display: 'flex', alignItems: 'center', padding: '8px 20px', borderBottom: '1px solid var(--border)', gap: 12 }}>
+                      <span style={{ flex: 1, fontFamily: 'IBM Plex Mono, monospace', fontSize: 12, color: 'var(--text-muted)' }}>{wc}</span>
+                      <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700, fontSize: 14, color: wins1 > wins2 ? 'var(--result-w)' : wins1 < wins2 ? 'var(--result-l)' : 'var(--text)' }}>{wins1}</span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>–</span>
+                      <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700, fontSize: 14, color: wins2 > wins1 ? 'var(--result-w)' : wins2 < wins1 ? 'var(--result-l)' : 'var(--text)' }}>{wins2}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Round-by-round breakdown */}
           <div className="card" style={{ marginBottom: 24 }}>
             <div className="card-header">

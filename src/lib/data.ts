@@ -283,7 +283,7 @@ function parseMatchData(rows: string[][]): {
       if (isWin1) wins1++;
       else if (isLoss1) wins2++;
 
-      boxScore.push({ round: roundNum, phase, fighter1, fighter2, score1: pts1, score2: pts2, winner });
+      boxScore.push({ round: roundNum, phase, fighter1, fighter2, score1: pts1, score2: pts2, winner, weightClass });
 
       // Add to fighter history
       const r1: 'W' | 'L' | 'D' = isWin1 ? 'W' : isLoss1 ? 'L' : 'D';
@@ -497,7 +497,32 @@ export async function getTeamBySlug(slug: string) {
   if (!team) return null;
   const matches = data.teamMatches[team.team] || [];
   const streak = team.streak || calcTeamStreak(matches);
-  return { team: { ...team, streak }, matches };
+
+  // Roster: fighters whose team matches (handles abbreviated names like "Las Vegas" vs "Las Vegas Hustle")
+  const roster = data.fighters.filter(
+    (f) =>
+      f.team === team.team ||
+      team.team.startsWith(f.team) ||
+      f.team.startsWith(team.team)
+  );
+
+  // Next upcoming match from schedule
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const teamNameLower = team.team.toLowerCase();
+  const nextMatch = data.schedule
+    .filter((s) => {
+      if (s.status.toLowerCase() !== 'upcoming') return false;
+      const t1 = s.team1.toLowerCase();
+      const t2 = s.team2.toLowerCase();
+      return (
+        teamNameLower.startsWith(t1) || t1.startsWith(teamNameLower.split(' ')[0]) ||
+        teamNameLower.startsWith(t2) || t2.startsWith(teamNameLower.split(' ')[0])
+      );
+    })
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0] ?? null;
+
+  return { team: { ...team, streak }, matches, roster, nextMatch };
 }
 
 export async function getMatchByIndex(matchIndex: number) {
