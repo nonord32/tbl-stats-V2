@@ -52,3 +52,9 @@ export function getTeamColorByName(name: string): string {
   const entry = Object.values(TEAMS).find((t) => t.fullName === name);
   return entry ? entry.color : '';
 }
+
+/** Logo path looked up by full team name, e.g. "Los Angeles Elite". */
+export function getTeamLogoPathByName(name: string): string {
+  const key = Object.keys(TEAMS).find((k) => TEAMS[k].fullName === name);
+  return key ? `/logos/${key}.png` : '';
+}

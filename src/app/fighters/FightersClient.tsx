@@ -5,7 +5,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import type { FighterStat, FightHistory } from '@/types';
 import { calcFighterStreak } from '@/lib/data';
-import { getTeamColorByName } from '@/lib/teams';
+import { getTeamColorByName, getTeamLogoPathByName } from '@/lib/teams';
 
 type SortKey = 'war' | 'nppr' | 'netPts' | 'winPct' | 'rounds' | 'record' | 'name';
 
@@ -306,7 +306,20 @@ export function FightersClient({ fighters, fighterHistory, seoText }: Props) {
                           </button>
                         </div>
                       </td>
-                      <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{f.team}</td>
+                      <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {getTeamLogoPathByName(f.team) && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={getTeamLogoPathByName(f.team)}
+                              alt={f.team}
+                              style={{ width: 18, height: 18, objectFit: 'contain', flexShrink: 0 }}
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          )}
+                          {f.team}
+                        </div>
+                      </td>
                       <td style={{ fontSize: 12 }}>{f.weightClass}</td>
                       <td style={{ fontSize: 12 }}>{f.gender}</td>
                       <td className="num-cell mono col-record">{f.record}</td>
