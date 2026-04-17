@@ -160,6 +160,16 @@ function MarqueeCard({ entry, forcePlay = false }: { entry: HighlightEntry; forc
 export function HighlightsMarquee({ highlights }: { highlights: HighlightEntry[] }) {
   const rootRef = React.useRef<HTMLDivElement>(null);
   const [autoPlayIndex, setAutoPlayIndex] = React.useState<number | null>(null);
+  const [isMobile, setIsMobile] = React.useState(false);
+  const [expanded, setExpanded] = React.useState(false);
+
+  // Detect mobile viewport
+  React.useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 640);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   // Find first YouTube clip index for auto-play
   const firstYtIndex = highlights.findIndex((h) => getYouTubeId(h.url) !== null);
@@ -183,13 +193,57 @@ export function HighlightsMarquee({ highlights }: { highlights: HighlightEntry[]
 
   if (highlights.length === 0) return null;
 
+  // On mobile: show only the first clip until the user expands
+  const showAll = !isMobile || expanded;
+  const hiddenCount = highlights.length - 1;
+
   return (
     <div className="mq-root" ref={rootRef}>
       <div className="mq-static-row">
-        {highlights.map((h, i) => (
-          <MarqueeCard key={i} entry={h} forcePlay={i === autoPlayIndex} />
-        ))}
+        {highlights.map((h, i) => {
+          if (!showAll && i > 0) return null;
+          return <MarqueeCard key={i} entry={h} forcePlay={i === autoPlayIndex} />;
+        })}
       </div>
+
+      {/* Mobile "watch more" button — only shown when there are hidden clips */}
+      {isMobile && !expanded && hiddenCount > 0 && (
+        <button
+          onClick={() => setExpanded(true)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            width: '100%',
+            padding: '12px 16px',
+            background: 'rgba(255,255,255,0.06)',
+            border: 'none',
+            borderTop: '1px solid rgba(255,255,255,0.08)',
+            color: 'rgba(255,255,255,0.75)',
+            fontFamily: 'IBM Plex Mono, monospace',
+            fontSize: 12,
+            fontWeight: 600,
+            letterSpacing: '0.05em',
+            textTransform: 'uppercase',
+            cursor: 'pointer',
+            transition: 'background 0.15s, color 0.15s',
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.1)';
+            (e.currentTarget as HTMLButtonElement).style.color = '#fff';
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.06)';
+            (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.75)';
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+          Watch {hiddenCount} more {hiddenCount === 1 ? 'clip' : 'clips'}
+        </button>
+      )}
     </div>
   );
 }
