@@ -15,7 +15,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem('tbl-theme') as Theme | null;
+    let stored: Theme | null = null;
+    try { stored = localStorage.getItem('tbl-theme') as Theme | null; } catch {}
     const initial = stored || 'light'; // Default: light
     setTheme(initial);
     document.documentElement.setAttribute('data-theme', initial);
@@ -26,7 +27,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const next: Theme = theme === 'light' ? 'dark' : 'light';
     setTheme(next);
     document.documentElement.setAttribute('data-theme', next);
-    localStorage.setItem('tbl-theme', next);
+    try { localStorage.setItem('tbl-theme', next); } catch {}
   };
 
   // Avoid flash: render invisible until mounted

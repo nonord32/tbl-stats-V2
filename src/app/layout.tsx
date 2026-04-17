@@ -1,11 +1,17 @@
 // src/app/layout.tsx
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import Script from 'next/script';
 import { Analytics } from '@vercel/analytics/react';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { Nav } from '@/components/Nav';
 import { Footer } from '@/components/Footer';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://tblstats.com'),
