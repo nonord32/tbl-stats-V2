@@ -34,9 +34,6 @@ function MatchRow({ entry }: { entry: ScheduleEntry }) {
   const t2Slug = toSlug(entry.team2);
   const t1Name = getFullTeamName(t1Slug) || entry.team1;
   const t2Name = getFullTeamName(t2Slug) || entry.team2;
-  const t1Color = getTeamColor(t1Slug);
-  const t2Color = getTeamColor(t2Slug);
-
   const isCompleted = entry.status.toLowerCase() === 'completed';
   const isCancelled = entry.status.toLowerCase() === 'cancelled';
 
