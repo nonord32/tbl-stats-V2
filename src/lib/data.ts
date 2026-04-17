@@ -452,13 +452,14 @@ export async function getAllData(): Promise<ParsedSheetData> {
     fetchRawCSV(SHEETS.fighters),
     fetchRawCSV(SHEETS.teams),
     fetchRawCSV(SHEETS.matches),
-    fetchRawCSV(SHEETS.schedule),
+    fetchRawCSV(SHEETS.schedule).catch(() => [] as string[][]),
   ]);
 
   const { fighters, lastUpdated } = parseFighters(fighterRawRows);
   const teams = parseTeams(teamRawRows);
   const { teamMatches, fighterHistory } = parseMatchData(matchRawRows);
-  const schedule = parseSchedule(scheduleRawRows);
+  let schedule: ReturnType<typeof parseSchedule> = [];
+  try { schedule = parseSchedule(scheduleRawRows); } catch { schedule = []; }
 
   // Enrich teams with streak from match data if not in sheet
   teams.forEach((t) => {
