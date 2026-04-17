@@ -876,11 +876,6 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
 /* ─── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .nav-brand-text { display: none; }
-  thead th:not(.always-show) { display: none; }
-  tbody td:not(.always-show) { display: none; }
-  /* Override: show essential columns on mobile */
-  .col-rank, .col-name, .col-record, .col-war { display: table-cell !important; }
-  .col-team-rank, .col-team, .col-result, .col-diff { display: table-cell !important; }
 
   .modal { max-height: 95vh; max-height: 95dvh; }
   .fighter-hero, .team-hero { padding: 16px; }
