@@ -17,8 +17,8 @@ const TEAMS: Record<string, TeamMeta> = {
   'los-angeles': { fullName: 'Los Angeles Elite',  color: '#552583' },
   'miami':       { fullName: 'Miami Assassins',    color: '#98002e' },
   'nashville':   { fullName: 'Nashville Smash',    color: '#ffb81c' },
-  'nyc':         { fullName: 'NYC Attitude',       color: '#e53e3e' },
-  'philadelphia':{ fullName: 'Philadelphia Smoke', color: '#003087' },
+  'nyc':         { fullName: 'NYC Attitude',       color: '#1a6b35' },
+  'philadelphia':{ fullName: 'Philadelphia Smoke', color: '#6b2fa0' },
   'phoenix':     { fullName: 'Phoenix Fury',       color: '#e56020' },
   'san-antonio': { fullName: 'San Antonio Snipers',color: '#3d3d3d' },
 };
