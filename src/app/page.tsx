@@ -7,18 +7,18 @@ import { HighlightsMarquee } from '@/components/HighlightsMarquee';
 
 export const metadata: Metadata = {
   // absolute bypasses the layout template so we don't get double-suffix
-  title: { absolute: 'Team Boxing League | Rankings, Leaders, & Results' },
+  title: { absolute: 'TBL Stats | Every Round. Every Fighter. Every Team.' },
   description:
     'Independent stats, standings, and fight results for Team Boxing League. Track fighter performance, team trends, and match outcomes all season long.',
   openGraph: {
     url: 'https://tblstats.com',
-    title: 'TBL Stats | Rankings, Leaders, & Results',
+    title: 'TBL Stats | Every Round. Every Fighter. Every Team.',
     description: 'Independent stats, standings, and fight results for Team Boxing League.',
     images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'TBL Stats' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'TBL Stats | Rankings, Leaders, & Results',
+    title: 'TBL Stats | Every Round. Every Fighter. Every Team.',
     description: 'Independent stats, standings, and fight results for Team Boxing League.',
     images: ['/og-image.png'],
   },
@@ -96,7 +96,7 @@ export default async function HomePage() {
             </span>
           </div>
           <h1>
-            Team Boxing League | Rankings, Leaders, &amp; Results
+            Every Round. Every Fighter. Every Team.
           </h1>
           <p>
             Independent stats, standings, and fight results for Team Boxing League.
