@@ -319,9 +319,6 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
                               <button className="fighter-name-btn" onClick={() => setModalTeam(t)}>
                                 {t.team}
                               </button>
-                              {inPlayoffs && (
-                                <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', color: 'var(--result-w)', opacity: 0.8 }}>P</span>
-                              )}
                             </div>
                           </td>
                           <td className="num-cell mono col-result">{t.record}</td>

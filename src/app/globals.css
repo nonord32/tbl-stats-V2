@@ -402,11 +402,12 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
   position: fixed;
   inset: 0;
   background: var(--modal-overlay);
-  z-index: 200;
+  z-index: 10000;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: calc(var(--nav-h) + 16px) 16px 16px;
+  overflow-y: auto;
   animation: fadeIn 0.15s ease;
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
