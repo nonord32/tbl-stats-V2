@@ -16,7 +16,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL('https://tblstats.com'),
   title: {
-    default: 'TBL Stats | Rankings, Leaders, & Results',
+    default: 'Team Boxing League | Rankings, Leaders, & Results',
     template: '%s | TBL Stats',
   },
   description:

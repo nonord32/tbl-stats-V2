@@ -452,3 +452,9 @@ export async function getTeamBySlug(slug: string) {
   const streak = team.streak || calcTeamStreak(matches);
   return { team: { ...team, streak }, matches };
 }
+
+export async function getMatchByIndex(matchIndex: number) {
+  const data = await getAllData();
+  const allMatches = extractUniqueMatches(data.teamMatches);
+  return allMatches.find((m) => m.matchIndex === matchIndex) ?? null;
+}

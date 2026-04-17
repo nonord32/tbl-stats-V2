@@ -1,6 +1,6 @@
 // src/app/sitemap.ts
 import { MetadataRoute } from 'next';
-import { getAllData } from '@/lib/data';
+import { getAllData, extractUniqueMatches } from '@/lib/data';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const data = await getAllData();
@@ -20,12 +20,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
+  const matchUrls = extractUniqueMatches(data.teamMatches).map((m) => ({
+    url: `${base}/matches/${m.matchIndex}`,
+    lastModified: new Date(),
+    changeFrequency: 'weekly' as const,
+    priority: 0.6,
+  }));
+
   return [
-    { url: base, lastModified: new Date(), changeFrequency: 'daily', priority: 1 },
-    { url: `${base}/fighters`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.9 },
-    { url: `${base}/teams`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.9 },
-    { url: `${base}/results`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.8 },
+    { url: base,                    lastModified: new Date(), changeFrequency: 'daily',  priority: 1   },
+    { url: `${base}/fighters`,      lastModified: new Date(), changeFrequency: 'daily',  priority: 0.9 },
+    { url: `${base}/teams`,         lastModified: new Date(), changeFrequency: 'daily',  priority: 0.9 },
+    { url: `${base}/results`,       lastModified: new Date(), changeFrequency: 'daily',  priority: 0.8 },
     ...fighterUrls,
     ...teamUrls,
+    ...matchUrls,
   ];
 }

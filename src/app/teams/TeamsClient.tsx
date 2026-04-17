@@ -3,9 +3,9 @@
 
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
-import type { TeamStanding, TeamMatch } from '@/types';
-import { calcTeamStreak } from '@/lib/data';
-import { getTeamColor, getTeamLogoPath } from '@/lib/teams';
+import type { TeamStanding, TeamMatch, BoxScoreRound } from '@/types';
+import { calcTeamStreak, toSlug } from '@/lib/data';
+import { getTeamColor, getTeamLogoPath, getFullTeamName } from '@/lib/teams';
 
 type SortKey = 'record' | 'pf' | 'pa' | 'diff' | 'streak';
 
@@ -21,6 +21,109 @@ function StreakBadge({ streak }: { streak: string }) {
   return <span className={`badge ${isWin ? 'badge-win' : 'badge-loss'}`}>{streak}</span>;
 }
 
+function MatchScorecardRow({
+  match,
+  teamName,
+}: {
+  match: TeamMatch;
+  teamName: string;
+}) {
+  const phases = Array.from(new Set(match.boxScore.map((r: BoxScoreRound) => r.phase).filter(Boolean)));
+  const phaseTotals = phases.map((phase) => {
+    const rows = match.boxScore.filter((r: BoxScoreRound) => r.phase === phase);
+    return {
+      phase,
+      score1: rows.reduce((s: number, r: BoxScoreRound) => s + r.score1, 0),
+      score2: rows.reduce((s: number, r: BoxScoreRound) => s + r.score2, 0),
+    };
+  });
+
+  const total1 = match.pf;
+  const total2 = match.pa;
+  const opponentSlug = toSlug(match.opponent);
+  const opponentFullName = getFullTeamName(opponentSlug);
+
+  const formattedDate = (() => {
+    try {
+      return new Date(match.date).toLocaleDateString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric',
+      });
+    } catch { return match.date; }
+  })();
+
+  return (
+    <div className="match-card" style={{ marginBottom: 16 }}>
+      <div className="match-card-header">
+        <span className="matchup" style={{ fontSize: 13 }}>
+          {teamName} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>vs</span> {opponentFullName}
+        </span>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span className={`result-${match.result.toLowerCase()}`} style={{ fontSize: 13, fontWeight: 700, fontFamily: 'IBM Plex Mono, monospace' }}>
+            {match.result === 'W' ? 'WIN' : match.result === 'L' ? 'LOSS' : 'DRAW'}
+          </span>
+          <span className="badge" style={{ fontSize: 11 }}>
+            {match.pf.toFixed(1)} – {match.pa.toFixed(1)}
+          </span>
+          <span className="match-date">{formattedDate}</span>
+        </div>
+      </div>
+
+      {/* Phase scorecard */}
+      <div style={{ border: '1px solid var(--border)', borderTop: 'none', borderRadius: '0 0 var(--radius) var(--radius)', overflow: 'hidden' }}>
+        <div className="results-scorecard-wrap">
+          <table className="results-scorecard">
+            <thead>
+              <tr>
+                <th className="results-scorecard-team-col">Team</th>
+                {phaseTotals.map((pt) => (
+                  <th key={pt.phase} className="results-scorecard-phase-col">{pt.phase || 'Rounds'}</th>
+                ))}
+                <th className="results-scorecard-total-col">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { label: teamName, scores: phaseTotals.map((pt) => pt.score1), oppScores: phaseTotals.map((pt) => pt.score2), total: total1, oppTotal: total2 },
+                { label: opponentFullName, scores: phaseTotals.map((pt) => pt.score2), oppScores: phaseTotals.map((pt) => pt.score1), total: total2, oppTotal: total1 },
+              ].map(({ label, scores, oppScores, total, oppTotal }) => (
+                <tr key={label}>
+                  <td className="results-scorecard-team-name">{label}</td>
+                  {scores.map((score, i) => {
+                    const opp = oppScores[i];
+                    const color = score > opp ? 'var(--result-w)' : score < opp ? 'var(--result-l)' : 'var(--text)';
+                    return (
+                      <td key={i} className="results-scorecard-cell" style={{ color, fontWeight: score > opp ? 700 : 400 }}>
+                        {score.toFixed(1)}
+                      </td>
+                    );
+                  })}
+                  <td
+                    className="results-scorecard-cell results-scorecard-total"
+                    style={{
+                      color: total > oppTotal ? 'var(--result-w)' : total < oppTotal ? 'var(--result-l)' : 'var(--text)',
+                      fontWeight: 700,
+                    }}
+                  >
+                    {total.toFixed(1)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ padding: '6px 14px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
+          <Link
+            href={`/matches/${match.matchIndex}`}
+            style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--accent)' }}
+          >
+            Full match →
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function BoxScoreModal({
   team,
   matches,
@@ -30,9 +133,12 @@ function BoxScoreModal({
   matches: TeamMatch[];
   onClose: () => void;
 }) {
+  // Sort most recent first
+  const sorted = [...matches].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 900 }} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+      <div className="modal" style={{ maxWidth: 720 }} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         <div className="modal-header">
           <div>
             <div className="modal-title">{team.team} — Box Scores</div>
@@ -49,64 +155,15 @@ function BoxScoreModal({
           <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
         </div>
         <div className="modal-body">
-          {matches.length === 0 ? (
+          {sorted.length === 0 ? (
             <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>No match data found.</p>
           ) : (
-            matches.map((match, mi) => (
-              <div key={mi} className="match-card">
-                <div className="match-card-header">
-                  <span className="matchup">
-                    {team.team} vs {match.opponent}
-                  </span>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <span className={`result-${match.result.toLowerCase()}`} style={{ fontSize: 14 }}>
-                      {match.result === 'W' ? 'WIN' : match.result === 'L' ? 'LOSS' : 'DRAW'}
-                    </span>
-                    <span className="badge">
-                      {match.pf.toFixed(1)} – {match.pa.toFixed(1)}
-                    </span>
-                    <span className="match-date">{match.date}</span>
-                  </div>
-                </div>
-                <div className="table-wrap" style={{ border: '1px solid var(--border)', borderTop: 'none', borderRadius: '0 0 var(--radius) var(--radius)' }}>
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Rnd</th>
-                        <th>Phase</th>
-                        <th>{team.team}</th>
-                        <th>{match.opponent}</th>
-                        <th className="num-cell">Score</th>
-                        <th>Winner</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {match.boxScore.map((row, ri) => {
-                        const homeWon = row.score1 > row.score2;
-                        const awayWon = row.score2 > row.score1;
-                        return (
-                          <tr key={ri}>
-                            <td className="mono" style={{ fontSize: 12 }}>{row.round}</td>
-                            <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{row.phase}</td>
-                            <td style={{ fontWeight: homeWon ? 700 : 400 }}>{row.fighter1}</td>
-                            <td style={{ fontWeight: awayWon ? 700 : 400 }}>{row.fighter2}</td>
-                            <td className="num-cell mono" style={{ fontSize: 12 }}>
-                              <span style={{ color: homeWon ? 'var(--result-w)' : 'inherit' }}>{row.score1.toFixed(1)}</span>
-                              {' – '}
-                              <span style={{ color: awayWon ? 'var(--result-w)' : 'inherit' }}>{row.score2.toFixed(1)}</span>
-                            </td>
-                            <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{row.winner}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+            sorted.map((match, mi) => (
+              <MatchScorecardRow key={mi} match={match} teamName={team.team} />
             ))
           )}
 
-          <div style={{ marginTop: 16, textAlign: 'right' }}>
+          <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--border)', textAlign: 'right' }}>
             <Link
               href={`/teams/${team.slug}`}
               style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 12, color: 'var(--accent)' }}

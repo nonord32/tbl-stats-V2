@@ -121,13 +121,22 @@ export default async function FighterPage({ params }: { params: { slug: string }
                   rel="noopener noreferrer"
                   aria-label={`${fighter.name} on Instagram`}
                   title="Instagram"
-                  style={{ color: 'var(--text-muted)', lineHeight: 0, flexShrink: 0 }}
+                  style={{ lineHeight: 0, flexShrink: 0 }}
                   className="ig-link"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
-                    <circle cx="12" cy="12" r="4"/>
-                    <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <defs>
+                      <linearGradient id="ig-grad" x1="0%" y1="100%" x2="100%" y2="0%">
+                        <stop offset="0%"   stopColor="#f09433" />
+                        <stop offset="25%"  stopColor="#e6683c" />
+                        <stop offset="50%"  stopColor="#dc2743" />
+                        <stop offset="75%"  stopColor="#cc2366" />
+                        <stop offset="100%" stopColor="#bc1888" />
+                      </linearGradient>
+                    </defs>
+                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5" stroke="url(#ig-grad)" />
+                    <circle cx="12" cy="12" r="4" stroke="url(#ig-grad)" />
+                    <circle cx="17.5" cy="6.5" r="1" fill="url(#ig-grad)" stroke="none" />
                   </svg>
                 </a>
               )}

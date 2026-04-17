@@ -5,7 +5,7 @@ import { getAllData } from '@/lib/data';
 
 export const metadata: Metadata = {
   // absolute bypasses the layout template so we don't get double-suffix
-  title: { absolute: 'TBL Stats | Rankings, Leaders, & Results' },
+  title: { absolute: 'Team Boxing League | Rankings, Leaders, & Results' },
   description:
     'Independent stats, standings, and fight results for Team Boxing League. Track fighter performance, team trends, and match outcomes all season long.',
   openGraph: {
@@ -68,7 +68,7 @@ export default async function HomePage() {
 
   const topTeams = [...teams]
     .sort((a, b) => b.wins - a.wins || b.diff - a.diff)
-    .slice(0, 5);
+    .slice(0, 8);
 
   return (
     <>
@@ -93,7 +93,7 @@ export default async function HomePage() {
             </span>
           </div>
           <h1>
-            TBL Stats | Rankings, Leaders, &amp; Results
+            Team Boxing League | Rankings, Leaders, &amp; Results
           </h1>
           <p>
             Independent stats, standings, and fight results for Team Boxing League.
@@ -124,30 +124,6 @@ export default async function HomePage() {
       {/* ── Quick Nav Cards ── */}
       <section className="page">
         <div className="container">
-          <div className="quick-nav">
-            <Link href="/fighters" className="card quick-nav-card">
-              <h3>Fighter Stats</h3>
-              <p>
-                Individual rankings by WAR, NPPR, Net Points, Win%, and more.
-                Filter by weight class, team, or gender. Click any fighter for
-                full fight history.
-              </p>
-              <p style={{ marginTop: 12, fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--accent)' }}>
-                {fighters.length} fighters →
-              </p>
-            </Link>
-            <Link href="/teams" className="card quick-nav-card">
-              <h3>Team Standings</h3>
-              <p>
-                Team records, Points For / Against, differential, and streaks.
-                Click any team for full round-by-round box scores.
-              </p>
-              <p style={{ marginTop: 12, fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--accent)' }}>
-                {teams.length} teams →
-              </p>
-            </Link>
-          </div>
-
           {/* ── Top Performers Preview ── */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginTop: 40 }}>
             {/* Top Fighters by WAR */}

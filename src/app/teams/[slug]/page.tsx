@@ -2,8 +2,8 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getAllData, getTeamBySlug, calcTeamStreak } from '@/lib/data';
-import { getTeamColor, getTeamLogoPath } from '@/lib/teams';
+import { getTeamBySlug, calcTeamStreak, toSlug } from '@/lib/data';
+import { getTeamColor, getTeamLogoPath, getFullTeamName } from '@/lib/teams';
 import { LogoImage } from '@/components/LogoImage';
 import type { TeamMatch, BoxScoreRound } from '@/types';
 
@@ -36,16 +36,39 @@ export async function generateMetadata({
   };
 }
 
-function MatchCard({ match, teamName }: { match: TeamMatch; teamName: string }) {
-  const totalHome = match.boxScore.reduce((s, r) => s + r.score1, 0);
-  const totalAway = match.boxScore.reduce((s, r) => s + r.score2, 0);
+function MatchSummaryCard({ match, teamName }: { match: TeamMatch; teamName: string }) {
+  const phases = Array.from(new Set(match.boxScore.map((r: BoxScoreRound) => r.phase).filter(Boolean)));
+  const phaseTotals = phases.map((phase) => {
+    const rows = match.boxScore.filter((r: BoxScoreRound) => r.phase === phase);
+    return {
+      phase,
+      score1: rows.reduce((s: number, r: BoxScoreRound) => s + r.score1, 0),
+      score2: rows.reduce((s: number, r: BoxScoreRound) => s + r.score2, 0),
+    };
+  });
+
+  const total1 = match.pf;
+  const total2 = match.pa;
+  const opponentSlug = toSlug(match.opponent);
+  const opponentFullName = getFullTeamName(opponentSlug);
+
+  const formattedDate = (() => {
+    try {
+      return new Date(match.date).toLocaleDateString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric',
+      });
+    } catch { return match.date; }
+  })();
 
   return (
-    <div className="match-card" style={{ marginBottom: 24 }}>
+    <div className="match-card" style={{ marginBottom: 20 }}>
       <div className="match-card-header">
         <div>
           <span className="matchup">
-            {teamName} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>vs</span> {match.opponent}
+            {teamName} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>vs</span>{' '}
+            <Link href={`/teams/${opponentSlug}`} style={{ color: 'var(--accent)' }}>
+              {opponentFullName}
+            </Link>
           </span>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -58,86 +81,62 @@ function MatchCard({ match, teamName }: { match: TeamMatch; teamName: string }) 
           <span className="badge">
             {match.pf.toFixed(1)} – {match.pa.toFixed(1)}
           </span>
-          <span className="match-date">{match.date}</span>
+          <span className="match-date">{formattedDate}</span>
         </div>
       </div>
 
-      <div
-        className="table-wrap"
-        style={{
-          border: '1px solid var(--border)',
-          borderTop: 'none',
-          borderRadius: '0 0 var(--radius) var(--radius)',
-        }}
-      >
-        <table>
-          <thead>
-            <tr>
-              <th>Rnd</th>
-              <th>Phase</th>
-              <th>{teamName}</th>
-              <th>{match.opponent}</th>
-              <th className="num-cell">Score</th>
-              <th>Winner</th>
-            </tr>
-          </thead>
-          <tbody>
-            {match.boxScore.map((row: BoxScoreRound, ri: number) => {
-              const homeWon = row.score1 > row.score2;
-              const awayWon = row.score2 > row.score1;
-              return (
-                <tr key={ri}>
-                  <td className="mono" style={{ fontSize: 12 }}>{row.round}</td>
-                  <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{row.phase}</td>
-                  <td style={{ fontWeight: homeWon ? 700 : 400 }}>
-                    <Link
-                      href={`/fighters/${row.fighter1.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-')}`}
-                      style={{ color: homeWon ? 'var(--accent)' : 'var(--text)' }}
-                    >
-                      {row.fighter1}
-                    </Link>
+      {/* Phase scorecard strip */}
+      <div style={{ border: '1px solid var(--border)', borderTop: 'none', borderRadius: '0 0 var(--radius) var(--radius)', overflow: 'hidden' }}>
+        <div className="results-scorecard-wrap">
+          <table className="results-scorecard">
+            <thead>
+              <tr>
+                <th className="results-scorecard-team-col">Team</th>
+                {phaseTotals.map((pt) => (
+                  <th key={pt.phase} className="results-scorecard-phase-col">{pt.phase || 'Rounds'}</th>
+                ))}
+                <th className="results-scorecard-total-col">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { label: teamName, scores: phaseTotals.map((pt) => pt.score1), oppScores: phaseTotals.map((pt) => pt.score2), total: total1, oppTotal: total2 },
+                { label: opponentFullName, scores: phaseTotals.map((pt) => pt.score2), oppScores: phaseTotals.map((pt) => pt.score1), total: total2, oppTotal: total1 },
+              ].map(({ label, scores, oppScores, total, oppTotal }) => (
+                <tr key={label}>
+                  <td className="results-scorecard-team-name">{label}</td>
+                  {scores.map((score, i) => {
+                    const opp = oppScores[i];
+                    const color = score > opp ? 'var(--result-w)' : score < opp ? 'var(--result-l)' : 'var(--text)';
+                    return (
+                      <td key={i} className="results-scorecard-cell" style={{ color, fontWeight: score > opp ? 700 : 400 }}>
+                        {score.toFixed(1)}
+                      </td>
+                    );
+                  })}
+                  <td
+                    className="results-scorecard-cell results-scorecard-total"
+                    style={{
+                      color: total > oppTotal ? 'var(--result-w)' : total < oppTotal ? 'var(--result-l)' : 'var(--text)',
+                      fontWeight: 700,
+                    }}
+                  >
+                    {total.toFixed(1)}
                   </td>
-                  <td style={{ fontWeight: awayWon ? 700 : 400 }}>
-                    <Link
-                      href={`/fighters/${row.fighter2.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-')}`}
-                      style={{ color: awayWon ? 'var(--accent)' : 'var(--text)' }}
-                    >
-                      {row.fighter2}
-                    </Link>
-                  </td>
-                  <td className="num-cell mono" style={{ fontSize: 12 }}>
-                    <span style={{ color: homeWon ? 'var(--result-w)' : 'var(--text-muted)' }}>
-                      {row.score1.toFixed(1)}
-                    </span>
-                    {' – '}
-                    <span style={{ color: awayWon ? 'var(--result-w)' : 'var(--text-muted)' }}>
-                      {row.score2.toFixed(1)}
-                    </span>
-                  </td>
-                  <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{row.winner}</td>
                 </tr>
-              );
-            })}
-            {/* Totals row */}
-            <tr style={{ background: 'var(--bg-table-alt)', fontWeight: 700 }}>
-              <td colSpan={2} className="mono" style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                TOTAL
-              </td>
-              <td />
-              <td />
-              <td className="num-cell mono" style={{ fontSize: 13 }}>
-                <span style={{ color: totalHome > totalAway ? 'var(--result-w)' : totalHome < totalAway ? 'var(--result-l)' : 'var(--text)' }}>
-                  {totalHome.toFixed(1)}
-                </span>
-                {' – '}
-                <span style={{ color: totalAway > totalHome ? 'var(--result-w)' : totalAway < totalHome ? 'var(--result-l)' : 'var(--text)' }}>
-                  {totalAway.toFixed(1)}
-                </span>
-              </td>
-              <td />
-            </tr>
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {/* Link to full match detail */}
+        <div style={{ padding: '8px 16px', borderTop: '1px solid var(--border)', textAlign: 'right' }}>
+          <Link
+            href={`/matches/${match.matchIndex}`}
+            style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--accent)' }}
+          >
+            Full match breakdown →
+          </Link>
+        </div>
       </div>
     </div>
   );
@@ -275,7 +274,7 @@ export default async function TeamPage({ params }: { params: { slug: string } })
           </div>
         ) : (
           matches.map((match: TeamMatch, i: number) => (
-            <MatchCard key={i} match={match} teamName={team.team} />
+            <MatchSummaryCard key={i} match={match} teamName={team.team} />
           ))
         )}
 
