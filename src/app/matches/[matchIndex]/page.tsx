@@ -16,8 +16,9 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const mi = parseInt(params.matchIndex, 10);
   if (isNaN(mi)) return { title: 'Match Not Found' };
-  const match = await getMatchByIndex(mi);
-  if (!match) return { title: 'Match Not Found' };
+  const result = await getMatchByIndex(mi);
+  if (!result) return { title: 'Match Not Found' };
+  const { match } = result;
   const t1 = getFullTeamName(toSlug(match.team1));
   const t2 = getFullTeamName(toSlug(match.team2));
   return {
@@ -46,8 +47,10 @@ export default async function MatchPage({
   const mi = parseInt(params.matchIndex, 10);
   if (isNaN(mi)) notFound();
 
-  const match = await getMatchByIndex(mi);
-  if (!match) notFound();
+  const result = await getMatchByIndex(mi);
+  if (!result) notFound();
+
+  const { match, scheduleEntry } = result!;
 
   const team1Slug = toSlug(match.team1);
   const team2Slug = toSlug(match.team2);
@@ -145,8 +148,16 @@ export default async function MatchPage({
                 textTransform: 'uppercase',
                 letterSpacing: '0.06em',
                 marginBottom: 20,
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                gap: '0 10px',
               }}>
-                {formattedDate} · 2026 TBL Season
+                {scheduleEntry?.week ? <span>Week {scheduleEntry.week}</span> : null}
+                <span>{formattedDate}</span>
+                {scheduleEntry?.time ? <span>{scheduleEntry.time}</span> : null}
+                {scheduleEntry?.venueName ? <span>{scheduleEntry.venueName}{scheduleEntry.venueCity ? `, ${scheduleEntry.venueCity}` : ''}</span> : null}
+                {!scheduleEntry?.venueName && <span>2026 TBL Season</span>}
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24, flexWrap: 'wrap' }}>

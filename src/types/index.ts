@@ -89,10 +89,23 @@ export interface MatchResult {
   boxScore: BoxScoreRound[];
 }
 
+export interface ScheduleEntry {
+  week: number;
+  date: string;
+  time: string;
+  team1: string;
+  team2: string;
+  venueName: string;
+  venueCity: string;
+  status: 'Upcoming' | 'Completed' | 'Cancelled' | string;
+  matchIndex: number | null; // links to match detail for Completed rows
+}
+
 export interface ParsedSheetData {
   fighters: FighterStat[];
   teams: TeamStanding[];
   teamMatches: Record<string, TeamMatch[]>;
   fighterHistory: Record<string, FightHistory[]>;
+  schedule: ScheduleEntry[];
   lastUpdated: string;
 }

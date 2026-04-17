@@ -48,6 +48,12 @@ export function Nav() {
           >
             Results
           </Link>
+          <Link
+            href="/schedule"
+            className={`nav-link ${isActive('/schedule') ? 'active' : ''}`}
+          >
+            Schedule
+          </Link>
         </div>
 
         <div className="nav-actions">

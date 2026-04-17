@@ -9,6 +9,7 @@ import type {
   FightHistory,
   BoxScoreRound,
   MatchResult,
+  ScheduleEntry,
   ParsedSheetData,
 } from '@/types';
 
@@ -20,6 +21,8 @@ const SHEETS = {
     'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=1404001793&single=true&output=csv',
   matches:
     'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=0&single=true&output=csv',
+  schedule:
+    'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=1716719705&single=true&output=csv',
 };
 
 // ─── Utility ───────────────────────────────────────────────────────────────────
@@ -402,17 +405,60 @@ export function extractUniqueMatches(teamMatches: Record<string, TeamMatch[]>): 
   return results.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
+// ─── Schedule Parser ──────────────────────────────────────────────────────────
+// Expected columns: Week | Date | Time | Team 1 | Team 2 | Venue Name | Venue City | Status | Match ID
+function parseSchedule(rows: string[][]): ScheduleEntry[] {
+  if (rows.length === 0) return [];
+
+  // Find header row (contains "Date" or "Team 1")
+  let headerRowIndex = 0;
+  for (let i = 0; i < Math.min(rows.length, 5); i++) {
+    if (rows[i].some((c) => /date/i.test(c) || /team/i.test(c))) {
+      headerRowIndex = i;
+      break;
+    }
+  }
+
+  const objects = toObjects(rows, headerRowIndex);
+
+  return objects
+    .filter((r) => {
+      // Skip completely empty rows
+      const vals = Object.values(r).map((v) => v.trim()).filter(Boolean);
+      return vals.length > 0;
+    })
+    .map((r) => {
+      const team1Raw = (r['Team 1'] || r['Team1'] || '').trim();
+      const team2Raw = (r['Team 2'] || r['Team2'] || '').trim();
+      const matchIdRaw = (r['Match ID'] || r['MatchID'] || r['Match Id'] || '').trim();
+      return {
+        week: safeInt(r['Week'] || r['Wk'] || '0'),
+        date: (r['Date'] || '').trim(),
+        time: (r['Time'] || '').trim(),
+        team1: team1Raw,
+        team2: team2Raw,
+        venueName: (r['Venue Name'] || r['Venue'] || '').trim(),
+        venueCity: (r['Venue City'] || r['City'] || '').trim(),
+        status: (r['Status'] || 'Upcoming').trim(),
+        matchIndex: matchIdRaw ? safeInt(matchIdRaw) || null : null,
+      } satisfies ScheduleEntry;
+    })
+    .filter((e) => e.team1 || e.team2); // must have at least one team
+}
+
 // ─── Main export ───────────────────────────────────────────────────────────────
 export async function getAllData(): Promise<ParsedSheetData> {
-  const [fighterRawRows, teamRawRows, matchRawRows] = await Promise.all([
+  const [fighterRawRows, teamRawRows, matchRawRows, scheduleRawRows] = await Promise.all([
     fetchRawCSV(SHEETS.fighters),
     fetchRawCSV(SHEETS.teams),
     fetchRawCSV(SHEETS.matches),
+    fetchRawCSV(SHEETS.schedule),
   ]);
 
   const { fighters, lastUpdated } = parseFighters(fighterRawRows);
   const teams = parseTeams(teamRawRows);
   const { teamMatches, fighterHistory } = parseMatchData(matchRawRows);
+  const schedule = parseSchedule(scheduleRawRows);
 
   // Enrich teams with streak from match data if not in sheet
   teams.forEach((t) => {
@@ -421,7 +467,7 @@ export async function getAllData(): Promise<ParsedSheetData> {
     }
   });
 
-  return { fighters, teams, teamMatches, fighterHistory, lastUpdated };
+  return { fighters, teams, teamMatches, fighterHistory, schedule, lastUpdated };
 }
 
 export async function getFighterBySlug(slug: string) {
@@ -456,5 +502,8 @@ export async function getTeamBySlug(slug: string) {
 export async function getMatchByIndex(matchIndex: number) {
   const data = await getAllData();
   const allMatches = extractUniqueMatches(data.teamMatches);
-  return allMatches.find((m) => m.matchIndex === matchIndex) ?? null;
+  const match = allMatches.find((m) => m.matchIndex === matchIndex) ?? null;
+  if (!match) return null;
+  const scheduleEntry = data.schedule.find((s) => s.matchIndex === matchIndex) ?? null;
+  return { match, scheduleEntry };
 }
