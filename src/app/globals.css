@@ -886,6 +886,24 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
 .btn-outline { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.3); }
 .btn-outline:hover { background: rgba(255,255,255,0.08); text-decoration: none; color: #fff; }
 
+/* ─── Homepage main grid ──────────────────────────────────────────────────── */
+.home-main-grid {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .home-main-grid { grid-template-columns: 1fr; }
+}
+.home-standings-table th,
+.home-standings-table td {
+  white-space: nowrap;
+}
+.home-standings-table td:nth-child(2) {
+  white-space: normal;
+}
+
 /* ─── About section ───────────────────────────────────────────────────────── */
 .about-section {
   padding: 48px 0;

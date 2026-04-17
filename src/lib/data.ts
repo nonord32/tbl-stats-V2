@@ -99,14 +99,20 @@ function cleanInstagramUrl(raw: string): string {
   }
 }
 function parseFighters(rows: string[][]): { fighters: FighterStat[]; lastUpdated: string } {
-  // Extract Last Updated from row 2 (index 1)
-  let lastUpdated = new Date().toISOString();
+  // Extract Last Updated from row 2 (index 1).
+  // Use timeZone: 'UTC' when formatting to avoid the date shifting back one day
+  // when the ISO string is later rendered in a US timezone on the client.
+  let lastUpdated = '';
   try {
     if (rows[1] && rows[1][0]) {
       const dateStr = rows[1][0].replace(/last updated:?/i, '').trim();
       if (dateStr) {
         const parsed = new Date(dateStr);
-        if (!isNaN(parsed.getTime())) lastUpdated = parsed.toISOString();
+        if (!isNaN(parsed.getTime())) {
+          lastUpdated = parsed.toLocaleDateString('en-US', {
+            month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
+          });
+        }
       }
     }
   } catch {}

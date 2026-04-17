@@ -145,9 +145,7 @@ function FighterModal({
 }
 
 export function FightersClient({ fighters, fighterHistory, seoText, lastUpdated }: Props) {
-  const formattedUpdate = lastUpdated
-    ? (() => { try { return new Date(lastUpdated).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch { return null; } })()
-    : null;
+  const formattedUpdate = lastUpdated || null;
   const [sortKey, setSortKey] = useState<SortKey>('war');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [search, setSearch] = useState('');

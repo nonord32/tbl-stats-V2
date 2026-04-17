@@ -166,9 +166,7 @@ function MatchCard({ match }: { match: MatchResult }) {
 }
 
 export function ResultsClient({ matches, lastUpdated }: Props) {
-  const formattedUpdate = lastUpdated
-    ? (() => { try { return new Date(lastUpdated).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch { return null; } })()
-    : null;
+  const formattedUpdate = lastUpdated || null;
   const grouped: { date: string; matches: MatchResult[] }[] = [];
   const dateMap = new Map<string, MatchResult[]>();
 

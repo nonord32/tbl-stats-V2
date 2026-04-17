@@ -191,9 +191,7 @@ function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; s
 }
 
 export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props) {
-  const formattedUpdate = lastUpdated
-    ? (() => { try { return new Date(lastUpdated).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch { return null; } })()
-    : null;
+  const formattedUpdate = lastUpdated || null;
   const [sortKey, setSortKey] = useState<SortKey>('record');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [modalTeam, setModalTeam] = useState<TeamStanding | null>(null);
