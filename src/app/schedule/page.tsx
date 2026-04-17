@@ -2,7 +2,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getAllData, toSlug } from '@/lib/data';
-import { getFullTeamName, getTeamColor, getTeamLogoPath } from '@/lib/teams';
+import { getFullTeamName, getTeamLogoPath } from '@/lib/teams';
 import { LogoImage } from '@/components/LogoImage';
 import type { ScheduleEntry } from '@/types';
 
@@ -68,9 +68,6 @@ function MatchRow({ entry }: { entry: ScheduleEntry }) {
       <div className="schedule-matchup">
         {/* Team 1 */}
         <div className="schedule-team">
-          {t1Color && (
-            <span style={{ display: 'inline-block', width: 3, height: 18, borderRadius: 2, background: t1Color, flexShrink: 0 }} />
-          )}
           <LogoImage src={getTeamLogoPath(t1Slug)} alt={t1Name}
             style={{ width: 22, height: 22, objectFit: 'contain', flexShrink: 0 }} />
           <span className="schedule-team-name" style={{ fontWeight: 600 }}>{t1Name}</span>
@@ -80,9 +77,6 @@ function MatchRow({ entry }: { entry: ScheduleEntry }) {
 
         {/* Team 2 */}
         <div className="schedule-team">
-          {t2Color && (
-            <span style={{ display: 'inline-block', width: 3, height: 18, borderRadius: 2, background: t2Color, flexShrink: 0 }} />
-          )}
           <LogoImage src={getTeamLogoPath(t2Slug)} alt={t2Name}
             style={{ width: 22, height: 22, objectFit: 'contain', flexShrink: 0 }} />
           <span className="schedule-team-name" style={{ fontWeight: 600 }}>{t2Name}</span>
