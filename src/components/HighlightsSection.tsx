@@ -7,9 +7,18 @@ import type { HighlightEntry } from '@/types';
 function getYouTubeId(url: string): string | null {
   try {
     const u = new URL(url);
-    if (u.hostname.includes('youtube.com')) return u.searchParams.get('v');
+    if (u.hostname.includes('youtube.com')) {
+      // Regular: youtube.com/watch?v=ID
+      if (u.searchParams.get('v')) return u.searchParams.get('v');
+      // Shorts: youtube.com/shorts/ID
+      const shortsMatch = u.pathname.match(/\/shorts\/([^/?]+)/);
+      if (shortsMatch) return shortsMatch[1];
+      // Embed: youtube.com/embed/ID
+      const embedMatch = u.pathname.match(/\/embed\/([^/?]+)/);
+      if (embedMatch) return embedMatch[1];
+    }
+    // youtu.be/ID
     if (u.hostname === 'youtu.be') return u.pathname.replace('/', '');
-    if (u.pathname.startsWith('/embed/')) return u.pathname.split('/')[2];
   } catch {}
   return null;
 }
