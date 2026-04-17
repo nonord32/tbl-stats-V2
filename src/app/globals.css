@@ -99,12 +99,18 @@ img { max-width: 100%; height: auto; }
 .nav {
   background: var(--nav-bg);
   height: var(--nav-h);
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 100;
   border-bottom: 1px solid rgba(255,60,0,0.2);
   display: flex;
   align-items: center;
+}
+
+main {
+  padding-top: var(--nav-h);
 }
 .nav-inner {
   display: flex;
@@ -947,14 +953,15 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
 
 /* ─── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
-  .nav-brand-text { display: none; }
-
   .modal { max-height: 95vh; max-height: 95dvh; }
   .fighter-hero, .team-hero { padding: 16px; }
   .stat-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 12px; }
+  /* Tighten nav links on tablet */
+  .nav-link { padding: 6px 7px; font-size: 11px; }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 600px) {
+  /* On phones, hide nav links — show only brand */
   .nav-links { display: none; }
   .home-hero { padding: 40px 16px; }
 }
