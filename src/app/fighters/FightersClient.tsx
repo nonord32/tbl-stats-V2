@@ -5,6 +5,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import type { FighterStat, FightHistory } from '@/types';
 import { calcFighterStreak } from '@/lib/data';
+import { getTeamColorByName } from '@/lib/teams';
 
 type SortKey = 'war' | 'nppr' | 'netPts' | 'winPct' | 'rounds' | 'record' | 'name';
 
@@ -289,9 +290,21 @@ export function FightersClient({ fighters, fighterHistory, seoText }: Props) {
                     <tr key={f.slug}>
                       <td className="rank-cell col-rank">{i + 1}</td>
                       <td className="always-show">
-                        <button className="fighter-name-btn" onClick={() => setModalFighter(f)}>
-                          {f.name}
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {getTeamColorByName(f.team) && (
+                            <span style={{
+                              display: 'inline-block',
+                              width: 3,
+                              height: 22,
+                              borderRadius: 2,
+                              background: getTeamColorByName(f.team),
+                              flexShrink: 0,
+                            }} />
+                          )}
+                          <button className="fighter-name-btn" onClick={() => setModalFighter(f)}>
+                            {f.name}
+                          </button>
+                        </div>
                       </td>
                       <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{f.team}</td>
                       <td style={{ fontSize: 12 }}>{f.weightClass}</td>

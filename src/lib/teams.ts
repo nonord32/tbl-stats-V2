@@ -46,3 +46,9 @@ export function getTeamLogoPath(slug: string): string {
   const key = cityKey(slug);
   return key ? `/logos/${key}.png` : `/logos/${slug}.png`;
 }
+
+/** Hex accent color looked up by full team name, e.g. "Los Angeles Elite". */
+export function getTeamColorByName(name: string): string {
+  const entry = Object.values(TEAMS).find((t) => t.fullName === name);
+  return entry ? entry.color : '';
+}
