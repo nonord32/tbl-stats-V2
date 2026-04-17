@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getAllData, toSlug } from '@/lib/data';
 import { getFullTeamName, getTeamColor, getTeamLogoPath } from '@/lib/teams';
+import { LogoImage } from '@/components/LogoImage';
 import type { ScheduleEntry } from '@/types';
 
 export const revalidate = 300;
@@ -70,10 +71,8 @@ function MatchRow({ entry }: { entry: ScheduleEntry }) {
           {t1Color && (
             <span style={{ display: 'inline-block', width: 3, height: 18, borderRadius: 2, background: t1Color, flexShrink: 0 }} />
           )}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={getTeamLogoPath(t1Slug)} alt={t1Name}
-            style={{ width: 22, height: 22, objectFit: 'contain', flexShrink: 0 }}
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+          <LogoImage src={getTeamLogoPath(t1Slug)} alt={t1Name}
+            style={{ width: 22, height: 22, objectFit: 'contain', flexShrink: 0 }} />
           <span className="schedule-team-name" style={{ fontWeight: 600 }}>{t1Name}</span>
         </div>
 
@@ -84,10 +83,8 @@ function MatchRow({ entry }: { entry: ScheduleEntry }) {
           {t2Color && (
             <span style={{ display: 'inline-block', width: 3, height: 18, borderRadius: 2, background: t2Color, flexShrink: 0 }} />
           )}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={getTeamLogoPath(t2Slug)} alt={t2Name}
-            style={{ width: 22, height: 22, objectFit: 'contain', flexShrink: 0 }}
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+          <LogoImage src={getTeamLogoPath(t2Slug)} alt={t2Name}
+            style={{ width: 22, height: 22, objectFit: 'contain', flexShrink: 0 }} />
           <span className="schedule-team-name" style={{ fontWeight: 600 }}>{t2Name}</span>
         </div>
       </div>
