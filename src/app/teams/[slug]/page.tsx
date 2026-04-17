@@ -27,6 +27,12 @@ export async function generateMetadata({
       description: `${team.record} · ${team.pf.toFixed(1)} PF · ${team.pa.toFixed(1)} PA`,
       images: [{ url: '/og-image.png', width: 1200, height: 630 }],
     },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${team.team} | TBL Stats`,
+      description: `${team.team} · ${team.record} · ${team.pf.toFixed(1)} PF · ${team.pa.toFixed(1)} PA`,
+      images: ['/og-image.png'],
+    },
   };
 }
 

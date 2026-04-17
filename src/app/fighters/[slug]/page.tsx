@@ -29,6 +29,12 @@ export async function generateMetadata({
       description: `${fighter.record} · WAR ${fighter.war.toFixed(2)} · ${metaTeamName}`,
       images: [{ url: '/og-image.png', width: 1200, height: 630 }],
     },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${fighter.name} | TBL Stats`,
+      description: `${fighter.record} · WAR ${fighter.war.toFixed(2)} · ${metaTeamName}`,
+      images: ['/og-image.png'],
+    },
   };
 }
 

@@ -40,36 +40,34 @@ export default async function ResultsPage() {
       ...matches.map((m) => {
         const t1 = getFullTeamName(toSlug(m.team1));
         const t2 = getFullTeamName(toSlug(m.team2));
+        const winner = m.result === 'W' ? t1 : m.result === 'L' ? t2 : null;
         return {
-        '@type': 'SportsEvent',
-        name: `${t1} vs ${t2}`,
-        startDate: toIso(m.date),
-        endDate: toIso(m.date),
-        eventStatus: 'https://schema.org/EventScheduled',
-        eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
-        sport: 'Boxing',
-        url: `${BASE}/results`,
-        image: `${BASE}/tbl-logo.png`,
-        description: `${t1} ${m.score1.toFixed(1)} – ${m.score2.toFixed(1)} ${t2}. ${m.result === 'W' ? t1 : t2} wins.`,
-        location: {
-          '@type': 'Place',
-          name: 'Team Boxing League',
-          address: { '@type': 'PostalAddress', addressCountry: 'US' },
-        },
-        organizer: {
-          '@type': 'SportsOrganization',
-          name: 'Team Boxing League',
-          url: 'https://teamboxingleague.com',
-        },
-        competitor: [
-          { '@type': 'SportsTeam', name: t1 },
-          { '@type': 'SportsTeam', name: t2 },
-        ],
-        performer: [
-          { '@type': 'SportsTeam', name: t1 },
-          { '@type': 'SportsTeam', name: t2 },
-        ],
-      };
+          '@type': 'SportsEvent',
+          name: `${t1} vs ${t2}`,
+          startDate: toIso(m.date),
+          endDate: toIso(m.date),
+          eventStatus: 'https://schema.org/EventCompleted',
+          eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+          sport: 'Boxing',
+          url: `${BASE}/results`,
+          image: `${BASE}/og-image.png`,
+          description: `${t1} ${m.score1.toFixed(1)} – ${m.score2.toFixed(1)} ${t2}${winner ? `. ${winner} wins.` : ' · Draw.'}`,
+          location: {
+            '@type': 'Place',
+            name: 'Team Boxing League',
+            address: { '@type': 'PostalAddress', addressCountry: 'US' },
+          },
+          organizer: {
+            '@type': 'SportsOrganization',
+            name: 'Team Boxing League',
+            url: 'https://teamboxingleague.com',
+          },
+          competitor: [
+            { '@type': 'SportsTeam', name: t1 },
+            { '@type': 'SportsTeam', name: t2 },
+          ],
+          ...(winner ? { winner: { '@type': 'SportsTeam', name: winner } } : {}),
+        };
       }),
     ],
   };

@@ -4,9 +4,22 @@ import Link from 'next/link';
 import { getAllData } from '@/lib/data';
 
 export const metadata: Metadata = {
-  title: 'TBL Stats | Rankings, Leaders, & Results',
+  // absolute bypasses the layout template so we don't get double-suffix
+  title: { absolute: 'TBL Stats | Rankings, Leaders, & Results' },
   description:
     'Independent stats, standings, and fight results for Team Boxing League. Track fighter performance, team trends, and match outcomes all season long.',
+  openGraph: {
+    url: 'https://tblstats.com',
+    title: 'TBL Stats | Rankings, Leaders, & Results',
+    description: 'Independent stats, standings, and fight results for Team Boxing League.',
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'TBL Stats' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'TBL Stats | Rankings, Leaders, & Results',
+    description: 'Independent stats, standings, and fight results for Team Boxing League.',
+    images: ['/og-image.png'],
+  },
 };
 
 export const revalidate = 300;
@@ -32,7 +45,7 @@ export default async function HomePage() {
         '@id': `${SITE_URL}/#website`,
         url: SITE_URL,
         name: 'TBL Stats',
-        description: 'Official statistics for Team Boxing League',
+        description: 'Independent stats, standings, and fight results for Team Boxing League.',
       },
       {
         '@type': 'SportsOrganization',
