@@ -328,10 +328,25 @@ function parseMatchData(rows: string[][]): {
 
     boxScore.sort((a, b) => a.round - b.round);
 
-    const pf1 = boxScore.reduce((s, r) => s + r.score1, 0);
-    const pf2 = boxScore.reduce((s, r) => s + r.score2, 0);
-    const result1: 'W' | 'L' | 'D' = wins1 > wins2 ? 'W' : wins1 < wins2 ? 'L' : 'D';
-    const result2: 'W' | 'L' | 'D' = wins2 > wins1 ? 'W' : wins2 < wins1 ? 'L' : 'D';
+    // Use Match Result column directly — it reflects the actual team-level outcome
+    // (TBL decides winners by total points, not bout count, so counting round wins is wrong).
+    // Fall back to round-win count only if the column is missing.
+    const team1AnyRow = matchRows.find((r) => r['Team'] === team1);
+    const team2AnyRow = matchRows.find((r) => r['Team'] === team2);
+
+    const mr1Raw = (team1AnyRow?.['Match Result'] || '').trim().toUpperCase();
+    const mr2Raw = (team2AnyRow?.['Match Result'] || '').trim().toUpperCase();
+
+    const result1: 'W' | 'L' | 'D' = mr1Raw === 'W' ? 'W' : mr1Raw === 'L' ? 'L'
+      : (wins1 > wins2 ? 'W' : wins1 < wins2 ? 'L' : 'D');
+    const result2: 'W' | 'L' | 'D' = mr2Raw === 'W' ? 'W' : mr2Raw === 'L' ? 'L'
+      : (wins2 > wins1 ? 'W' : wins2 < wins1 ? 'L' : 'D');
+
+    // Use Match PF/PA for accurate total points (these are pre-aggregated in the sheet)
+    const rawPF1 = safeNum(team1AnyRow?.['Match PF'] || '');
+    const rawPF2 = safeNum(team2AnyRow?.['Match PF'] || '');
+    const pf1 = rawPF1 || boxScore.reduce((s, r) => s + r.score1, 0);
+    const pf2 = rawPF2 || boxScore.reduce((s, r) => s + r.score2, 0);
 
     const addTeamMatch = (team: string, opp: string, result: 'W' | 'L' | 'D', pf: number, pa: number) => {
       if (!teamMatches[team]) teamMatches[team] = [];
