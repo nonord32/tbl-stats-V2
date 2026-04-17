@@ -243,6 +243,7 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
               { k: 'PF', v: 'Points For' },
               { k: 'PA', v: 'Points Against' },
               { k: 'Diff', v: 'Point Differential' },
+              { k: 'GB', v: 'Games Behind playoff cutoff' },
             ].map((s) => (
               <span key={s.k} style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)' }}>
                 <strong style={{ color: 'var(--text)' }}>{s.k}</strong> {s.v}
@@ -267,6 +268,7 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
                       <SortIcon col={col} sortKey={sortKey} sortDir={sortDir} />
                     </th>
                   ))}
+                  <th className="num-cell" style={{ whiteSpace: 'nowrap' }}>GB</th>
                   <th
                     onClick={() => handleSort('streak')}
                     style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
@@ -276,53 +278,76 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
                 </tr>
               </thead>
               <tbody>
-                {sorted.map((t, i) => {
-                  const matches = teamMatches[t.team] || [];
-                  const streak = t.streak || calcTeamStreak(matches);
-                  return (
-                    <tr key={t.slug}>
-                      <td className="rank-cell col-team-rank">{i + 1}</td>
-                      <td className="col-team">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          {/* Color accent stripe */}
-                          {getTeamColor(t.slug) && (
-                            <span style={{
-                              display: 'inline-block',
-                              width: 3,
-                              height: 22,
-                              borderRadius: 2,
-                              background: getTeamColor(t.slug),
-                              flexShrink: 0,
-                            }} />
-                          )}
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={getTeamLogoPath(t.slug)}
-                            alt={t.team}
-                            style={{ width: 24, height: 24, objectFit: 'contain', flexShrink: 0 }}
-                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                          />
-                          <button
-                            className="fighter-name-btn"
-                            onClick={() => setModalTeam(t)}
-                          >
-                            {t.team}
-                          </button>
-                        </div>
-                      </td>
-                      <td className="num-cell mono col-result">{t.record}</td>
-                      <td className="num-cell mono">{t.pf.toFixed(1)}</td>
-                      <td className="num-cell mono">{t.pa.toFixed(1)}</td>
-                      <td
-                        className="num-cell mono col-diff"
-                        style={{ color: t.diff >= 0 ? 'var(--result-w)' : 'var(--result-l)', fontWeight: 600 }}
-                      >
-                        {t.diff >= 0 ? '+' : ''}{t.diff.toFixed(1)}
-                      </td>
-                      <td>{streak && <StreakBadge streak={streak} />}</td>
-                    </tr>
-                  );
-                })}
+                {(() => {
+                  const PLAYOFF_SPOTS = 8;
+                  // Games back always relative to natural standings (wins-based), regardless of current sort
+                  const byWins = [...teams].sort((a, b) => b.wins - a.wins || a.losses - b.losses || b.diff - a.diff);
+                  const cutoffTeam = byWins[PLAYOFF_SPOTS - 1]; // 8th place in wins order
+                  const calcGB = (t: typeof teams[0]) => {
+                    if (!cutoffTeam) return 0;
+                    const gb = ((cutoffTeam.wins - t.wins) + (t.losses - cutoffTeam.losses)) / 2;
+                    return Math.max(0, gb);
+                  };
+                  // Track which rank each team is in natural standings for the playoff line
+                  const naturalRank = new Map(byWins.map((t, i) => [t.slug, i]));
+
+                  return sorted.map((t, i) => {
+                    const matches = teamMatches[t.team] || [];
+                    const streak = t.streak || calcTeamStreak(matches);
+                    const rank = naturalRank.get(t.slug) ?? i;
+                    const inPlayoffs = rank < PLAYOFF_SPOTS;
+                    const isLastPlayoffSpot = sortKey === 'record' && i === PLAYOFF_SPOTS - 1;
+                    const gb = calcGB(t);
+
+                    return (
+                      <React.Fragment key={t.slug}>
+                        <tr style={{ borderTop: isLastPlayoffSpot ? undefined : undefined }}>
+                          <td className="rank-cell col-team-rank">{i + 1}</td>
+                          <td className="col-team">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              {getTeamColor(t.slug) && (
+                                <span style={{ display: 'inline-block', width: 3, height: 22, borderRadius: 2, background: getTeamColor(t.slug), flexShrink: 0 }} />
+                              )}
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={getTeamLogoPath(t.slug)}
+                                alt={t.team}
+                                style={{ width: 24, height: 24, objectFit: 'contain', flexShrink: 0 }}
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                              />
+                              <button className="fighter-name-btn" onClick={() => setModalTeam(t)}>
+                                {t.team}
+                              </button>
+                              {inPlayoffs && (
+                                <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', color: 'var(--result-w)', opacity: 0.8 }}>P</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="num-cell mono col-result">{t.record}</td>
+                          <td className="num-cell mono">{t.pf.toFixed(1)}</td>
+                          <td className="num-cell mono">{t.pa.toFixed(1)}</td>
+                          <td className="num-cell mono col-diff" style={{ color: t.diff >= 0 ? 'var(--result-w)' : 'var(--result-l)', fontWeight: 600 }}>
+                            {t.diff >= 0 ? '+' : ''}{t.diff.toFixed(1)}
+                          </td>
+                          <td className="num-cell mono" style={{ color: gb === 0 ? 'var(--result-w)' : 'var(--result-l)', fontWeight: gb === 0 ? 700 : 400 }}>
+                            {gb === 0 ? (inPlayoffs ? '—' : 'E') : `+${gb % 1 === 0 ? gb : gb.toFixed(1)}`}
+                          </td>
+                          <td>{streak && <StreakBadge streak={streak} />}</td>
+                        </tr>
+                        {/* Playoff cutoff line — only show when sorted by record */}
+                        {sortKey === 'record' && i === PLAYOFF_SPOTS - 1 && (
+                          <tr className="playoff-cutoff-row">
+                            <td colSpan={8}>
+                              <div className="playoff-cutoff-line">
+                                <span className="playoff-cutoff-label">── Playoff Cutoff ──</span>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  });
+                })()}
               </tbody>
             </table>
           </div>

@@ -947,7 +947,8 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
   animation: mq-scroll 30s linear infinite;
   width: max-content;
 }
-.mq-track:hover { animation-play-state: paused; }
+/* Pause on hover anywhere in the banner */
+.mq-root:hover .mq-track { animation-play-state: paused; }
 @keyframes mq-scroll {
   0%   { transform: translateX(0); }
   100% { transform: translateX(-50%); }
@@ -1017,6 +1018,26 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
   border: none;
   background: none;
   cursor: pointer;
+}
+
+/* ─── Playoff cutoff ─────────────────────────────────────────────────────── */
+.playoff-cutoff-row td { padding: 0; border: none; }
+.playoff-cutoff-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  border-top: 2px dashed var(--accent);
+}
+.playoff-cutoff-label {
+  font-family: IBM Plex Mono, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  white-space: nowrap;
+  padding: 3px 0;
 }
 
 /* ─── Highlights ─────────────────────────────────────────────────────────── */
