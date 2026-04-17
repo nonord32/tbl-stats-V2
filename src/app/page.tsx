@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getAllData } from '@/lib/data';
 import { HighlightsSection } from '@/components/HighlightsSection';
+import { HighlightsMarquee } from '@/components/HighlightsMarquee';
 
 export const metadata: Metadata = {
   // absolute bypasses the layout template so we don't get double-suffix
@@ -104,6 +105,9 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* ── Highlights Marquee ── */}
+      {homeHighlights.length > 0 && <HighlightsMarquee highlights={homeHighlights} />}
+
       {/* ── Quick Nav Cards ── */}
       <section className="page" style={{ paddingTop: 24 }}>
         <div className="container">
@@ -201,13 +205,6 @@ export default async function HomePage() {
               </div>
             </div>
           </div>
-
-          {/* ── Highlights ── */}
-          {homeHighlights.length > 0 && (
-            <div style={{ marginTop: 40 }}>
-              <HighlightsSection highlights={homeHighlights} title="Highlights" />
-            </div>
-          )}
 
           {/* ── About TBL ── */}
           <div className="about-section">

@@ -904,6 +904,121 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
   white-space: normal;
 }
 
+/* ─── Highlights Marquee ─────────────────────────────────────────────────── */
+.mq-root {
+  background: var(--nav-bg);
+  padding: 16px 0 20px;
+  overflow: hidden;
+}
+.mq-header {
+  padding: 0 24px 12px;
+}
+.mq-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: IBM Plex Mono, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.9);
+}
+.mq-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: mq-pulse 1.8s ease-in-out infinite;
+}
+@keyframes mq-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.7); }
+}
+.mq-track-wrap {
+  overflow: hidden;
+  cursor: grab;
+}
+.mq-track-wrap:active { cursor: grabbing; }
+.mq-track {
+  display: flex;
+  gap: 14px;
+  padding: 0 24px;
+  animation: mq-scroll 30s linear infinite;
+  width: max-content;
+}
+.mq-track:hover { animation-play-state: paused; }
+@keyframes mq-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.mq-card {
+  flex-shrink: 0;
+  width: 260px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.mq-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-3px);
+}
+/* 16:9 thumbnail */
+.mq-thumb {
+  position: relative;
+  padding-top: 56.25%;
+  background: #222;
+  background-size: cover;
+  background-position: center;
+}
+.mq-thumb-ig {
+  background: linear-gradient(135deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+}
+.mq-play-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.2);
+  transition: background 0.15s;
+}
+.mq-card:hover .mq-play-overlay { background: rgba(0,0,0,0.4); }
+.mq-badge {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  font-family: IBM Plex Mono, monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+.mq-badge-yt  { background: #FF0000; color: #fff; }
+.mq-badge-ig  { background: rgba(0,0,0,0.4); color: #fff; }
+.mq-label {
+  padding: 8px 12px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mq-thumb-btn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
 /* ─── Highlights ─────────────────────────────────────────────────────────── */
 .highlights-grid {
   display: grid;
