@@ -44,7 +44,15 @@ function formatDate(dateStr: string) {
   } catch { return dateStr; }
 }
 
-export function AdminClient({ matches, picks, dbError }: { matches: MatchEntry[]; picks: PickRow[]; dbError: string | null }) {
+interface DbDebug {
+  picksCount: number;
+  picksError: string | null;
+  profilesCount: number;
+  profilesError: string | null;
+  serviceKeySet: boolean;
+}
+
+export function AdminClient({ matches, picks, dbError, dbDebug }: { matches: MatchEntry[]; picks: PickRow[]; dbError: string | null; dbDebug: DbDebug }) {
   const [secret, setSecret] = useState('');
   const [authed, setAuthed] = useState(false);
   const [resolving, setResolving] = useState<number | null>(null);
@@ -115,6 +123,15 @@ export function AdminClient({ matches, picks, dbError }: { matches: MatchEntry[]
             <h1>Admin — Resolve Picks</h1>
             <p className="subtitle">Score everyone&apos;s picks after a match is completed</p>
           </div>
+        </div>
+
+        {/* DB debug info */}
+        <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '10px 14px', marginBottom: 20, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>
+          serviceKey: {dbDebug.serviceKeySet ? '✓ set' : '✗ MISSING'} ·
+          picks in DB: {dbDebug.picksCount} ·
+          profiles in DB: {dbDebug.profilesCount}
+          {dbDebug.picksError && <span style={{ color: 'var(--result-l)', marginLeft: 8 }}>picks err: {dbDebug.picksError}</span>}
+          {dbDebug.profilesError && <span style={{ color: 'var(--result-l)', marginLeft: 8 }}>profiles err: {dbDebug.profilesError}</span>}
         </div>
 
         {/* DB error banner */}

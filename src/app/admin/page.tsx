@@ -47,6 +47,13 @@ export default async function AdminPage() {
   ]);
 
   const dbError = picksResult.error?.message ?? profilesResult.error?.message ?? null;
+  const dbDebug = {
+    picksCount: picksResult.data?.length ?? 0,
+    picksError: picksResult.error?.message ?? null,
+    profilesCount: profilesResult.data?.length ?? 0,
+    profilesError: profilesResult.error?.message ?? null,
+    serviceKeySet: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+  };
   const profileMap = new Map((profilesResult.data ?? []).map((p) => [p.id as string, p]));
 
   // Build full match list for label lookup (all matches, not just upcoming)
@@ -69,5 +76,5 @@ export default async function AdminPage() {
     };
   });
 
-  return <AdminClient matches={upcomingMatchList} picks={picks} dbError={dbError} />;
+  return <AdminClient matches={upcomingMatchList} picks={picks} dbError={dbError} dbDebug={dbDebug} />;
 }
