@@ -4,7 +4,6 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTheme } from './ThemeProvider';
-import { Suspense } from 'react';
 import { AuthButton } from './AuthButton';
 
 const NAV_STYLE: React.CSSProperties = {
@@ -129,9 +128,7 @@ export function Nav() {
           </div>
 
           <div className="nav-actions">
-            <Suspense fallback={null}>
-              <AuthButton />
-            </Suspense>
+            <AuthButton />
             <a
               href="https://www.instagram.com/teamboxingleague/"
               target="_blank"
