@@ -55,15 +55,13 @@ const BOTTOM_NAV_ITEMS = [
     ),
   },
   {
-    href: '/rankings',
-    label: 'Rankings',
+    href: '/leaderboard',
+    label: 'Leaders',
     exact: false,
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M8 6l4-4 4 4"/>
-        <path d="M12 2v10.3"/>
-        <path d="M4 20h16"/>
-        <path d="M4 16l4-4 4 4 4-4 4 4"/>
+        <path d="M8 21V8M12 21V3M16 21v-9"/>
+        <path d="M6 21h14"/>
       </svg>
     ),
   },
