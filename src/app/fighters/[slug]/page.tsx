@@ -248,8 +248,13 @@ export default async function FighterPage({ params }: { params: { slug: string }
                       <td style={{ fontSize: 12 }}>{h.weightClass}</td>
                       <td className="mono" style={{ fontSize: 12 }}>{h.round}</td>
                       <td style={{ fontSize: 12 }}>{h.roundPhase}</td>
-                      <td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
                         <span className={`result-${h.result.toLowerCase()}`}>{h.result}</span>
+                        {h.resultMethod && (
+                          <span style={{ marginLeft: 4, fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>
+                            {h.resultMethod}
+                          </span>
+                        )}
                       </td>
                       <td
                         className="num-cell mono"

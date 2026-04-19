@@ -277,10 +277,20 @@ function parseMatchData(rows: string[][]): {
       const weightClass = (f1Row['Weight Class'] || '').trim();
       const gender = (f1Row['Gender'] || '').trim();
 
-      // Result: "W - Decision", "L - Decision", "W - Unanimous", etc.
-      const result1Raw = (f1Row['Result'] || '').trim().toUpperCase();
-      const isWin1 = result1Raw.startsWith('W');
-      const isLoss1 = result1Raw.startsWith('L');
+      // Result: "W - Decision", "L - Decision", "W - KO", etc.
+      const result1Raw = (f1Row['Result'] || '').trim();
+      const result2Raw = (f2Row['Result'] || '').trim();
+      const isWin1 = result1Raw.toUpperCase().startsWith('W');
+      const isLoss1 = result1Raw.toUpperCase().startsWith('L');
+
+      // Extract method (e.g. "Decision", "KO", "Knockdown") — same for both fighters in the bout
+      const extractMethod = (raw: string): string => {
+        const dashIdx = raw.indexOf('-');
+        if (dashIdx < 0) return '';
+        const m = raw.slice(dashIdx + 1).trim();
+        return m.charAt(0).toUpperCase() + m.slice(1).toLowerCase();
+      };
+      const resultMethod = extractMethod(result1Raw) || extractMethod(result2Raw);
 
       // Points Earned = actual score, Net Points = pts earned minus pts allowed
       const pts1 = safeNum(f1Row['Points Earned'] || f1Row['Points'] || f1Row['Score'] || f1Row['Pts']);
@@ -317,6 +327,7 @@ function parseMatchData(rows: string[][]): {
           round: String(roundNum),
           roundPhase: phase,
           result,
+          resultMethod: resultMethod || undefined,
           netPts,
           matchIndex: safeInt(matchId),
         });
@@ -348,16 +359,26 @@ function parseMatchData(rows: string[][]): {
     const pf1 = rawPF1 || boxScore.reduce((s, r) => s + r.score1, 0);
     const pf2 = rawPF2 || boxScore.reduce((s, r) => s + r.score2, 0);
 
-    const addTeamMatch = (team: string, opp: string, result: 'W' | 'L' | 'D', pf: number, pa: number) => {
+    // Store a version of the boxScore oriented from each team's perspective
+    // (score1 always = "our" team, score2 = opponent) so displays are never inverted.
+    const flippedBoxScore = boxScore.map((r) => ({
+      ...r,
+      score1: r.score2,
+      score2: r.score1,
+      fighter1: r.fighter2,
+      fighter2: r.fighter1,
+    }));
+
+    const addTeamMatch = (team: string, opp: string, result: 'W' | 'L' | 'D', pf: number, pa: number, bs: BoxScoreRound[]) => {
       if (!teamMatches[team]) teamMatches[team] = [];
       const exists = teamMatches[team].some((m) => m.date === date && m.opponent === opp);
       if (!exists) {
-        teamMatches[team].push({ date, opponent: opp, result, pf, pa, boxScore, matchIndex: safeInt(matchId) });
+        teamMatches[team].push({ date, opponent: opp, result, pf, pa, boxScore: bs, matchIndex: safeInt(matchId) });
       }
     };
 
-    addTeamMatch(team1, team2, result1, pf1, pf2);
-    addTeamMatch(team2, team1, result2, pf2, pf1);
+    addTeamMatch(team1, team2, result1, pf1, pf2, boxScore);
+    addTeamMatch(team2, team1, result2, pf2, pf1, flippedBoxScore);
   });
 
   // Sort by date desc

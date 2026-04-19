@@ -40,6 +40,7 @@ export interface FightHistory {
   round: string;
   roundPhase: string;
   result: 'W' | 'L' | 'D';
+  resultMethod?: string;  // e.g. "Decision", "KO", "Knockdown"
   netPts: number;
   matchIndex: number;
 }
