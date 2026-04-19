@@ -18,7 +18,6 @@ export default async function PicksPage() {
     redirect('/login');
   }
 
-  // Fetch sheet data + user picks in parallel
   const [sheetData, picksResult] = await Promise.all([
     getAllData(),
     supabase
@@ -30,24 +29,12 @@ export default async function PicksPage() {
 
   const picks: UserPick[] = (picksResult.data ?? []) as UserPick[];
 
-  // Separate schedule into upcoming vs locked/past
-  const todayUTC = new Date();
-  todayUTC.setUTCHours(0, 0, 0, 0);
-
-  const upcoming = sheetData.schedule.filter((s) => {
-    const matchDate = new Date(s.date);
-    return s.status === 'Upcoming' && matchDate >= todayUTC;
-  });
-
-  const lockedOrPast = sheetData.schedule.filter((s) => {
-    const matchDate = new Date(s.date);
-    return s.status !== 'Upcoming' || matchDate < todayUTC;
-  });
+  // Only show Upcoming matches — completed games don't belong on the picks page
+  const upcoming = sheetData.schedule.filter((s) => s.status === 'Upcoming' && s.matchIndex);
 
   return (
     <PicksClient
       upcoming={upcoming}
-      lockedOrPast={lockedOrPast}
       existingPicks={picks}
       userId={user.id}
     />
