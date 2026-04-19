@@ -35,20 +35,22 @@ export default async function AdminPage() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const { data: picksData } = await supabase
-    .from('picks')
-    .select('match_index, picked_team, diff_band, points_earned, resolved_at, profiles(display_name, username)')
-    .order('match_index', { ascending: true });
+  // Two separate queries — more reliable than embedded joins
+  const [{ data: picksRaw }, { data: profilesRaw }] = await Promise.all([
+    supabase.from('picks').select('user_id, match_index, picked_team, diff_band, points_earned, resolved_at').order('match_index'),
+    supabase.from('profiles').select('id, display_name, username'),
+  ]);
 
-  // Attach match label to each pick
-  const picks = (picksData ?? []).map((p) => {
-    const profile = Array.isArray(p.profiles) ? p.profiles[0] : p.profiles;
+  const profileMap = new Map((profilesRaw ?? []).map((p) => [p.id as string, p]));
+
+  const picks = (picksRaw ?? []).map((p) => {
+    const profile = profileMap.get(p.user_id as string);
     const match = matchList.find((m) => m.matchIndex === p.match_index);
     return {
       matchIndex: p.match_index as number,
       matchLabel: match ? `Wk ${match.week}: ${match.team1} vs ${match.team2}` : `Match ${p.match_index}`,
-      displayName: (profile as { display_name: string | null; username: string | null } | null)?.display_name ?? '',
-      username: (profile as { display_name: string | null; username: string | null } | null)?.username ?? '',
+      displayName: (profile?.display_name as string) ?? '',
+      username: (profile?.username as string) ?? '',
       pickedTeam: p.picked_team as string,
       diffBand: p.diff_band as string,
       pointsEarned: p.points_earned as number,

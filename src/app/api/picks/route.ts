@@ -76,6 +76,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Picks are locked for this match' }, { status: 403 });
   }
 
+  // Ensure a profile row exists (handles users who signed up before the DB trigger was added)
+  const { data: existingProfile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', user.id)
+    .single();
+
+  if (!existingProfile) {
+    const baseUsername = user.user_metadata?.preferred_username
+      ?? user.email?.split('@')[0]
+      ?? 'user';
+    await supabase.from('profiles').insert({
+      id: user.id,
+      username: `${baseUsername}_${user.id.slice(0, 6)}`,
+      display_name: user.user_metadata?.full_name
+        ?? user.user_metadata?.name
+        ?? baseUsername,
+    }).select().single();
+    // Ignore insert errors (e.g. duplicate) — pick will still save if profile now exists
+  }
+
   const { data: pick, error } = await supabase
     .from('picks')
     .upsert(
