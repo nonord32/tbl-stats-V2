@@ -114,15 +114,37 @@ export default async function LeaderboardPage() {
   return (
     <main>
       <div className="page container">
-        <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-          <div>
-            <h1>Leaderboard</h1>
-            <p className="subtitle">2026 TBL Season Pick&apos;em</p>
-          </div>
-          <Link href="/picks" className="btn btn-outline" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>
-            My Picks
-          </Link>
+        <div className="page-header">
+          <h1>Leaderboard</h1>
+          <p className="subtitle">2026 TBL Season Pick&apos;em</p>
         </div>
+
+        {/* Picks CTA — always visible on mobile */}
+        <Link href="/picks" style={{ textDecoration: 'none', display: 'block', marginBottom: 24 }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #1a0a00 0%, #2d1200 60%, #1a0a00 100%)',
+            border: '1px solid rgba(230,60,0,0.4)',
+            borderRadius: 'var(--radius)',
+            padding: '14px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <path d="M9 12l2 2 4-4"/>
+              </svg>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: '#fff' }}>
+                Make your picks for Week 5
+              </span>
+            </div>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--accent)', fontWeight: 700, whiteSpace: 'nowrap' }}>
+              Pick now →
+            </span>
+          </div>
+        </Link>
 
         <LeaderboardClient
           currentUserId={user?.id ?? null}

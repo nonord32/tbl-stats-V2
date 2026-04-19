@@ -108,6 +108,46 @@ export default async function HomePage() {
       {/* ── Highlights Marquee ── */}
       {homeHighlights.length > 0 && <HighlightsMarquee highlights={homeHighlights} />}
 
+      {/* ── Pick'em Banner ── */}
+      <section style={{ padding: '16px 0 0' }}>
+        <div className="container">
+          <Link href="/picks" style={{ textDecoration: 'none', display: 'block' }}>
+            <div style={{
+              background: 'linear-gradient(135deg, #1a0a00 0%, #2d1200 60%, #1a0a00 100%)',
+              border: '1px solid rgba(230,60,0,0.4)',
+              borderRadius: 'var(--radius)',
+              padding: '20px 24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 16,
+              flexWrap: 'wrap',
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <path d="M9 12l2 2 4-4"/>
+                  </svg>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--accent)' }}>
+                    Pick&apos;em — Week 5
+                  </span>
+                </div>
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 700, color: '#fff', margin: 0 }}>
+                  Make your picks for the upcoming matches
+                </p>
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'rgba(255,255,255,0.5)', margin: '4px 0 0' }}>
+                  1pt for correct winner · 2pts for exact margin
+                </p>
+              </div>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: 'var(--accent)', whiteSpace: 'nowrap' }}>
+                Pick now →
+              </span>
+            </div>
+          </Link>
+        </div>
+      </section>
+
       {/* ── Quick Nav Cards ── */}
       <section className="page" style={{ paddingTop: 24 }}>
         <div className="container">
