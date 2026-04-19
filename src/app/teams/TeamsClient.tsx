@@ -179,6 +179,15 @@ function BoxScoreModal({
   );
 }
 
+function getH2HResult(a: TeamStanding, b: TeamStanding, teamMatches: Record<string, TeamMatch[]>): number {
+  const aMatches = (teamMatches[a.team] || []).filter((m) => toSlug(m.opponent) === b.slug);
+  const aWins = aMatches.filter((m) => m.result === 'W').length;
+  const aLosses = aMatches.filter((m) => m.result === 'L').length;
+  if (aWins > aLosses) return -1; // a ranks higher
+  if (aLosses > aWins) return 1;  // b ranks higher
+  return 0;
+}
+
 function streakVal(s: string): number {
   if (!s) return 0;
   const n = parseInt(s.slice(1)) || 0;
@@ -208,7 +217,7 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
   const sorted = useMemo(() => {
     const base = (a: TeamStanding, b: TeamStanding): number => {
       switch (sortKey) {
-        case 'record': return b.wins - a.wins || a.losses - b.losses || b.diff - a.diff;
+        case 'record': return b.wins - a.wins || a.losses - b.losses || b.diff - a.diff || getH2HResult(a, b, teamMatches);
         case 'pf':     return b.pf - a.pf;
         case 'pa':     return a.pa - b.pa;
         case 'diff':   return b.diff - a.diff;
@@ -217,7 +226,19 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
       }
     };
     return [...teams].sort((a, b) => sortDir === 'desc' ? base(a, b) : -base(a, b));
-  }, [teams, sortKey, sortDir]);
+  }, [teams, sortKey, sortDir, teamMatches]);
+
+  // Determine which teams moved up due to H2H tiebreaker (for asterisk display)
+  const h2hWinners = useMemo(() => {
+    const withoutH2H = [...teams].sort((a, b) => b.wins - a.wins || a.losses - b.losses || b.diff - a.diff);
+    const withH2H = [...teams].sort((a, b) => b.wins - a.wins || a.losses - b.losses || b.diff - a.diff || getH2HResult(a, b, teamMatches));
+    const winners = new Set<string>();
+    withH2H.forEach((t, i) => {
+      const prevRank = withoutH2H.findIndex((t2) => t2.slug === t.slug);
+      if (i < prevRank) winners.add(t.slug);
+    });
+    return winners;
+  }, [teams, teamMatches]);
 
   return (
     <div className="page">
@@ -281,7 +302,7 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
                 {(() => {
                   const PLAYOFF_SPOTS = 8;
                   // Games back always relative to natural standings (wins-based), regardless of current sort
-                  const byWins = [...teams].sort((a, b) => b.wins - a.wins || a.losses - b.losses || b.diff - a.diff);
+                  const byWins = [...teams].sort((a, b) => b.wins - a.wins || a.losses - b.losses || b.diff - a.diff || getH2HResult(a, b, teamMatches));
                   const cutoffTeam = byWins[PLAYOFF_SPOTS - 1]; // 8th place in wins order
                   // Positive = games ahead of cutoff (in playoffs), negative = games behind
                   const calcGB = (t: typeof teams[0]) => {
@@ -317,7 +338,7 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                               />
                               <Link href={`/teams/${t.slug}`} className="fighter-name-btn">
-                                {t.team}
+                                {t.team}{sortKey === 'record' && h2hWinners.has(t.slug) && <span title="Tiebreaker: head-to-head record" style={{ color: 'var(--accent)', marginLeft: 2, fontSize: 11 }}>*</span>}
                               </Link>
                             </div>
                           </td>
@@ -361,6 +382,11 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
         <div style={{ marginTop: 12, fontSize: 12, color: 'var(--text-muted)' }}>
           {teams.length} teams · Click a team name to view box scores
         </div>
+        {h2hWinners.size > 0 && sortKey === 'record' && (
+          <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-muted)', fontFamily: 'IBM Plex Mono, monospace' }}>
+            <span style={{ color: 'var(--accent)' }}>*</span> Tiebreaker: head-to-head record
+          </div>
+        )}
       </div>
 
       {/* Modal */}

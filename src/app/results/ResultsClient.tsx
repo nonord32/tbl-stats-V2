@@ -1,8 +1,9 @@
 'use client';
 // src/app/results/ResultsClient.tsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { toSlug } from '@/lib/data';
 import { getFullTeamName } from '@/lib/teams';
 import type { MatchResult, BoxScoreRound, HighlightEntry } from '@/types';
@@ -83,6 +84,23 @@ function ScorecardStrip({
 
 function MatchCard({ match, hasHighlights }: { match: MatchResult; hasHighlights: boolean }) {
   const [expanded, setExpanded] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 640);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
+  const handleCardClick = () => {
+    if (isMobile) {
+      router.push(`/matches/${match.matchIndex}`);
+    } else {
+      setExpanded((v) => !v);
+    }
+  };
 
   const team1Name = getFullTeamName(toSlug(match.team1));
   const team2Name = getFullTeamName(toSlug(match.team2));
@@ -101,7 +119,7 @@ function MatchCard({ match, hasHighlights }: { match: MatchResult; hasHighlights
 
   return (
     <div className={`results-card ${expanded ? 'results-card--open' : ''}`}>
-      <button className="results-card-main" onClick={() => setExpanded((v) => !v)} aria-expanded={expanded}>
+      <button className="results-card-main" onClick={handleCardClick} aria-expanded={expanded}>
         {/* Team 1 */}
         <div className={`results-team results-team--left ${team1Won ? 'results-team--winner' : team2Won ? 'results-team--loser' : ''}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -136,7 +154,7 @@ function MatchCard({ match, hasHighlights }: { match: MatchResult; hasHighlights
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
         </div>
 
-        <span className="results-chevron" aria-hidden="true">{expanded ? '▲' : '▼'}</span>
+        <span className="results-chevron" aria-hidden="true">{isMobile ? '→' : expanded ? '▲' : '▼'}</span>
       </button>
 
       {expanded && (
