@@ -54,6 +54,19 @@ const BOTTOM_NAV_ITEMS = [
     ),
   },
   {
+    href: '/rankings',
+    label: 'Rankings',
+    exact: false,
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M8 6l4-4 4 4"/>
+        <path d="M12 2v10.3"/>
+        <path d="M4 20h16"/>
+        <path d="M4 16l4-4 4 4 4-4 4 4"/>
+      </svg>
+    ),
+  },
+  {
     href: '/results',
     label: 'Results',
     exact: false,
@@ -62,19 +75,6 @@ const BOTTOM_NAV_ITEMS = [
         <circle cx="12" cy="8" r="6"/>
         <path d="M8 14v7M16 14v7M8 21h8"/>
         <path d="M9 2v4M15 2v4"/>
-      </svg>
-    ),
-  },
-  {
-    href: '/schedule',
-    label: 'Schedule',
-    exact: false,
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-        <line x1="16" y1="2" x2="16" y2="6"/>
-        <line x1="8" y1="2" x2="8" y2="6"/>
-        <line x1="3" y1="10" x2="21" y2="10"/>
       </svg>
     ),
   },
@@ -111,6 +111,9 @@ export function Nav() {
             </Link>
             <Link href="/results" className={`nav-link ${isActive('/results') ? 'active' : ''}`}>
               Results
+            </Link>
+            <Link href="/rankings" className={`nav-link ${isActive('/rankings') ? 'active' : ''}`}>
+              Rankings
             </Link>
             <Link href="/schedule" className={`nav-link ${isActive('/schedule') ? 'active' : ''}`}>
               Schedule

@@ -1383,3 +1383,7 @@ a:hover .schedule-row,
   }
   .schedule-status { justify-content: flex-start; }
 }
+
+/* ─── Rankings Tab Strip ──────────────────────────────────────────────────── */
+.rankings-tab-strip::-webkit-scrollbar { display: none; }
+.rankings-tab-strip { -ms-overflow-style: none; scrollbar-width: none; }
