@@ -51,6 +51,7 @@ interface PickState {
   diffBand: DiffBand | '';
   saving: boolean;
   saved: boolean;
+  deleting: boolean;
   error: string;
 }
 
@@ -76,6 +77,7 @@ export function PicksClient({ upcoming, existingPicks, userId: _userId, currentW
       diffBand: p.diff_band,
       saving: false,
       saved: true,
+      deleting: false,
       error: '',
     };
   });
@@ -119,6 +121,25 @@ export function PicksClient({ upcoming, existingPicks, userId: _userId, currentW
       }
     } catch {
       updateState(matchIndex, { saving: false, error: 'Network error. Please try again.' });
+    }
+  }
+
+  async function deletePick(matchIndex: number) {
+    updateState(matchIndex, { deleting: true, error: '' });
+    try {
+      const res = await fetch('/api/picks', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ match_index: matchIndex }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        updateState(matchIndex, { deleting: false, error: json.error ?? 'Failed to delete pick' });
+      } else {
+        updateState(matchIndex, { deleting: false, saved: false, pickedTeam: '', diffBand: '' });
+      }
+    } catch {
+      updateState(matchIndex, { deleting: false, error: 'Network error. Please try again.' });
     }
   }
 
@@ -245,7 +266,7 @@ export function PicksClient({ upcoming, existingPicks, userId: _userId, currentW
                     ))}
                   </div>
 
-                  {/* Save */}
+                  {/* Save / Delete */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <button
                       onClick={() => savePick(matchIndex)}
@@ -255,6 +276,26 @@ export function PicksClient({ upcoming, existingPicks, userId: _userId, currentW
                     >
                       {state.saving ? 'Saving…' : alreadyPicked ? 'Update Pick' : 'Save Pick'}
                     </button>
+                    {alreadyPicked && (
+                      <button
+                        onClick={() => deletePick(matchIndex)}
+                        disabled={state.deleting}
+                        className="btn"
+                        style={{
+                          opacity: state.deleting ? 0.5 : 1,
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: 12,
+                          color: 'var(--result-l)',
+                          border: '1px solid var(--result-l)',
+                          background: 'transparent',
+                          padding: '6px 12px',
+                          borderRadius: 'var(--radius)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {state.deleting ? 'Removing…' : 'Remove pick'}
+                      </button>
+                    )}
                     {state.error && (
                       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--result-l)' }}>
                         {state.error}

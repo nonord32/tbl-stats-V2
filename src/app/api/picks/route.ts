@@ -5,6 +5,49 @@ import { getAllData } from '@/lib/data';
 import { isPickOpen } from '@/lib/gameTime';
 import type { DiffBand } from '@/types';
 
+export async function DELETE(request: Request) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  let body: { match_index: number };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
+
+  const { match_index } = body;
+  if (match_index === undefined) {
+    return NextResponse.json({ error: 'Missing match_index' }, { status: 400 });
+  }
+
+  // Only allow deletion if pick window is still open
+  const sheetData = await getAllData();
+  const entry = sheetData.schedule.find((s) => s.matchIndex === match_index);
+  if (entry && !isPickOpen(entry.date, entry.time, entry.venueCity)) {
+    return NextResponse.json({ error: 'Pick is locked — cannot delete after game starts' }, { status: 403 });
+  }
+
+  const { error } = await supabase
+    .from('picks')
+    .delete()
+    .eq('user_id', user.id)
+    .eq('match_index', match_index);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ deleted: true });
+}
+
 export async function GET() {
   const supabase = await createClient();
 
