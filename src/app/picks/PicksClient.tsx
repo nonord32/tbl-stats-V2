@@ -33,10 +33,10 @@ function teamLogo(name: string) {
 }
 
 export const BANDS = [
-  { key: 'close' as DiffBand,       label: '≤2 pts',  pts: 5 },
-  { key: 'medium' as DiffBand,      label: '3–5 pts', pts: 4 },
-  { key: 'comfortable' as DiffBand, label: '6–9 pts', pts: 3 },
-  { key: 'dominant' as DiffBand,    label: '10+ pts', pts: 2 },
+  { key: 'close' as DiffBand,       label: '≤2 pts'  },
+  { key: 'medium' as DiffBand,      label: '3–5 pts' },
+  { key: 'comfortable' as DiffBand, label: '6–9 pts' },
+  { key: 'dominant' as DiffBand,    label: '10+ pts' },
 ] as const;
 
 interface PicksClientProps {
@@ -224,8 +224,11 @@ export function PicksClient({ upcoming, existingPicks, userId: _userId }: PicksC
                   </div>
 
                   {/* Band selector */}
-                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>
+                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>
                     Winning margin
+                  </p>
+                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', marginBottom: 10 }}>
+                    Correct winner = 1pt · Exact margin too = 2pts
                   </p>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 20 }}>
                     {BANDS.map((band) => (
@@ -235,7 +238,6 @@ export function PicksClient({ upcoming, existingPicks, userId: _userId }: PicksC
                         className={`pick-band-btn${state.diffBand === band.key ? ' selected' : ''}`}
                       >
                         <span style={{ fontWeight: 700 }}>{band.label}</span>
-                        <span style={{ color: 'var(--text-muted)', marginLeft: 6, fontSize: 11 }}>· {band.pts}pts</span>
                       </button>
                     ))}
                   </div>

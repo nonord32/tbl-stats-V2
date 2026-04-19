@@ -86,10 +86,9 @@ export async function POST(request: Request) {
 
     let pointsEarned = 0;
     if (isCorrectWinner) {
+      pointsEarned = 1;           // 1pt for correct winner
       if (isCorrectBand) {
-        pointsEarned = bandPoints(actualBand);
-      } else {
-        pointsEarned = 1;
+        pointsEarned = 2;         // +1 bonus for exact margin band
       }
     }
 
