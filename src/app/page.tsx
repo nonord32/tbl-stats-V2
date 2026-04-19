@@ -66,7 +66,7 @@ export default async function HomePage() {
   };
 
   const topFighters = [...fighters]
-    .sort((a, b) => b.war - a.war)
+    .sort((a, b) => b.netPts - a.netPts)
     .slice(0, 5);
 
   const topTeams = [...teams]
@@ -113,10 +113,10 @@ export default async function HomePage() {
         <div className="container">
           {/* ── Top Performers Preview ── */}
           <div className="home-stats-grid">
-            {/* Top Fighters by WAR */}
+            {/* Top Fighters by Net Points */}
             <div className="card">
               <div className="card-header">
-                <span className="card-title">Top Fighters by WAR</span>
+                <span className="card-title">Top Fighters by Net Pts</span>
                 <Link
                   href="/fighters"
                   style={{
@@ -135,7 +135,7 @@ export default async function HomePage() {
                     <tr>
                       <th style={{ width: 28 }}>#</th>
                       <th>Fighter</th>
-                      <th className="num-cell">WAR</th>
+                      <th className="num-cell">Net Pts</th>
                       <th className="num-cell">Record</th>
                     </tr>
                   </thead>
@@ -150,7 +150,9 @@ export default async function HomePage() {
                           <br />
                           <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{f.team}</span>
                         </td>
-                        <td className="num-cell mono">{f.war.toFixed(2)}</td>
+                        <td className="num-cell mono" style={{ color: f.netPts >= 0 ? 'var(--result-w)' : 'var(--result-l)' }}>
+                          {f.netPts >= 0 ? '+' : ''}{f.netPts.toFixed(1)}
+                        </td>
                         <td className="num-cell mono">{f.record}</td>
                       </tr>
                     ))}

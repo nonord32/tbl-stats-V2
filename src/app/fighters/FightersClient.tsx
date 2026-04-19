@@ -151,7 +151,7 @@ function FighterModal({
 
 export function FightersClient({ fighters, fighterHistory, seoText, lastUpdated }: Props) {
   const formattedUpdate = lastUpdated || null;
-  const [sortKey, setSortKey] = useState<SortKey>('war');
+  const [sortKey, setSortKey] = useState<SortKey>('netPts');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [search, setSearch] = useState('');
   const [weightFilter, setWeightFilter] = useState('');
@@ -267,10 +267,10 @@ export function FightersClient({ fighters, fighterHistory, seoText, lastUpdated 
 
           <div style={{ padding: '8px 20px', display: 'flex', gap: 16, flexWrap: 'wrap', borderBottom: '1px solid var(--border)', background: 'var(--bg-table-alt)' }}>
             {[
-              { k: 'WAR', v: 'Wins Above Replacement' },
+              { k: 'Net Pts', v: 'Total net points scored' },
               { k: 'NPPR', v: 'Net Points Per Round' },
-              { k: 'Net Pts', v: 'Total net points' },
               { k: 'Win%', v: 'Win percentage' },
+              { k: 'WAR', v: 'Wins Above Replacement' },
             ].map((s) => (
               <span key={s.k} style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)' }}>
                 <strong style={{ color: 'var(--text)' }}>{s.k}</strong> {s.v}
@@ -288,10 +288,10 @@ export function FightersClient({ fighters, fighterHistory, seoText, lastUpdated 
                   <th className="col-hide-mobile">Weight</th>
                   <th className="col-hide-mobile">Gender</th>
                   <SortTh col="record" label="Record" title="W-L" className="col-record" />
-                  <SortTh col="war" label="WAR" title="Wins Above Replacement" className="col-war" />
+                  <SortTh col="netPts" label="Net Pts" title="Total Net Points" className="col-war" />
                   <SortTh col="nppr" label="NPPR" title="Net Points Per Round" className="col-hide-mobile" />
-                  <SortTh col="netPts" label="Net Pts" title="Total Net Points" className="col-hide-mobile" />
                   <SortTh col="winPct" label="Win%" title="Win Percentage" className="col-hide-mobile" />
+                  <SortTh col="war" label="WAR" title="Wins Above Replacement" className="col-hide-mobile" />
                   <SortTh col="rounds" label="Rounds" title="Total Rounds Fought" className="col-hide-mobile" />
                   <th>Streak</th>
                 </tr>
@@ -341,10 +341,12 @@ export function FightersClient({ fighters, fighterHistory, seoText, lastUpdated 
                       <td className="col-hide-mobile" style={{ fontSize: 12 }}>{f.weightClass}</td>
                       <td className="col-hide-mobile" style={{ fontSize: 12 }}>{f.gender}</td>
                       <td className="num-cell mono col-record">{f.record}</td>
-                      <td className="num-cell mono col-war">{f.war.toFixed(2)}</td>
+                      <td className="num-cell mono col-war" style={{ color: f.netPts >= 0 ? 'var(--result-w)' : 'var(--result-l)' }}>
+                        {f.netPts >= 0 ? '+' : ''}{f.netPts.toFixed(1)}
+                      </td>
                       <td className="num-cell mono col-hide-mobile">{f.nppr.toFixed(3)}</td>
-                      <td className="num-cell mono col-hide-mobile">{f.netPts.toFixed(1)}</td>
                       <td className="num-cell mono col-hide-mobile">{(f.winPct * 100).toFixed(1)}%</td>
+                      <td className="num-cell mono col-hide-mobile">{f.war.toFixed(2)}</td>
                       <td className="num-cell mono col-hide-mobile">{f.rounds}</td>
                       <td>{streak && <StreakBadge streak={streak} />}</td>
                     </tr>
