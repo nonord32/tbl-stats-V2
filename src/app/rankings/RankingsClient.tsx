@@ -21,24 +21,88 @@ function weightSortKey(w: string): number {
   return isNaN(num) ? 999 : num;
 }
 
+type Gender = 'Male' | 'Female';
+
 interface Props {
   fighters: FighterStat[];
   lastUpdated?: string;
 }
 
+function TabStrip({ weights, active, onChange }: { weights: string[]; active: string; onChange: (w: string) => void }) {
+  return (
+    <div className="rankings-tab-strip" style={{
+      display: 'flex',
+      overflowX: 'auto',
+      WebkitOverflowScrolling: 'touch',
+      borderBottom: '1px solid var(--border)',
+      background: 'var(--bg-card)',
+    }}>
+      {weights.map((w) => {
+        const isActive = w === active;
+        return (
+          <button
+            key={w}
+            onClick={() => onChange(w)}
+            style={{
+              flexShrink: 0,
+              padding: '10px 16px',
+              fontFamily: 'IBM Plex Mono, monospace',
+              fontSize: 12,
+              fontWeight: isActive ? 700 : 400,
+              color: isActive ? 'var(--accent)' : 'var(--text-muted)',
+              background: 'none',
+              border: 'none',
+              borderBottom: isActive ? '2px solid var(--accent)' : '2px solid transparent',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'color 0.15s',
+              marginBottom: -1,
+            }}
+          >
+            {w}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function RankingsClient({ fighters, lastUpdated }: Props) {
-  const weightClasses = useMemo(() => {
-    const all = Array.from(new Set(fighters.map((f) => f.weightClass).filter(Boolean)));
-    return all.sort((a, b) => weightSortKey(a) - weightSortKey(b));
+  // Derive weight classes per gender
+  const { maleWeights, femaleWeights } = useMemo(() => {
+    const male = Array.from(new Set(
+      fighters.filter((f) => f.gender?.toLowerCase() !== 'female').map((f) => f.weightClass).filter(Boolean)
+    )).sort((a, b) => weightSortKey(a) - weightSortKey(b));
+
+    const female = Array.from(new Set(
+      fighters.filter((f) => f.gender?.toLowerCase() === 'female').map((f) => f.weightClass).filter(Boolean)
+    )).sort((a, b) => weightSortKey(a) - weightSortKey(b));
+
+    return { maleWeights: male, femaleWeights: female };
   }, [fighters]);
 
-  const [activeWeight, setActiveWeight] = useState(weightClasses[0] || '');
+  const [gender, setGender] = useState<Gender>('Male');
+  const [maleWeight, setMaleWeight] = useState(maleWeights[0] || '');
+  const [femaleWeight, setFemaleWeight] = useState(femaleWeights[0] || '');
+
+  const activeWeight = gender === 'Male' ? maleWeight : femaleWeight;
+  const activeWeights = gender === 'Male' ? maleWeights : femaleWeights;
+
+  const handleWeightChange = (w: string) => {
+    if (gender === 'Male') setMaleWeight(w);
+    else setFemaleWeight(w);
+  };
 
   const ranked = useMemo(() => {
     return fighters
-      .filter((f) => f.weightClass === activeWeight)
+      .filter((f) => {
+        const isFemale = f.gender?.toLowerCase() === 'female';
+        if (gender === 'Male' && isFemale) return false;
+        if (gender === 'Female' && !isFemale) return false;
+        return f.weightClass === activeWeight;
+      })
       .sort((a, b) => b.netPts - a.netPts);
-  }, [fighters, activeWeight]);
+  }, [fighters, gender, activeWeight]);
 
   return (
     <div className="page">
@@ -56,46 +120,43 @@ export function RankingsClient({ fighters, lastUpdated }: Props) {
         </div>
 
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          {/* Tab strip — horizontally scrollable on mobile */}
-          <div
-            style={{
-              display: 'flex',
-              overflowX: 'auto',
-              scrollbarWidth: 'none',
-              WebkitOverflowScrolling: 'touch',
-              borderBottom: '1px solid var(--border)',
-              background: 'var(--bg-card)',
-            }}
-            // hide scrollbar in webkit
-            className="rankings-tab-strip"
-          >
-            {weightClasses.map((w) => {
-              const isActive = w === activeWeight;
-              return (
-                <button
-                  key={w}
-                  onClick={() => setActiveWeight(w)}
-                  style={{
-                    flexShrink: 0,
-                    padding: '10px 16px',
-                    fontFamily: 'IBM Plex Mono, monospace',
-                    fontSize: 12,
-                    fontWeight: isActive ? 700 : 400,
-                    color: isActive ? 'var(--accent)' : 'var(--text-muted)',
-                    background: 'none',
-                    border: 'none',
-                    borderBottom: isActive ? '2px solid var(--accent)' : '2px solid transparent',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    transition: 'color 0.15s',
-                    marginBottom: -1, // overlap the card border
-                  }}
-                >
-                  {w}
-                </button>
-              );
-            })}
+          {/* Gender toggle */}
+          <div style={{
+            display: 'flex',
+            borderBottom: '1px solid var(--border)',
+            background: 'var(--bg-table-alt)',
+            padding: '10px 16px',
+            gap: 8,
+          }}>
+            {(['Male', 'Female'] as Gender[]).map((g) => (
+              <button
+                key={g}
+                onClick={() => setGender(g)}
+                style={{
+                  padding: '5px 18px',
+                  fontFamily: 'IBM Plex Mono, monospace',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  borderRadius: 20,
+                  border: gender === g ? 'none' : '1px solid var(--border)',
+                  background: gender === g ? 'var(--accent)' : 'transparent',
+                  color: gender === g ? '#fff' : 'var(--text-muted)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                {g}
+              </button>
+            ))}
           </div>
+
+          {/* Weight class tab strip */}
+          <TabStrip
+            weights={activeWeights}
+            active={activeWeight}
+            onChange={handleWeightChange}
+          />
 
           {/* Table */}
           <div className="table-wrap">
@@ -105,7 +166,6 @@ export function RankingsClient({ fighters, lastUpdated }: Props) {
                   <th style={{ width: 32 }}>#</th>
                   <th className="always-show">Fighter</th>
                   <th className="col-hide-mobile">Team</th>
-                  <th className="col-hide-mobile">Gender</th>
                   <th className="num-cell col-record">Record</th>
                   <th className="num-cell col-war">Net Pts</th>
                   <th className="num-cell col-hide-mobile">NPPR</th>
@@ -116,7 +176,7 @@ export function RankingsClient({ fighters, lastUpdated }: Props) {
               <tbody>
                 {ranked.length === 0 ? (
                   <tr>
-                    <td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0' }}>
+                    <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0' }}>
                       No fighters in this weight class
                     </td>
                   </tr>
@@ -145,7 +205,6 @@ export function RankingsClient({ fighters, lastUpdated }: Props) {
                         </div>
                       </td>
                       <td className="col-hide-mobile" style={{ fontSize: 12, color: 'var(--text-muted)' }}>{f.team}</td>
-                      <td className="col-hide-mobile" style={{ fontSize: 12 }}>{f.gender}</td>
                       <td className="num-cell mono col-record">{f.record}</td>
                       <td className="num-cell mono col-war" style={{ color: f.netPts >= 0 ? 'var(--result-w)' : 'var(--result-l)', fontWeight: 600 }}>
                         {f.netPts >= 0 ? '+' : ''}{f.netPts.toFixed(1)}
@@ -161,7 +220,7 @@ export function RankingsClient({ fighters, lastUpdated }: Props) {
           </div>
 
           <div style={{ padding: '8px 20px', borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--text-muted)' }}>
-            {ranked.length} fighter{ranked.length !== 1 ? 's' : ''} · {activeWeight} · Sorted by Net Points
+            {ranked.length} fighter{ranked.length !== 1 ? 's' : ''} · {gender} · {activeWeight} · Sorted by Net Points
           </div>
         </div>
       </div>
