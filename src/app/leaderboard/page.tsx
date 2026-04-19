@@ -1,7 +1,9 @@
 // src/app/leaderboard/page.tsx
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import type { LeaderboardEntry } from '@/types';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
+import { getAllData } from '@/lib/data';
+import { LeaderboardClient } from './LeaderboardClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,65 +14,102 @@ export default async function LeaderboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Try the leaderboard view first, fall back to manual aggregation
-  let entries: LeaderboardEntry[] = [];
-  let fetchError = false;
+  // Use service role to bypass RLS and see all picks
+  const service = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
 
-  const { data: viewData, error: viewError } = await supabase
-    .from('leaderboard')
-    .select('*')
-    .order('total_points', { ascending: false });
-
-  if (!viewError && viewData) {
-    entries = viewData as LeaderboardEntry[];
-  } else {
-    // Manual fallback: join picks + profiles
-    const { data: fallbackData, error: fallbackError } = await supabase
+  // Fetch all resolved picks + profiles
+  const [picksRes, profilesRes, sheetData] = await Promise.all([
+    service
       .from('picks')
-      .select('user_id, points_earned, is_correct_winner, is_correct_band, resolved_at, profiles(username, display_name)')
-      .not('resolved_at', 'is', null);
+      .select('user_id, match_index, points_earned, resolved_at')
+      .not('resolved_at', 'is', null),
+    service.from('profiles').select('id, display_name, username'),
+    getAllData(),
+  ]);
 
-    if (fallbackError) {
-      fetchError = true;
-    } else {
-      // Aggregate manually
-      const agg: Record<string, LeaderboardEntry> = {};
+  const profileMap = new Map(
+    (profilesRes.data ?? []).map((p) => [p.id as string, p as { id: string; display_name: string | null; username: string }])
+  );
 
-      (fallbackData ?? []).forEach((row) => {
-        const uid = row.user_id as string;
-        const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
-        const username = (profile as { username: string; display_name: string | null } | null)?.username ?? 'unknown';
-        const displayName = (profile as { username: string; display_name: string | null } | null)?.display_name ?? null;
+  // Build matchIndex → week mapping from schedule
+  const matchWeekMap: Record<number, number> = {};
+  sheetData.schedule.forEach((s) => {
+    if (s.matchIndex) matchWeekMap[s.matchIndex] = Number(s.week);
+  });
 
-        if (!agg[uid]) {
-          agg[uid] = {
-            user_id: uid,
-            username,
-            display_name: displayName,
-            total_picks: 0,
-            total_points: 0,
-            correct_winners: 0,
-            exact_picks: 0,
-            win_pct: null,
-          };
-        }
+  // All unique weeks that have resolved picks
+  const resolvedWeeks = Array.from(
+    new Set(
+      (picksRes.data ?? [])
+        .map((p) => matchWeekMap[p.match_index as number])
+        .filter((w) => w !== undefined && !isNaN(w))
+    )
+  ).sort((a, b) => a - b);
 
-        agg[uid].total_picks++;
-        agg[uid].total_points += (row.points_earned as number) ?? 0;
-        if (row.is_correct_winner) agg[uid].correct_winners++;
-        if (row.is_correct_winner && row.is_correct_band) agg[uid].exact_picks++;
-      });
-
-      entries = Object.values(agg)
-        .map((e) => ({
-          ...e,
-          win_pct: e.total_picks > 0 ? Math.round((e.correct_winners / e.total_picks) * 1000) / 10 : null,
-        }))
-        .sort((a, b) => b.total_points - a.total_points || b.exact_picks - a.exact_picks);
-    }
+  // Aggregate per user per week
+  interface WeekEntry {
+    user_id: string;
+    display_name: string | null;
+    username: string;
+    total_picks: number;
+    total_points: number;
+    correct_winners: number;
+    exact_picks: number;
   }
 
-  const currentUserId = user?.id;
+  // weekData[week][user_id] = WeekEntry
+  const weekData: Record<number, Record<string, WeekEntry>> = {};
+  const allTimeData: Record<string, WeekEntry> = {};
+
+  (picksRes.data ?? []).forEach((p) => {
+    const uid = p.user_id as string;
+    const profile = profileMap.get(uid);
+    const displayName = profile?.display_name ?? null;
+    const username = profile?.username ?? 'unknown';
+    const pts = (p.points_earned as number) ?? 0;
+    const week = matchWeekMap[p.match_index as number];
+    const correct = pts > 0;
+    const exact = pts >= 2;
+
+    // All-time
+    if (!allTimeData[uid]) {
+      allTimeData[uid] = { user_id: uid, display_name: displayName, username, total_picks: 0, total_points: 0, correct_winners: 0, exact_picks: 0 };
+    }
+    allTimeData[uid].total_picks++;
+    allTimeData[uid].total_points += pts;
+    if (correct) allTimeData[uid].correct_winners++;
+    if (exact) allTimeData[uid].exact_picks++;
+
+    // Per-week
+    if (week !== undefined && !isNaN(week)) {
+      if (!weekData[week]) weekData[week] = {};
+      if (!weekData[week][uid]) {
+        weekData[week][uid] = { user_id: uid, display_name: displayName, username, total_picks: 0, total_points: 0, correct_winners: 0, exact_picks: 0 };
+      }
+      weekData[week][uid].total_picks++;
+      weekData[week][uid].total_points += pts;
+      if (correct) weekData[week][uid].correct_winners++;
+      if (exact) weekData[week][uid].exact_picks++;
+    }
+  });
+
+  function toSorted(agg: Record<string, WeekEntry>) {
+    return Object.values(agg)
+      .map((e) => ({
+        ...e,
+        win_pct: e.total_picks > 0 ? Math.round((e.correct_winners / e.total_picks) * 1000) / 10 : null,
+      }))
+      .sort((a, b) => b.total_points - a.total_points || b.exact_picks - a.exact_picks);
+  }
+
+  const allTimeEntries = toSorted(allTimeData);
+  const weekEntries: Record<number, ReturnType<typeof toSorted>> = {};
+  resolvedWeeks.forEach((w) => {
+    weekEntries[w] = toSorted(weekData[w] ?? {});
+  });
 
   return (
     <main>
@@ -85,75 +124,12 @@ export default async function LeaderboardPage() {
           </Link>
         </div>
 
-        {fetchError && (
-          <div className="card" style={{ padding: 20, marginBottom: 24 }}>
-            <p style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--result-l)' }}>
-              Failed to load leaderboard data.
-            </p>
-          </div>
-        )}
-
-        {!fetchError && entries.length === 0 && (
-          <div className="card" style={{ padding: 40, textAlign: 'center' }}>
-            <p style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-muted)' }}>
-              No picks have been resolved yet. Check back after the first match.
-            </p>
-          </div>
-        )}
-
-        {!fetchError && entries.length > 0 && (
-          <div className="card">
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th className="rank-cell">#</th>
-                    <th>User</th>
-                    <th className="num-cell">Points</th>
-                    <th className="num-cell col-hide-mobile">Correct Wins</th>
-                    <th className="num-cell col-hide-mobile">Exact</th>
-                    <th className="num-cell">Win%</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {entries.map((entry, idx) => {
-                    const isMe = currentUserId && entry.user_id === currentUserId;
-                    return (
-                      <tr
-                        key={entry.user_id}
-                        className={isMe ? 'leaderboard-me' : ''}
-                      >
-                        <td className="rank-cell">{idx + 1}</td>
-                        <td>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: isMe ? 700 : 400, color: isMe ? 'var(--accent)' : 'var(--text)' }}>
-                            {entry.display_name || entry.username}
-                          </span>
-                          {isMe && (
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--accent)', marginLeft: 6, opacity: 0.7 }}>
-                              (you)
-                            </span>
-                          )}
-                        </td>
-                        <td className="num-cell" style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-heading)' }}>
-                          {entry.total_points}
-                        </td>
-                        <td className="num-cell col-hide-mobile" style={{ fontFamily: 'var(--font-mono)' }}>
-                          {entry.correct_winners}/{entry.total_picks}
-                        </td>
-                        <td className="num-cell col-hide-mobile" style={{ fontFamily: 'var(--font-mono)' }}>
-                          {entry.exact_picks}
-                        </td>
-                        <td className="num-cell" style={{ fontFamily: 'var(--font-mono)', color: entry.win_pct !== null && entry.win_pct >= 60 ? 'var(--result-w)' : 'var(--text)' }}>
-                          {entry.win_pct !== null ? `${entry.win_pct}%` : '—'}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+        <LeaderboardClient
+          currentUserId={user?.id ?? null}
+          allTimeEntries={allTimeEntries}
+          weekEntries={weekEntries}
+          resolvedWeeks={resolvedWeeks}
+        />
       </div>
     </main>
   );

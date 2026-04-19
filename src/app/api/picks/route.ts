@@ -28,11 +28,16 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Missing match_index' }, { status: 400 });
   }
 
-  // Only allow deletion if pick window is still open
-  const sheetData = await getAllData();
-  const entry = sheetData.schedule.find((s) => s.matchIndex === match_index);
-  if (entry && !isPickOpen(entry.date, entry.time, entry.venueCity)) {
-    return NextResponse.json({ error: 'Pick is locked — cannot delete after game starts' }, { status: 403 });
+  // Block deletion only if pick has already been scored (resolved)
+  const { data: existing } = await supabase
+    .from('picks')
+    .select('resolved_at')
+    .eq('user_id', user.id)
+    .eq('match_index', match_index)
+    .single();
+
+  if (existing?.resolved_at) {
+    return NextResponse.json({ error: 'Pick has already been scored and cannot be removed' }, { status: 403 });
   }
 
   const { error } = await supabase

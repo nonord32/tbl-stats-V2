@@ -1417,6 +1417,18 @@ a:hover .schedule-row,
   overflow: hidden;
 }
 
+/* Team picker grid: 2 columns on desktop, stacked on mobile */
+.picks-team-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+@media (max-width: 480px) {
+  .picks-team-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .pick-team-btn {
   font-family: var(--font-mono);
   font-size: 13px;

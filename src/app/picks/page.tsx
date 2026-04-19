@@ -31,7 +31,6 @@ export default async function PicksPage() {
   const picks: UserPick[] = (picksResult.data ?? []) as UserPick[];
 
   // Show only Upcoming matches where picks are still open (game hasn't started)
-  // Uses exact venue timezone so the lock is precise worldwide
   const allUpcoming = sheetData.schedule.filter((s) => {
     if (!s.matchIndex || s.status !== 'Upcoming') return false;
     return isPickOpen(s.date, s.time, s.venueCity);
@@ -47,10 +46,21 @@ export default async function PicksPage() {
     ? allUpcoming.filter((s) => Number(s.week) === currentWeek)
     : [];
 
+  // Pending picks = submitted but not yet resolved (may be for locked/started matches)
+  const pendingPicks = picks.filter((p) => !p.resolved_at);
+
+  // Build schedule lookup for pending picks labels
+  const scheduleMap: Record<number, { team1: string; team2: string; week: string | number }> = {};
+  sheetData.schedule.forEach((s) => {
+    if (s.matchIndex) scheduleMap[s.matchIndex] = { team1: s.team1, team2: s.team2, week: s.week };
+  });
+
   return (
     <PicksClient
       upcoming={upcoming}
       existingPicks={picks}
+      pendingPicks={pendingPicks}
+      scheduleMap={scheduleMap}
       userId={user.id}
       currentWeek={currentWeek}
     />

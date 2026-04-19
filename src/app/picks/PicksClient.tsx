@@ -6,17 +6,17 @@ import type { ScheduleEntry, UserPick, DiffBand } from '@/types';
 
 // Team slug → primary color
 const TEAM_COLORS: Record<string, string> = {
-  atlanta:     '#C8102E',
-  miami:       '#00B5CC',
-  dallas:      '#003087',
-  houston:     '#CE1141',
-  nashville:   '#FFB81C',
-  phoenix:     '#E56020',
-  boston:      '#007A33',
-  nyc:         '#003DA5',
-  'las-vegas': '#B4975A',
+  atlanta:       '#C8102E',
+  miami:         '#00B5CC',
+  dallas:        '#003087',
+  houston:       '#CE1141',
+  nashville:     '#FFB81C',
+  phoenix:       '#E56020',
+  boston:        '#007A33',
+  nyc:           '#003DA5',
+  'las-vegas':   '#B4975A',
   'los-angeles': '#552583',
-  philadelphia: '#006BB6',
+  philadelphia:  '#006BB6',
   'san-antonio': '#C4CED4',
 };
 
@@ -42,6 +42,8 @@ export const BANDS = [
 interface PicksClientProps {
   upcoming: ScheduleEntry[];
   existingPicks: UserPick[];
+  pendingPicks: UserPick[];
+  scheduleMap: Record<number, { team1: string; team2: string; week: string | number }>;
   userId: string;
   currentWeek: number | null;
 }
@@ -69,7 +71,21 @@ function formatMatchDate(dateStr: string): string {
   }
 }
 
-export function PicksClient({ upcoming, existingPicks, userId: _userId, currentWeek }: PicksClientProps) {
+const BAND_LABELS: Record<string, string> = {
+  close: '≤2 pts',
+  medium: '3–5 pts',
+  comfortable: '6–9 pts',
+  dominant: '10+ pts',
+};
+
+export function PicksClient({
+  upcoming,
+  existingPicks,
+  pendingPicks,
+  scheduleMap,
+  userId: _userId,
+  currentWeek,
+}: PicksClientProps) {
   const initialStates: Record<number, PickState> = {};
   existingPicks.forEach((p) => {
     initialStates[p.match_index] = {
@@ -83,9 +99,11 @@ export function PicksClient({ upcoming, existingPicks, userId: _userId, currentW
   });
 
   const [pickStates, setPickStates] = useState<Record<number, PickState>>(initialStates);
+  // Track deleted match indices so we hide them from the pending section
+  const [deletedIndices, setDeletedIndices] = useState<Set<number>>(new Set());
 
   function getState(matchIndex: number): PickState {
-    return pickStates[matchIndex] ?? { pickedTeam: '', diffBand: '', saving: false, saved: false, error: '' };
+    return pickStates[matchIndex] ?? { pickedTeam: '', diffBand: '', saving: false, saved: false, deleting: false, error: '' };
   }
 
   function updateState(matchIndex: number, updates: Partial<PickState>) {
@@ -134,42 +152,41 @@ export function PicksClient({ upcoming, existingPicks, userId: _userId, currentW
       });
       const json = await res.json();
       if (!res.ok) {
-        updateState(matchIndex, { deleting: false, error: json.error ?? 'Failed to delete pick' });
+        updateState(matchIndex, { deleting: false, error: json.error ?? 'Failed to remove pick' });
       } else {
         updateState(matchIndex, { deleting: false, saved: false, pickedTeam: '', diffBand: '' });
+        setDeletedIndices((prev) => new Set(prev).add(matchIndex));
       }
     } catch {
       updateState(matchIndex, { deleting: false, error: 'Network error. Please try again.' });
     }
   }
 
-  if (upcoming.length === 0) {
-    return (
-      <main>
-        <div className="page container">
-          <div className="page-header">
-            <h1>Pick&apos;em</h1>
-            <p className="subtitle">2026 TBL Season</p>
-          </div>
-          <div className="card" style={{ padding: 40, textAlign: 'center' }}>
-            <p style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-muted)' }}>
-              No upcoming matches to pick right now. Check back soon.
-            </p>
-          </div>
-        </div>
-      </main>
-    );
-  }
+  // Pending picks that haven't been deleted this session
+  const visiblePending = pendingPicks.filter((p) => {
+    if (deletedIndices.has(p.match_index)) return false;
+    // Don't show in pending section if match is still open (it's in the main picks list)
+    return !upcoming.some((u) => u.matchIndex === p.match_index);
+  });
 
   return (
     <main>
-      <div className="page container">
+      <div className="page container" style={{ maxWidth: 640 }}>
         <div className="page-header">
           <h1>Pick&apos;em</h1>
           <p className="subtitle">
             {currentWeek !== null ? `Week ${currentWeek}` : '2026 TBL Season'} — pick the winner &amp; winning margin
           </p>
         </div>
+
+        {/* ── Open matches ── */}
+        {upcoming.length === 0 && visiblePending.length === 0 && (
+          <div className="card" style={{ padding: 40, textAlign: 'center' }}>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-muted)' }}>
+              No upcoming matches to pick right now. Check back soon.
+            </p>
+          </div>
+        )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {upcoming.map((entry) => {
@@ -199,11 +216,11 @@ export function PicksClient({ upcoming, existingPicks, userId: _userId, currentW
                 </div>
 
                 <div style={{ padding: 16 }}>
-                  {/* Team selector */}
+                  {/* Team selector — responsive: 1 col on mobile, 2 col on wider */}
                   <p style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>
                     Pick the winner
                   </p>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 20 }}>
+                  <div className="picks-team-grid" style={{ marginBottom: 20 }}>
                     {[entry.team1, entry.team2].map((team) => {
                       const color = teamColor(team);
                       const picked = state.pickedTeam === team;
@@ -222,6 +239,7 @@ export function PicksClient({ upcoming, existingPicks, userId: _userId, currentW
                             background: picked ? `${color}22` : 'var(--bg-card)',
                             cursor: 'pointer',
                             transition: 'all 0.15s ease',
+                            width: '100%',
                           }}
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -267,7 +285,7 @@ export function PicksClient({ upcoming, existingPicks, userId: _userId, currentW
                   </div>
 
                   {/* Save / Delete */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                     <button
                       onClick={() => savePick(matchIndex)}
                       disabled={!canSave || state.saving}
@@ -280,13 +298,12 @@ export function PicksClient({ upcoming, existingPicks, userId: _userId, currentW
                       <button
                         onClick={() => deletePick(matchIndex)}
                         disabled={state.deleting}
-                        className="btn"
                         style={{
                           opacity: state.deleting ? 0.5 : 1,
                           fontFamily: 'var(--font-mono)',
                           fontSize: 12,
                           color: 'var(--result-l)',
-                          border: '1px solid var(--result-l)',
+                          border: '1px solid currentColor',
                           background: 'transparent',
                           padding: '6px 12px',
                           borderRadius: 'var(--radius)',
@@ -297,7 +314,7 @@ export function PicksClient({ upcoming, existingPicks, userId: _userId, currentW
                       </button>
                     )}
                     {state.error && (
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--result-l)' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--result-l)', width: '100%' }}>
                         {state.error}
                       </span>
                     )}
@@ -307,6 +324,66 @@ export function PicksClient({ upcoming, existingPicks, userId: _userId, currentW
             );
           })}
         </div>
+
+        {/* ── Pending picks (locked / game started but not yet scored) ── */}
+        {visiblePending.length > 0 && (
+          <section style={{ marginTop: upcoming.length > 0 ? 40 : 0 }}>
+            <h2 style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>
+              Pending picks
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {visiblePending.map((p) => {
+                const info = scheduleMap[p.match_index];
+                const state = getState(p.match_index);
+                return (
+                  <div key={p.match_index} className="card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                    <div>
+                      {info && (
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          Wk {info.week}
+                        </div>
+                      )}
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
+                        {info ? `${info.team1} vs ${info.team2}` : `Match ${p.match_index}`}
+                      </div>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>
+                        Picked: <span style={{ color: teamColor(p.picked_team), fontWeight: 700 }}>{p.picked_team}</span>
+                        <span style={{ marginLeft: 8, opacity: 0.7 }}>· {BAND_LABELS[p.diff_band] ?? p.diff_band}</span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        🔒 Locked · awaiting result
+                      </span>
+                      <button
+                        onClick={() => deletePick(p.match_index)}
+                        disabled={state.deleting}
+                        style={{
+                          opacity: state.deleting ? 0.5 : 1,
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: 11,
+                          color: 'var(--result-l)',
+                          border: '1px solid currentColor',
+                          background: 'transparent',
+                          padding: '4px 10px',
+                          borderRadius: 'var(--radius)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {state.deleting ? 'Removing…' : 'Remove pick'}
+                      </button>
+                      {state.error && (
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--result-l)' }}>
+                          {state.error}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
       </div>
     </main>
   );
