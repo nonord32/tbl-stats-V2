@@ -10,8 +10,9 @@ export default async function AdminPage() {
   const uniqueMatches = extractUniqueMatches(sheetData.teamMatches);
   const schedule = sheetData.schedule;
 
-  const matchList = schedule
-    .filter((s) => s.matchIndex !== undefined)
+  // Only upcoming matches — completed matches are not pickable
+  const upcomingMatchList = schedule
+    .filter((s) => s.matchIndex !== undefined && s.status === 'Upcoming')
     .map((s) => {
       const result = uniqueMatches.find((m) => m.matchIndex === s.matchIndex);
       return {
@@ -29,23 +30,29 @@ export default async function AdminPage() {
     })
     .sort((a, b) => a.matchIndex - b.matchIndex);
 
-  // Fetch all picks with profile info using service role (bypasses RLS)
+  const upcomingIndices = upcomingMatchList.map((m) => m.matchIndex);
+
+  // Fetch picks using service role key (bypasses RLS)
   const supabase = createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // Two separate queries — more reliable than embedded joins
-  const [{ data: picksRaw }, { data: profilesRaw }] = await Promise.all([
-    supabase.from('picks').select('user_id, match_index, picked_team, diff_band, points_earned, resolved_at').order('match_index'),
+  const [picksResult, profilesResult] = await Promise.all([
+    supabase
+      .from('picks')
+      .select('user_id, match_index, picked_team, diff_band, points_earned, resolved_at')
+      .in('match_index', upcomingIndices.length > 0 ? upcomingIndices : [-1])
+      .order('match_index'),
     supabase.from('profiles').select('id, display_name, username'),
   ]);
 
-  const profileMap = new Map((profilesRaw ?? []).map((p) => [p.id as string, p]));
+  const dbError = picksResult.error?.message ?? profilesResult.error?.message ?? null;
+  const profileMap = new Map((profilesResult.data ?? []).map((p) => [p.id as string, p]));
 
-  const picks = (picksRaw ?? []).map((p) => {
+  const picks = (picksResult.data ?? []).map((p) => {
     const profile = profileMap.get(p.user_id as string);
-    const match = matchList.find((m) => m.matchIndex === p.match_index);
+    const match = upcomingMatchList.find((m) => m.matchIndex === p.match_index);
     return {
       matchIndex: p.match_index as number,
       matchLabel: match ? `Wk ${match.week}: ${match.team1} vs ${match.team2}` : `Match ${p.match_index}`,
@@ -58,5 +65,5 @@ export default async function AdminPage() {
     };
   });
 
-  return <AdminClient matches={matchList} picks={picks} />;
+  return <AdminClient matches={upcomingMatchList} picks={picks} dbError={dbError} />;
 }

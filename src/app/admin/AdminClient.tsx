@@ -44,7 +44,7 @@ function formatDate(dateStr: string) {
   } catch { return dateStr; }
 }
 
-export function AdminClient({ matches, picks }: { matches: MatchEntry[]; picks: PickRow[] }) {
+export function AdminClient({ matches, picks, dbError }: { matches: MatchEntry[]; picks: PickRow[]; dbError: string | null }) {
   const [secret, setSecret] = useState('');
   const [authed, setAuthed] = useState(false);
   const [resolving, setResolving] = useState<number | null>(null);
@@ -106,6 +106,7 @@ export function AdminClient({ matches, picks }: { matches: MatchEntry[]; picks: 
   const resolvable = matches.filter((m) => m.hasResult);
   const upcoming = matches.filter((m) => !m.hasResult);
 
+
   return (
     <main>
       <div className="page container" style={{ maxWidth: 760 }}>
@@ -115,6 +116,15 @@ export function AdminClient({ matches, picks }: { matches: MatchEntry[]; picks: 
             <p className="subtitle">Score everyone&apos;s picks after a match is completed</p>
           </div>
         </div>
+
+        {/* DB error banner */}
+        {dbError && (
+          <div style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 'var(--radius)', padding: '12px 16px', marginBottom: 24 }}>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--result-l)' }}>
+              DB error: {dbError}
+            </p>
+          </div>
+        )}
 
         {/* Matches with results — resolvable */}
         <section style={{ marginBottom: 40 }}>
