@@ -16,10 +16,17 @@ export function AuthButton() {
       if (user) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('username')
+          .select('username, display_name')
           .eq('id', user.id)
           .single();
-        setUsername(profile?.username ?? user.email?.split('@')[0] ?? 'account');
+        // Prefer display_name (Google full name), then username, then email prefix
+        const name =
+          (profile as { username: string | null; display_name: string | null } | null)?.display_name ||
+          (profile as { username: string | null; display_name: string | null } | null)?.username ||
+          user.user_metadata?.full_name ||
+          user.email?.split('@')[0] ||
+          'account';
+        setUsername(name);
       } else {
         setUsername(null);
       }

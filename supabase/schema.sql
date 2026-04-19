@@ -4,7 +4,7 @@
 -- ─── Profiles table ───────────────────────────────────────────────────────────
 create table public.profiles (
   id uuid references auth.users(id) on delete cascade primary key,
-  username text unique not null,
+  username text unique,              -- auto-generated from email prefix; nullable for safety
   display_name text,
   created_at timestamptz default now() not null
 );
@@ -19,6 +19,52 @@ create policy "Users can insert own profile"
 
 create policy "Users can update own profile"
   on public.profiles for update using (auth.uid() = id);
+
+-- ─── Auto-create profile on signup (email/password AND Google OAuth) ──────────
+-- This trigger fires whenever a new row is inserted into auth.users.
+-- It creates a matching profiles row using the Google display name (if available)
+-- or falling back to the email prefix.
+create or replace function public.handle_new_user()
+returns trigger as $$
+declare
+  base_username text;
+  final_username text;
+begin
+  -- Derive a base username from Google preferred_username or email prefix
+  base_username := coalesce(
+    new.raw_user_meta_data->>'preferred_username',
+    split_part(new.email, '@', 1)
+  );
+
+  -- If that username is already taken, append the first 6 chars of the user UUID
+  if exists (select 1 from public.profiles where username = base_username) then
+    final_username := base_username || '_' || substr(new.id::text, 1, 6);
+  else
+    final_username := base_username;
+  end if;
+
+  insert into public.profiles (id, username, display_name)
+  values (
+    new.id,
+    final_username,
+    coalesce(
+      new.raw_user_meta_data->>'full_name',   -- Google full name
+      new.raw_user_meta_data->>'name',         -- fallback Google field
+      base_username                            -- email prefix fallback
+    )
+  )
+  on conflict (id) do nothing;   -- safe to run multiple times
+
+  return new;
+end;
+$$ language plpgsql security definer;
+
+-- Drop trigger first so this script is idempotent
+drop trigger if exists on_auth_user_created on auth.users;
+
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
 
 -- ─── Picks table ──────────────────────────────────────────────────────────────
 create table public.picks (
