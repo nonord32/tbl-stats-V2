@@ -16,6 +16,17 @@ interface MatchEntry {
   winner: string | null;
 }
 
+interface PickRow {
+  matchIndex: number;
+  matchLabel: string;
+  displayName: string;
+  username: string;
+  pickedTeam: string;
+  diffBand: string;
+  pointsEarned: number;
+  resolved: boolean;
+}
+
 interface ResolveResult {
   message: string;
   resolved: number;
@@ -33,7 +44,7 @@ function formatDate(dateStr: string) {
   } catch { return dateStr; }
 }
 
-export function AdminClient({ matches }: { matches: MatchEntry[] }) {
+export function AdminClient({ matches, picks }: { matches: MatchEntry[]; picks: PickRow[] }) {
   const [secret, setSecret] = useState('');
   const [authed, setAuthed] = useState(false);
   const [resolving, setResolving] = useState<number | null>(null);
@@ -199,6 +210,59 @@ export function AdminClient({ matches }: { matches: MatchEntry[] }) {
             </div>
           </section>
         )}
+
+        {/* All picks table */}
+        <section style={{ marginTop: 40 }}>
+          <h2 style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>
+            All Picks ({picks.length})
+          </h2>
+          {picks.length === 0 ? (
+            <div className="card" style={{ padding: 24 }}>
+              <p style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-muted)' }}>No picks submitted yet.</p>
+            </div>
+          ) : (
+            <div className="card">
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Match</th>
+                      <th>Picked</th>
+                      <th>Margin</th>
+                      <th className="num-cell">Pts</th>
+                      <th className="num-cell">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {picks.map((p, i) => (
+                      <tr key={i}>
+                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600 }}>
+                          {p.displayName || p.username || '—'}
+                        </td>
+                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
+                          {p.matchLabel}
+                        </td>
+                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>
+                          {p.pickedTeam}
+                        </td>
+                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
+                          {p.diffBand}
+                        </td>
+                        <td className="num-cell" style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: p.pointsEarned > 0 ? 'var(--result-w)' : 'var(--text-muted)' }}>
+                          {p.resolved ? p.pointsEarned : '—'}
+                        </td>
+                        <td className="num-cell" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: p.resolved ? 'var(--result-w)' : 'var(--text-muted)' }}>
+                          {p.resolved ? 'Scored' : 'Pending'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </section>
       </div>
     </main>
   );
