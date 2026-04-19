@@ -119,3 +119,30 @@ export interface ParsedSheetData {
   highlights: HighlightEntry[];
   lastUpdated: string;
 }
+
+// ─── Pick'em types ────────────────────────────────────────────────────────────
+export type DiffBand = 'close' | 'medium' | 'comfortable' | 'dominant';
+
+export interface UserPick {
+  id: string;
+  user_id: string;
+  match_index: number;
+  picked_team: string;
+  diff_band: DiffBand;
+  is_correct_winner: boolean | null;
+  is_correct_band: boolean | null;
+  points_earned: number;
+  resolved_at: string | null;
+  created_at: string;
+}
+
+export interface LeaderboardEntry {
+  user_id: string;
+  username: string;
+  display_name: string | null;
+  total_picks: number;
+  total_points: number;
+  correct_winners: number;
+  exact_picks: number;
+  win_pct: number | null;
+}

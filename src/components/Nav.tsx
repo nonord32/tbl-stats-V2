@@ -4,6 +4,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTheme } from './ThemeProvider';
+import { Suspense } from 'react';
+import { AuthButton } from './AuthButton';
 
 const NAV_STYLE: React.CSSProperties = {
   position: 'fixed',
@@ -118,9 +120,18 @@ export function Nav() {
             <Link href="/schedule" className={`nav-link ${isActive('/schedule') ? 'active' : ''}`}>
               Schedule
             </Link>
+            <Link href="/picks" className={`nav-link ${isActive('/picks') ? 'active' : ''}`}>
+              Picks
+            </Link>
+            <Link href="/leaderboard" className={`nav-link ${isActive('/leaderboard') ? 'active' : ''}`}>
+              Leaderboard
+            </Link>
           </div>
 
           <div className="nav-actions">
+            <Suspense fallback={null}>
+              <AuthButton />
+            </Suspense>
             <a
               href="https://www.instagram.com/teamboxingleague/"
               target="_blank"
