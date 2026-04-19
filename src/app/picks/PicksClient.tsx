@@ -43,6 +43,7 @@ interface PicksClientProps {
   upcoming: ScheduleEntry[];
   existingPicks: UserPick[];
   userId: string;
+  currentWeek: number | null;
 }
 
 interface PickState {
@@ -67,7 +68,7 @@ function formatMatchDate(dateStr: string): string {
   }
 }
 
-export function PicksClient({ upcoming, existingPicks, userId: _userId }: PicksClientProps) {
+export function PicksClient({ upcoming, existingPicks, userId: _userId, currentWeek }: PicksClientProps) {
   const initialStates: Record<number, PickState> = {};
   existingPicks.forEach((p) => {
     initialStates[p.match_index] = {
@@ -144,7 +145,9 @@ export function PicksClient({ upcoming, existingPicks, userId: _userId }: PicksC
       <div className="page container">
         <div className="page-header">
           <h1>Pick&apos;em</h1>
-          <p className="subtitle">2026 TBL Season — pick the winner &amp; winning margin</p>
+          <p className="subtitle">
+            {currentWeek !== null ? `Week ${currentWeek}` : '2026 TBL Season'} — pick the winner &amp; winning margin
+          </p>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

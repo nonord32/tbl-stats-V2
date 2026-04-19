@@ -29,14 +29,23 @@ export default async function PicksPage() {
 
   const picks: UserPick[] = (picksResult.data ?? []) as UserPick[];
 
-  // Only show Upcoming matches — completed games don't belong on the picks page
-  const upcoming = sheetData.schedule.filter((s) => s.status === 'Upcoming' && s.matchIndex);
+  // Find the current active week: earliest week that still has an Upcoming match
+  const allUpcoming = sheetData.schedule.filter((s) => s.status === 'Upcoming' && s.matchIndex);
+  const currentWeek = allUpcoming.length > 0
+    ? Math.min(...allUpcoming.map((s) => Number(s.week)))
+    : null;
+
+  // Only show matches from the current active week
+  const upcoming = currentWeek !== null
+    ? allUpcoming.filter((s) => Number(s.week) === currentWeek)
+    : [];
 
   return (
     <PicksClient
       upcoming={upcoming}
       existingPicks={picks}
       userId={user.id}
+      currentWeek={currentWeek}
     />
   );
 }
