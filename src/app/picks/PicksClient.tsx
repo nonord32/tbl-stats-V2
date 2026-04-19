@@ -4,6 +4,34 @@
 import { useState } from 'react';
 import type { ScheduleEntry, UserPick, DiffBand } from '@/types';
 
+// Team slug → primary color
+const TEAM_COLORS: Record<string, string> = {
+  atlanta:     '#C8102E',
+  miami:       '#00B5CC',
+  dallas:      '#003087',
+  houston:     '#CE1141',
+  nashville:   '#FFB81C',
+  phoenix:     '#E56020',
+  boston:      '#007A33',
+  nyc:         '#003DA5',
+  'las-vegas': '#B4975A',
+  'los-angeles': '#552583',
+  philadelphia: '#006BB6',
+  'san-antonio': '#C4CED4',
+};
+
+function teamSlug(name: string) {
+  return name.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-');
+}
+
+function teamColor(name: string) {
+  return TEAM_COLORS[teamSlug(name)] ?? 'var(--accent)';
+}
+
+function teamLogo(name: string) {
+  return `/logos/${teamSlug(name)}.png`;
+}
+
 export const BANDS = [
   { key: 'close' as DiffBand,       label: '≤2 pts',  pts: 5 },
   { key: 'medium' as DiffBand,      label: '3–5 pts', pts: 4 },
@@ -152,15 +180,47 @@ export function PicksClient({ upcoming, existingPicks, userId: _userId }: PicksC
                     Pick the winner
                   </p>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 20 }}>
-                    {[entry.team1, entry.team2].map((team) => (
-                      <button
-                        key={team}
-                        onClick={() => updateState(matchIndex, { pickedTeam: team, saved: false })}
-                        className={`pick-team-btn${state.pickedTeam === team ? ' selected' : ''}`}
-                      >
-                        {team}
-                      </button>
-                    ))}
+                    {[entry.team1, entry.team2].map((team) => {
+                      const color = teamColor(team);
+                      const picked = state.pickedTeam === team;
+                      return (
+                        <button
+                          key={team}
+                          onClick={() => updateState(matchIndex, { pickedTeam: team, saved: false })}
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: 8,
+                            padding: '14px 12px',
+                            borderRadius: 'var(--radius)',
+                            border: `2px solid ${picked ? color : 'var(--border)'}`,
+                            background: picked ? `${color}22` : 'var(--bg-card)',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={teamLogo(team)}
+                            alt={team}
+                            width={48}
+                            height={48}
+                            style={{ objectFit: 'contain', opacity: picked ? 1 : 0.6 }}
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                          <span style={{
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: 13,
+                            fontWeight: 700,
+                            color: picked ? color : 'var(--text)',
+                            letterSpacing: '0.02em',
+                          }}>
+                            {team}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
 
                   {/* Band selector */}
