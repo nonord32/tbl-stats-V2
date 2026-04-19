@@ -23,7 +23,7 @@ interface PickRow {
   username: string;
   pickedTeam: string;
   diffBand: string;
-  pointsEarned: number;
+  pointsEarned: number | null;
   resolved: boolean;
 }
 
@@ -129,6 +129,7 @@ export function AdminClient({ matches, picks, dbError, dbDebug }: { matches: Mat
         <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '10px 14px', marginBottom: 20, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>
           serviceKey: {dbDebug.serviceKeySet ? '✓ set' : '✗ MISSING'} ·
           picks in DB: {dbDebug.picksCount} ·
+          picks prop: {picks.length} ·
           profiles in DB: {dbDebug.profilesCount}
           {dbDebug.picksError && <span style={{ color: 'var(--result-l)', marginLeft: 8 }}>picks err: {dbDebug.picksError}</span>}
           {dbDebug.profilesError && <span style={{ color: 'var(--result-l)', marginLeft: 8 }}>profiles err: {dbDebug.profilesError}</span>}
@@ -276,7 +277,7 @@ export function AdminClient({ matches, picks, dbError, dbDebug }: { matches: Mat
                         <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
                           {p.diffBand}
                         </td>
-                        <td className="num-cell" style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: p.pointsEarned > 0 ? 'var(--result-w)' : 'var(--text-muted)' }}>
+                        <td className="num-cell" style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: (p.pointsEarned ?? 0) > 0 ? 'var(--result-w)' : 'var(--text-muted)' }}>
                           {p.resolved ? p.pointsEarned : '—'}
                         </td>
                         <td className="num-cell" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: p.resolved ? 'var(--result-w)' : 'var(--text-muted)' }}>

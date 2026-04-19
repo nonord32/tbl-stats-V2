@@ -61,7 +61,8 @@ export default async function AdminPage() {
     .filter((s) => s.matchIndex !== undefined)
     .map((s) => ({ matchIndex: s.matchIndex!, week: s.week, team1: s.team1, team2: s.team2 }));
 
-  const picks = (picksResult.data ?? []).map((p) => {
+  const rawPicks = picksResult.data ?? [];
+  const picks = rawPicks.map((p) => {
     const profile = profileMap.get(p.user_id as string);
     const match = allMatchList.find((m) => m.matchIndex === p.match_index);
     return {
@@ -71,10 +72,14 @@ export default async function AdminPage() {
       username: (profile?.username as string) ?? '',
       pickedTeam: p.picked_team as string,
       diffBand: p.diff_band as string,
-      pointsEarned: p.points_earned as number,
+      pointsEarned: (p.points_earned ?? null) as number | null,
       resolved: !!p.resolved_at,
     };
   });
+
+  // Server-side debug — visible in terminal where you ran `npm run dev`
+  console.log('[admin] rawPicks length:', rawPicks.length, '| mapped picks length:', picks.length);
+  if (picks.length > 0) console.log('[admin] first pick:', JSON.stringify(picks[0]));
 
   return <AdminClient matches={upcomingMatchList} picks={picks} dbError={dbError} dbDebug={dbDebug} />;
 }
