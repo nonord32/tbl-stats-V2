@@ -29,8 +29,17 @@ export default async function PicksPage() {
 
   const picks: UserPick[] = (picksResult.data ?? []) as UserPick[];
 
-  // Find the current active week: earliest week that still has an Upcoming match
-  const allUpcoming = sheetData.schedule.filter((s) => s.status === 'Upcoming' && s.matchIndex);
+  // Lock picks at midnight before game day — consistent with the API
+  const todayUTC = new Date();
+  todayUTC.setUTCHours(0, 0, 0, 0);
+
+  // Only show Upcoming matches that are strictly in the future (not today)
+  const allUpcoming = sheetData.schedule.filter((s) => {
+    if (!s.matchIndex || s.status !== 'Upcoming') return false;
+    return new Date(s.date) > todayUTC;
+  });
+
+  // Find the current active week: earliest week with open picks
   const currentWeek = allUpcoming.length > 0
     ? Math.min(...allUpcoming.map((s) => Number(s.week)))
     : null;

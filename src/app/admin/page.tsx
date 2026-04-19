@@ -42,17 +42,21 @@ export default async function AdminPage() {
     supabase
       .from('picks')
       .select('user_id, match_index, picked_team, diff_band, points_earned, resolved_at')
-      .in('match_index', upcomingIndices.length > 0 ? upcomingIndices : [-1])
-      .order('match_index'),
+      .order('match_index'), // show ALL picks, not just upcoming
     supabase.from('profiles').select('id, display_name, username'),
   ]);
 
   const dbError = picksResult.error?.message ?? profilesResult.error?.message ?? null;
   const profileMap = new Map((profilesResult.data ?? []).map((p) => [p.id as string, p]));
 
+  // Build full match list for label lookup (all matches, not just upcoming)
+  const allMatchList = schedule
+    .filter((s) => s.matchIndex !== undefined)
+    .map((s) => ({ matchIndex: s.matchIndex!, week: s.week, team1: s.team1, team2: s.team2 }));
+
   const picks = (picksResult.data ?? []).map((p) => {
     const profile = profileMap.get(p.user_id as string);
-    const match = upcomingMatchList.find((m) => m.matchIndex === p.match_index);
+    const match = allMatchList.find((m) => m.matchIndex === p.match_index);
     return {
       matchIndex: p.match_index as number,
       matchLabel: match ? `Wk ${match.week}: ${match.team1} vs ${match.team2}` : `Match ${p.match_index}`,
