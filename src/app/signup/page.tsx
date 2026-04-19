@@ -2,12 +2,10 @@
 // src/app/signup/page.tsx
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 
 export default function SignupPage() {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -55,8 +53,8 @@ export default function SignupPage() {
     }
 
     // Profile is auto-created by the database trigger (handle_new_user).
-    router.push('/picks');
-    router.refresh();
+    // Full page reload so the server reads the fresh session cookie
+    window.location.href = '/picks';
   }
 
   return (
