@@ -3,28 +3,47 @@
 
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
-import type { FighterStat } from '@/types';
+import type { FighterStat, FightHistory } from '@/types';
 import { getTeamColorByName } from '@/lib/teams';
 
-// Natural boxing weight-class order (lightest → heaviest)
-const WEIGHT_ORDER = [
-  '105', '108', '112', '115', '118', '122', '126', '130', '135',
-  '140', '147', '154', '160', '168', '175', '200', 'heavyweight',
-  "women's", "women's super",
-];
-
+// ─── Weight class sort ────────────────────────────────────────────────────────
+// Handles both numeric names ("118", "118 lbs") and named classes
+// ("Super Bantamweight", "Light Heavyweight", "Women's Flyweight", etc.)
 function weightSortKey(w: string): number {
+  if (!w) return 999;
+  // Extract the first number — covers "118", "118 lbs", "Super 118 lbs"
+  const numMatch = w.match(/\d+/);
+  if (numMatch) {
+    const n = parseInt(numMatch[0]);
+    if (n >= 95 && n <= 250) return n; // sanity check: valid boxing weight
+  }
   const lower = w.toLowerCase();
-  const idx = WEIGHT_ORDER.findIndex((o) => lower.includes(o));
-  if (idx >= 0) return idx;
-  const num = parseInt(w);
-  return isNaN(num) ? 999 : num;
+  // Named classes in ascending weight order
+  if (lower.includes('straw') || lower.includes('minimum') || lower.includes('mini fly')) return 105;
+  if (lower.includes('light fly'))   return 108;
+  if (lower.includes('super fly') || (lower.includes('jr') && lower.includes('bant'))) return 115;
+  if (lower.includes('fly'))         return 112;
+  if (lower.includes('super bant') || (lower.includes('jr') && lower.includes('feath'))) return 122;
+  if (lower.includes('bant'))        return 118;
+  if (lower.includes('super feath') || (lower.includes('jr') && lower.includes('light'))) return 130;
+  if (lower.includes('feath'))       return 126;
+  if (lower.includes('super light') || (lower.includes('jr') && lower.includes('welt'))) return 140;
+  if (lower.includes('light'))       return 135;
+  if (lower.includes('super welt') || (lower.includes('jr') && lower.includes('mid'))) return 154;
+  if (lower.includes('welt'))        return 147;
+  if (lower.includes('super mid') || lower.includes('super middle')) return 168;
+  if (lower.includes('mid'))         return 160;
+  if (lower.includes('light heavy')) return 175;
+  if (lower.includes('cruiser'))     return 200;
+  if (lower.includes('heavy'))       return 210;
+  return 999;
 }
 
 type Gender = 'Male' | 'Female';
 
 interface Props {
   fighters: FighterStat[];
+  fighterHistory: Record<string, FightHistory[]>;
   lastUpdated?: string;
 }
 
@@ -67,19 +86,42 @@ function TabStrip({ weights, active, onChange }: { weights: string[]; active: st
   );
 }
 
-export function RankingsClient({ fighters, lastUpdated }: Props) {
-  // Derive weight classes per gender
+export function RankingsClient({ fighters, fighterHistory, lastUpdated }: Props) {
+  // Build a map of slug → most recent weight class from fight history.
+  // Falls back to the profile weight class if no history exists.
+  const currentWeightClass = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const [slug, history] of Object.entries(fighterHistory)) {
+      if (!history.length) continue;
+      // fighterHistory is already sorted desc by date — first entry is most recent
+      const wc = history[0].weightClass;
+      if (wc) map.set(slug, wc);
+    }
+    return map;
+  }, [fighterHistory]);
+
+  // Effective weight class for a fighter (most recent fight > profile sheet)
+  const effectiveWC = (f: FighterStat) => currentWeightClass.get(f.slug) || f.weightClass;
+
+  // Derive per-gender weight class lists, sorted lightest → heaviest
   const { maleWeights, femaleWeights } = useMemo(() => {
     const male = Array.from(new Set(
-      fighters.filter((f) => f.gender?.toLowerCase() !== 'female').map((f) => f.weightClass).filter(Boolean)
+      fighters
+        .filter((f) => f.gender?.toLowerCase() !== 'female')
+        .map((f) => effectiveWC(f))
+        .filter(Boolean)
     )).sort((a, b) => weightSortKey(a) - weightSortKey(b));
 
     const female = Array.from(new Set(
-      fighters.filter((f) => f.gender?.toLowerCase() === 'female').map((f) => f.weightClass).filter(Boolean)
+      fighters
+        .filter((f) => f.gender?.toLowerCase() === 'female')
+        .map((f) => effectiveWC(f))
+        .filter(Boolean)
     )).sort((a, b) => weightSortKey(a) - weightSortKey(b));
 
     return { maleWeights: male, femaleWeights: female };
-  }, [fighters]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fighters, currentWeightClass]);
 
   const [gender, setGender] = useState<Gender>('Male');
   const [maleWeight, setMaleWeight] = useState(maleWeights[0] || '');
@@ -99,10 +141,11 @@ export function RankingsClient({ fighters, lastUpdated }: Props) {
         const isFemale = f.gender?.toLowerCase() === 'female';
         if (gender === 'Male' && isFemale) return false;
         if (gender === 'Female' && !isFemale) return false;
-        return f.weightClass === activeWeight;
+        return effectiveWC(f) === activeWeight;
       })
       .sort((a, b) => b.netPts - a.netPts);
-  }, [fighters, gender, activeWeight]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fighters, gender, activeWeight, currentWeightClass]);
 
   return (
     <div className="page">
@@ -151,7 +194,7 @@ export function RankingsClient({ fighters, lastUpdated }: Props) {
             ))}
           </div>
 
-          {/* Weight class tab strip */}
+          {/* Weight class tabs — lightest left, heaviest right */}
           <TabStrip
             weights={activeWeights}
             active={activeWeight}

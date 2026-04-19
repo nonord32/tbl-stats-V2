@@ -17,5 +17,11 @@ export const metadata: Metadata = {
 
 export default async function RankingsPage() {
   const data = await getAllData();
-  return <RankingsClient fighters={data.fighters} lastUpdated={data.lastUpdated} />;
+  return (
+    <RankingsClient
+      fighters={data.fighters}
+      fighterHistory={data.fighterHistory}
+      lastUpdated={data.lastUpdated}
+    />
+  );
 }
