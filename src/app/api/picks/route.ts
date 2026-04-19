@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getAllData } from '@/lib/data';
+import { isPickOpen } from '@/lib/gameTime';
 import type { DiffBand } from '@/types';
 
 export async function GET() {
@@ -65,16 +66,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Match not found in schedule' }, { status: 404 });
   }
 
-  // Lock picks at midnight before game day (picks must be in before the day of the match)
-  const todayUTC = new Date();
-  todayUTC.setUTCHours(0, 0, 0, 0);
-  const matchDate = new Date(entry.date);
-
+  // Lock picks exactly when the game starts (using venue city timezone)
   const isUpcoming = entry.status === 'Upcoming';
-  const isBeforeGameDay = matchDate > todayUTC; // strict: lock on game day
+  const open = isPickOpen(entry.date, entry.time, entry.venueCity);
 
-  if (!isUpcoming || !isBeforeGameDay) {
-    return NextResponse.json({ error: 'Picks are locked — submissions close at midnight before game day' }, { status: 403 });
+  if (!isUpcoming || !open) {
+    return NextResponse.json({ error: 'Picks are locked — submissions close at game start time' }, { status: 403 });
   }
 
   // Ensure a profile row exists (handles users who signed up before the DB trigger was added)

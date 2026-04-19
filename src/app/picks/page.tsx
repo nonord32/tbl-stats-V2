@@ -2,6 +2,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getAllData } from '@/lib/data';
+import { isPickOpen } from '@/lib/gameTime';
 import { PicksClient } from './PicksClient';
 import type { UserPick } from '@/types';
 
@@ -29,14 +30,11 @@ export default async function PicksPage() {
 
   const picks: UserPick[] = (picksResult.data ?? []) as UserPick[];
 
-  // Lock picks at midnight before game day — consistent with the API
-  const todayUTC = new Date();
-  todayUTC.setUTCHours(0, 0, 0, 0);
-
-  // Only show Upcoming matches that are strictly in the future (not today)
+  // Show only Upcoming matches where picks are still open (game hasn't started)
+  // Uses exact venue timezone so the lock is precise worldwide
   const allUpcoming = sheetData.schedule.filter((s) => {
     if (!s.matchIndex || s.status !== 'Upcoming') return false;
-    return new Date(s.date) > todayUTC;
+    return isPickOpen(s.date, s.time, s.venueCity);
   });
 
   // Find the current active week: earliest week with open picks
