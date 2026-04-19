@@ -114,20 +114,57 @@ function MatchRow({ entry }: { entry: ScheduleEntry }) {
   return rowContent;
 }
 
+function WeekBlock({ week, entries }: { week: number; entries: ScheduleEntry[] }) {
+  return (
+    <div style={{ marginBottom: 32 }}>
+      {week > 0 && (
+        <div style={{
+          fontFamily: 'IBM Plex Mono, monospace',
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: '0.1em',
+          textTransform: 'uppercase',
+          color: 'var(--text-muted)',
+          marginBottom: 8,
+          paddingBottom: 6,
+          borderBottom: '1px solid var(--border)',
+        }}>
+          Week {week}
+        </div>
+      )}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        {entries.map((entry, i) => (
+          <div key={i} style={{ borderBottom: i < entries.length - 1 ? '1px solid var(--border)' : 'none' }}>
+            <MatchRow entry={entry} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function groupByWeek(entries: ScheduleEntry[]): [number, ScheduleEntry[]][] {
+  const map = new Map<number, ScheduleEntry[]>();
+  for (const entry of entries) {
+    const w = entry.week || 0;
+    if (!map.has(w)) map.set(w, []);
+    map.get(w)!.push(entry);
+  }
+  return [...map.entries()];
+}
+
 export default async function SchedulePage() {
   const data = await getAllData();
   const { schedule } = data;
 
-  // Group by week
-  const weeks = new Map<number, ScheduleEntry[]>();
-  for (const entry of schedule) {
-    const w = entry.week || 0;
-    if (!weeks.has(w)) weeks.set(w, []);
-    weeks.get(w)!.push(entry);
-  }
-  const sortedWeeks = [...weeks.entries()].sort((a, b) => a[0] - b[0]);
+  const upcoming = schedule.filter((e) => e.status.toLowerCase() === 'upcoming');
+  const past = schedule.filter((e) => e.status.toLowerCase() !== 'upcoming');
 
-  const upcomingCount = schedule.filter((e) => e.status.toLowerCase() === 'upcoming').length;
+  // Upcoming: earliest weeks first; Past: most recent weeks first
+  const upcomingWeeks = groupByWeek(upcoming).sort((a, b) => a[0] - b[0]);
+  const pastWeeks = groupByWeek(past).sort((a, b) => b[0] - a[0]);
+
+  const upcomingCount = upcoming.length;
 
   const BASE = 'https://tblstats.com';
   const jsonLd = {
@@ -164,32 +201,47 @@ export default async function SchedulePage() {
               <div className="loading">No schedule data available</div>
             </div>
           ) : (
-            sortedWeeks.map(([week, entries]) => (
-              <div key={week} style={{ marginBottom: 32 }}>
-                {week > 0 && (
-                  <div style={{
+            <>
+              {/* ── Upcoming ── */}
+              {upcomingWeeks.length > 0 ? (
+                upcomingWeeks.map(([week, entries]) => (
+                  <WeekBlock key={`up-${week}`} week={week} entries={entries} />
+                ))
+              ) : (
+                <div className="card" style={{ marginBottom: 32 }}>
+                  <div className="loading" style={{ padding: '20px 24px' }}>No upcoming matches scheduled</div>
+                </div>
+              )}
+
+              {/* ── Past Matches divider ── */}
+              {pastWeeks.length > 0 && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  margin: '32px 0 24px',
+                }}>
+                  <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                  <span style={{
                     fontFamily: 'IBM Plex Mono, monospace',
                     fontSize: 11,
                     fontWeight: 700,
                     letterSpacing: '0.1em',
                     textTransform: 'uppercase',
                     color: 'var(--text-muted)',
-                    marginBottom: 8,
-                    paddingBottom: 6,
-                    borderBottom: '1px solid var(--border)',
+                    whiteSpace: 'nowrap',
                   }}>
-                    Week {week}
-                  </div>
-                )}
-                <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-                  {entries.map((entry, i) => (
-                    <div key={i} style={{ borderBottom: i < entries.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                      <MatchRow entry={entry} />
-                    </div>
-                  ))}
+                    Past Matches
+                  </span>
+                  <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
                 </div>
-              </div>
-            ))
+              )}
+
+              {/* ── Past (most recent first) ── */}
+              {pastWeeks.map(([week, entries]) => (
+                <WeekBlock key={`past-${week}`} week={week} entries={entries} />
+              ))}
+            </>
           )}
         </div>
       </div>
