@@ -283,12 +283,15 @@ function parseMatchData(rows: string[][]): {
       const isWin1 = result1Raw.toUpperCase().startsWith('W');
       const isLoss1 = result1Raw.toUpperCase().startsWith('L');
 
-      // Extract method (e.g. "Decision", "KO", "Knockdown") — same for both fighters in the bout
+      // Extract method (e.g. "Decision", "KO", "TKO") — same for both fighters in the bout
+      const CAPS_TERMS = new Set(['KO', 'TKO', 'RSC', 'RTD', 'DQ']);
       const extractMethod = (raw: string): string => {
         const dashIdx = raw.indexOf('-');
         if (dashIdx < 0) return '';
-        const m = raw.slice(dashIdx + 1).trim();
-        return m.charAt(0).toUpperCase() + m.slice(1).toLowerCase();
+        return raw.slice(dashIdx + 1).trim().split(' ').map((word) => {
+          const up = word.toUpperCase();
+          return CAPS_TERMS.has(up) ? up : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+        }).join(' ');
       };
       const resultMethod = extractMethod(result1Raw) || extractMethod(result2Raw);
 
