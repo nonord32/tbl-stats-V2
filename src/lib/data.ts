@@ -63,10 +63,19 @@ function safeInt(val: string | undefined, fallback = 0): number {
   return isNaN(n) ? fallback : n;
 }
 
-// Convert raw rows + a header row index into array of objects
+// Convert raw rows + a header row index into array of objects.
+// Duplicate header names are disambiguated by appending "__<index>" so no
+// column silently overwrites another. Lookups go through pick() which
+// compares normalized header text and ignores the disambiguator suffix.
 function toObjects(rows: string[][], headerRowIndex: number): Record<string, string>[] {
   if (headerRowIndex >= rows.length) return [];
-  const headers = rows[headerRowIndex].map((h) => h.trim());
+  const rawHeaders = rows[headerRowIndex].map((h) => h.trim());
+  const seen = new Map<string, number>();
+  const headers = rawHeaders.map((h) => {
+    const count = seen.get(h) ?? 0;
+    seen.set(h, count + 1);
+    return count === 0 ? h : `${h}__${count}`;
+  });
   return rows.slice(headerRowIndex + 1).map((row) => {
     const obj: Record<string, string> = {};
     headers.forEach((h, i) => {
@@ -77,9 +86,10 @@ function toObjects(rows: string[][], headerRowIndex: number): Record<string, str
 }
 
 // Normalize a header/field name for forgiving comparison.
+// Strips the "__<n>" duplicate-disambiguator suffix added by toObjects().
 // "Match ID" -> "matchid", "Match_ID" -> "matchid", "Match-Id" -> "matchid"
 function normKey(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return s.replace(/__\d+$/, '').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 // Case-insensitive, whitespace/punctuation-tolerant field lookup.
@@ -93,6 +103,36 @@ function pick(row: Record<string, string>, ...names: string[]): string {
     }
   }
   return '';
+}
+
+// Known short team names used in the Data tab. When the "Team" column header
+// is missing or mislabeled, we identify the team column by which one has the
+// most values matching this set.
+const KNOWN_TEAM_NAMES = new Set([
+  'atlanta', 'boston', 'dallas', 'houston', 'las vegas', 'los angeles',
+  'miami', 'nashville', 'nyc', 'philadelphia', 'phoenix', 'san antonio',
+]);
+
+// Heuristic: find the column whose values most often match a known team name.
+// Used as a fallback when the "Team" header isn't literally named "Team".
+function detectTeamColumn(objects: Record<string, string>[]): string | null {
+  if (objects.length === 0) return null;
+  const keys = Object.keys(objects[0]);
+  const sample = objects.slice(0, 50);
+  let bestKey: string | null = null;
+  let bestScore = 0;
+  for (const key of keys) {
+    let score = 0;
+    for (const obj of sample) {
+      const v = (obj[key] || '').trim().toLowerCase();
+      if (KNOWN_TEAM_NAMES.has(v)) score++;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestKey = key;
+    }
+  }
+  return bestScore >= 3 ? bestKey : null;
 }
 
 // Scan the first N rows for a header row that contains any of the given keywords
@@ -258,6 +298,16 @@ function parseMatchData(rows: string[][]): {
   const teamMatches: Record<string, TeamMatch[]> = {};
   const fighterHistory: Record<string, FightHistory[]> = {};
 
+  // Fallback team-column detection — the Data tab currently has the team
+  // column mislabeled as "Fighter Name" (duplicate of column A), so
+  // pick(r, 'Team') returns nothing. Detect by content instead.
+  const detectedTeamKey = detectTeamColumn(objects);
+  const teamOf = (r: Record<string, string>) => {
+    const direct = pick(r, 'Team', "Fighter's Team", 'Fighter Team').trim();
+    if (direct) return direct;
+    return detectedTeamKey ? (r[detectedTeamKey] || '').trim() : '';
+  };
+
   // Group all rows by Match ID
   const matchGroups: Map<string, Record<string, string>[]> = new Map();
   objects.forEach((row) => {
@@ -274,7 +324,6 @@ function parseMatchData(rows: string[][]): {
     const date = pick(firstRow, 'Date of Fight', 'Date');
 
     // Get the two teams in this match
-    const teamOf = (r: Record<string, string>) => pick(r, 'Team');
     const teamsInMatch = Array.from(new Set(matchRows.map(teamOf).filter(Boolean)));
     if (teamsInMatch.length < 2) return;
     const team1 = teamsInMatch[0];
