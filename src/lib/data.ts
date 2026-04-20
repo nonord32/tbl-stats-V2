@@ -175,8 +175,15 @@ function parseFighters(rows: string[][]): { fighters: FighterStat[]; lastUpdated
 //   Row 2+: Data
 // Note: column headers may be truncated to ~12 chars in CSV export
 function parseTeams(rows: string[][]): TeamStanding[] {
-  // Header is row 1 (index 0)
-  const objects = toObjects(rows, 0);
+  // Scan for the header row — sheet may have a title/notes row before headers.
+  let headerRowIndex = 0;
+  for (let i = 0; i < Math.min(rows.length, 15); i++) {
+    if (rows[i].some((c) => c.trim() === 'Team')) {
+      headerRowIndex = i;
+      break;
+    }
+  }
+  const objects = toObjects(rows, headerRowIndex);
 
   return objects
     .filter((r) => r['Team'] && r['Team'].trim() !== '' && r['Team'] !== 'Team')
@@ -223,7 +230,16 @@ function parseMatchData(rows: string[][]): {
   teamMatches: Record<string, TeamMatch[]>;
   fighterHistory: Record<string, FightHistory[]>;
 } {
-  const objects = toObjects(rows, 0);
+  // Scan for the header row — the sheet may have a title/notes row before headers.
+  // Look for a row that contains "Match ID" or "Fighter Name".
+  let headerRowIndex = 0;
+  for (let i = 0; i < Math.min(rows.length, 15); i++) {
+    if (rows[i].some((c) => c.trim() === 'Match ID' || c.trim() === 'Fighter Name')) {
+      headerRowIndex = i;
+      break;
+    }
+  }
+  const objects = toObjects(rows, headerRowIndex);
   const teamMatches: Record<string, TeamMatch[]> = {};
   const fighterHistory: Record<string, FightHistory[]> = {};
 
@@ -535,10 +551,9 @@ export async function getAllData(): Promise<ParsedSheetData> {
   let highlights: HighlightEntry[] = [];
   try { highlights = parseHighlights(highlightsRawRows); } catch { highlights = []; }
 
-  // Always recompute streak from match data — never trust the sheet's Streak column
-  // since it can be stale or manually entered incorrectly.
-  // Use fuzzy name matching in case the match data uses abbreviated team names
-  // (e.g. "NYC" vs "NYC Attitude").
+  // Recompute streak from match data when available — sheet value may be stale.
+  // Fall back to the sheet's Streak column if match data is missing so the
+  // column doesn't go blank when upstream parsing breaks.
   teams.forEach((t) => {
     let matches = teamMatches[t.team];
     if (!matches || matches.length === 0) {
@@ -547,8 +562,10 @@ export async function getAllData(): Promise<ParsedSheetData> {
       );
       matches = key ? teamMatches[key] : [];
     }
-    const computed = calcTeamStreak(matches);
-    t.streak = computed; // override sheet value entirely
+    if (matches && matches.length > 0) {
+      t.streak = calcTeamStreak(matches);
+    }
+    // else: keep the sheet value from parseTeams
   });
 
   return { fighters, teams, teamMatches, fighterHistory, schedule, highlights, lastUpdated };

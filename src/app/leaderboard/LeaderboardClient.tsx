@@ -3,6 +3,18 @@
 
 import { useState } from 'react';
 
+// Privacy: show only first name + last initial (e.g. "John Doe" -> "John D.")
+// Usernames (no space, often auto-generated) are shown as-is.
+function privacyName(displayName: string | null, username: string): string {
+  const raw = (displayName || '').trim();
+  if (!raw) return username;
+  const parts = raw.split(/\s+/);
+  if (parts.length === 1) return parts[0];
+  const first = parts[0];
+  const lastInitial = parts[parts.length - 1].charAt(0).toUpperCase();
+  return `${first} ${lastInitial}.`;
+}
+
 interface LeaderRow {
   user_id: string;
   display_name: string | null;
@@ -94,7 +106,7 @@ export function LeaderboardClient({
                       <td className="rank-cell">{idx + 1}</td>
                       <td>
                         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: isMe ? 700 : 400, color: isMe ? 'var(--accent)' : 'var(--text)' }}>
-                          {entry.display_name || entry.username}
+                          {privacyName(entry.display_name, entry.username)}
                         </span>
                         {isMe && (
                           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--accent)', marginLeft: 6, opacity: 0.7 }}>
