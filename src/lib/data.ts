@@ -464,9 +464,16 @@ function parseMatchData(rows: string[][]): {
     addTeamMatch(team2, team1, result2, pf2, pf1, flippedBoxScore);
   });
 
-  // Sort by date desc
+  // Sort fighter history by date desc, then round desc so that multiple
+  // bouts on the same date (Launch -> Middle -> Money) order from most-recent
+  // round to earliest — otherwise streak sees an earlier-phase loss before a
+  // later-phase win on the same card.
   Object.keys(fighterHistory).forEach((slug) => {
-    fighterHistory[slug].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    fighterHistory[slug].sort((a, b) => {
+      const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+      if (dateDiff !== 0) return dateDiff;
+      return safeInt(b.round) - safeInt(a.round);
+    });
   });
   Object.keys(teamMatches).forEach((team) => {
     teamMatches[team].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -478,7 +485,11 @@ function parseMatchData(rows: string[][]): {
 // ─── Streak Calculators ────────────────────────────────────────────────────────
 export function calcFighterStreak(history: FightHistory[]): string {
   if (!history.length) return '';
-  const sorted = [...history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const sorted = [...history].sort((a, b) => {
+    const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+    if (dateDiff !== 0) return dateDiff;
+    return safeInt(b.round) - safeInt(a.round);
+  });
   const first = sorted[0].result;
   let count = 0;
   for (const h of sorted) {
