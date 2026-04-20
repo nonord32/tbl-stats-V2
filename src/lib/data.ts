@@ -342,11 +342,12 @@ function parseMatchData(rows: string[][]): {
     let wins1 = 0;
     let wins2 = 0;
 
-    roundGroups.forEach((roundRows) => {
+    roundGroups.forEach((roundRows, roundIdStr) => {
       // Find the row for each team in this round
       const f1Row = roundRows.find((r) => teamOf(r) === team1);
       const f2Row = roundRows.find((r) => teamOf(r) === team2);
       if (!f1Row || !f2Row) return;
+      const roundId = safeInt(roundIdStr);
 
       const fighter1 = pick(f1Row, 'Fighter Name', 'FighterName', 'Fighter').trim();
       const fighter2 = pick(f2Row, 'Fighter Name', 'FighterName', 'Fighter').trim();
@@ -413,6 +414,7 @@ function parseMatchData(rows: string[][]): {
           resultMethod: resultMethod || undefined,
           netPts,
           matchIndex: safeInt(matchId),
+          roundId,
         });
       };
 
@@ -464,15 +466,15 @@ function parseMatchData(rows: string[][]): {
     addTeamMatch(team2, team1, result2, pf2, pf1, flippedBoxScore);
   });
 
-  // Sort fighter history by date desc, then round desc so that multiple
-  // bouts on the same date (Launch -> Middle -> Money) order from most-recent
-  // round to earliest — otherwise streak sees an earlier-phase loss before a
-  // later-phase win on the same card.
+  // Sort fighter history by date desc, then Round ID desc. Round ID is the
+  // unique, monotonic bout identifier from the Data tab (column H), so it
+  // orders same-date bouts (Launch -> Middle -> Money) correctly without
+  // relying on the per-match Round Num which can collide across matches.
   Object.keys(fighterHistory).forEach((slug) => {
     fighterHistory[slug].sort((a, b) => {
       const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
       if (dateDiff !== 0) return dateDiff;
-      return safeInt(b.round) - safeInt(a.round);
+      return b.roundId - a.roundId;
     });
   });
   Object.keys(teamMatches).forEach((team) => {
@@ -488,7 +490,7 @@ export function calcFighterStreak(history: FightHistory[]): string {
   const sorted = [...history].sort((a, b) => {
     const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
     if (dateDiff !== 0) return dateDiff;
-    return safeInt(b.round) - safeInt(a.round);
+    return b.roundId - a.roundId;
   });
   const first = sorted[0].result;
   let count = 0;
