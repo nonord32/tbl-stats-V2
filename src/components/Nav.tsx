@@ -55,17 +55,6 @@ const BOTTOM_NAV_ITEMS = [
     ),
   },
   {
-    href: '/leaderboard',
-    label: 'Leaders',
-    exact: false,
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M8 21V8M12 21V3M16 21v-9"/>
-        <path d="M6 21h14"/>
-      </svg>
-    ),
-  },
-  {
     href: '/results',
     label: 'Results',
     exact: false,
@@ -85,6 +74,17 @@ const BOTTOM_NAV_ITEMS = [
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <rect x="3" y="3" width="18" height="18" rx="2"/>
         <path d="M9 12l2 2 4-4"/>
+      </svg>
+    ),
+  },
+  {
+    href: '/leaderboard',
+    label: 'Leaders',
+    exact: false,
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M8 21V8M12 21V3M16 21v-9"/>
+        <path d="M6 21h14"/>
       </svg>
     ),
   },

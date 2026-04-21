@@ -1,6 +1,7 @@
-// Diagnostic endpoint — returns the first 3 rows of each source sheet so we
-// can inspect actual column headers when parsing breaks. Remove once stable.
+// Diagnostic endpoint — returns raw sheet structure + what our parser detects,
+// so we can pinpoint why match parsing might be empty. Remove once stable.
 import Papa from 'papaparse';
+import { getAllData } from '@/lib/data';
 
 const SHEETS: Record<string, string> = {
   fighters:
@@ -33,11 +34,31 @@ async function preview(url: string) {
 }
 
 export async function GET() {
-  const out: Record<string, unknown> = {};
+  const raw: Record<string, unknown> = {};
   for (const [name, url] of Object.entries(SHEETS)) {
-    out[name] = await preview(url);
+    raw[name] = await preview(url);
   }
-  return Response.json(out, {
-    headers: { 'Cache-Control': 'no-store' },
-  });
+
+  // What the actual parser produces
+  let parsed: Record<string, unknown> = {};
+  try {
+    const data = await getAllData();
+    const teamMatchKeys = Object.keys(data.teamMatches);
+    const fighterHistoryKeys = Object.keys(data.fighterHistory);
+    const totalMatchEntries = teamMatchKeys.reduce((s, k) => s + data.teamMatches[k].length, 0);
+    parsed = {
+      teamsParsed: data.teams.length,
+      fightersParsed: data.fighters.length,
+      teamMatchKeys,
+      totalMatchEntries,
+      fighterHistoryCount: fighterHistoryKeys.length,
+      sampleTeamMatch: teamMatchKeys[0]
+        ? { team: teamMatchKeys[0], matches: data.teamMatches[teamMatchKeys[0]].slice(0, 1) }
+        : null,
+    };
+  } catch (e) {
+    parsed = { error: String(e) };
+  }
+
+  return Response.json({ raw, parsed }, { headers: { 'Cache-Control': 'no-store' } });
 }
