@@ -40,14 +40,24 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Pick has already been scored and cannot be removed' }, { status: 403 });
   }
 
-  const { error } = await supabase
+  const { data: deleted, error } = await supabase
     .from('picks')
     .delete()
     .eq('user_id', user.id)
-    .eq('match_index', match_index);
+    .eq('match_index', match_index)
+    .select('id');
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Defense in depth: if no rows came back, the delete was silently blocked
+  // (e.g. missing RLS delete policy). Report it instead of falsely succeeding.
+  if (!deleted || deleted.length === 0) {
+    return NextResponse.json(
+      { error: 'Pick could not be removed. Refresh and try again.' },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ deleted: true });

@@ -92,6 +92,9 @@ create policy "Users can insert own picks"
 create policy "Users can update own unresolved picks"
   on public.picks for update using (auth.uid() = user_id and resolved_at is null);
 
+create policy "Users can delete own unresolved picks"
+  on public.picks for delete using (auth.uid() = user_id and resolved_at is null);
+
 -- Note: the service role key bypasses RLS automatically, so no extra policy
 -- is needed for the /api/resolve admin route.
 

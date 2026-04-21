@@ -2,6 +2,7 @@
 // src/app/picks/PicksClient.tsx
 
 import { useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { ScheduleEntry, UserPick, DiffBand } from '@/types';
 
 // Team slug → primary color
@@ -100,6 +101,8 @@ export function PicksClient({
     };
   });
 
+  const router = useRouter();
+
   const [pickStates, setPickStates] = useState<Record<number, PickState>>(initialStates);
   // Track deleted match indices so we hide them from the pending section
   const [deletedIndices, setDeletedIndices] = useState<Set<number>>(new Set());
@@ -189,6 +192,9 @@ export function PicksClient({
         }
         updateState(matchIndex, { deleting: false, saved: false, pickedTeam: '', diffBand: '' });
         setDeletedIndices((prev) => new Set(prev).add(matchIndex));
+        // Re-fetch server data so the pending section (and any other derived
+        // state) doesn't show stale picks if the user stays on the page.
+        router.refresh();
       }
     } catch {
       updateState(matchIndex, { deleting: false, error: 'Network error. Please try again.' });

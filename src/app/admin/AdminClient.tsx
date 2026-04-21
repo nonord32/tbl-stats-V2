@@ -1,7 +1,7 @@
 'use client';
 // src/app/admin/AdminClient.tsx
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 interface MatchEntry {
   matchIndex: number;
@@ -57,6 +57,45 @@ export function AdminClient({ matches, picks, dbError, dbDebug }: { matches: Mat
   const [authed, setAuthed] = useState(false);
   const [resolving, setResolving] = useState<number | null>(null);
   const [results, setResults] = useState<Record<number, ResolveResult>>({});
+
+  // Picks table filters
+  const [userFilter, setUserFilter] = useState('');
+  const [matchFilter, setMatchFilter] = useState('');
+  const [pickedFilter, setPickedFilter] = useState('');
+  const [marginFilter, setMarginFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+
+  const uniqueMatches = useMemo(
+    () => Array.from(new Set(picks.map((p) => p.matchLabel))).sort(),
+    [picks]
+  );
+  const uniqueTeams = useMemo(
+    () => Array.from(new Set(picks.map((p) => p.pickedTeam).filter(Boolean))).sort(),
+    [picks]
+  );
+  const uniqueMargins = useMemo(
+    () => Array.from(new Set(picks.map((p) => p.diffBand).filter(Boolean))).sort(),
+    [picks]
+  );
+
+  const filteredPicks = useMemo(() => {
+    const q = userFilter.trim().toLowerCase();
+    return picks.filter((p) => {
+      if (q) {
+        const name = (p.displayName || p.username || '').toLowerCase();
+        if (!name.includes(q)) return false;
+      }
+      if (matchFilter && p.matchLabel !== matchFilter) return false;
+      if (pickedFilter && p.pickedTeam !== pickedFilter) return false;
+      if (marginFilter && p.diffBand !== marginFilter) return false;
+      if (statusFilter === 'scored' && !p.resolved) return false;
+      if (statusFilter === 'pending' && p.resolved) return false;
+      return true;
+    });
+  }, [picks, userFilter, matchFilter, pickedFilter, marginFilter, statusFilter]);
+
+  const hasActiveFilter =
+    !!(userFilter || matchFilter || pickedFilter || marginFilter || statusFilter);
 
   function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -242,7 +281,7 @@ export function AdminClient({ matches, picks, dbError, dbDebug }: { matches: Mat
         {/* All picks table */}
         <section style={{ marginTop: 40 }}>
           <h2 style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>
-            All Picks ({picks.length})
+            All Picks ({hasActiveFilter ? `${filteredPicks.length} of ${picks.length}` : picks.length})
           </h2>
           {picks.length === 0 ? (
             <div className="card" style={{ padding: 24 }}>
@@ -250,6 +289,76 @@ export function AdminClient({ matches, picks, dbError, dbDebug }: { matches: Mat
             </div>
           ) : (
             <div className="card">
+              <div className="card-header">
+                <div className="filters">
+                  <input
+                    type="search"
+                    className="filter-search"
+                    placeholder="Search user…"
+                    value={userFilter}
+                    onChange={(e) => setUserFilter(e.target.value)}
+                    aria-label="Filter picks by user"
+                  />
+                  <select
+                    className="filter-select"
+                    value={matchFilter}
+                    onChange={(e) => setMatchFilter(e.target.value)}
+                    aria-label="Filter picks by match"
+                  >
+                    <option value="">All matches</option>
+                    {uniqueMatches.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                  <select
+                    className="filter-select"
+                    value={pickedFilter}
+                    onChange={(e) => setPickedFilter(e.target.value)}
+                    aria-label="Filter picks by picked team"
+                  >
+                    <option value="">All teams</option>
+                    {uniqueTeams.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                  <select
+                    className="filter-select"
+                    value={marginFilter}
+                    onChange={(e) => setMarginFilter(e.target.value)}
+                    aria-label="Filter picks by margin"
+                  >
+                    <option value="">All margins</option>
+                    {uniqueMargins.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                  <select
+                    className="filter-select"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    aria-label="Filter picks by status"
+                  >
+                    <option value="">All statuses</option>
+                    <option value="scored">Scored</option>
+                    <option value="pending">Pending</option>
+                  </select>
+                  {hasActiveFilter && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUserFilter('');
+                        setMatchFilter('');
+                        setPickedFilter('');
+                        setMarginFilter('');
+                        setStatusFilter('');
+                      }}
+                      className="filter-clear"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
               <div className="table-wrap">
                 <table>
                   <thead>
@@ -263,28 +372,36 @@ export function AdminClient({ matches, picks, dbError, dbDebug }: { matches: Mat
                     </tr>
                   </thead>
                   <tbody>
-                    {picks.map((p, i) => (
-                      <tr key={i}>
-                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600 }}>
-                          {p.displayName || p.username || '—'}
-                        </td>
-                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
-                          {p.matchLabel}
-                        </td>
-                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>
-                          {p.pickedTeam}
-                        </td>
-                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
-                          {p.diffBand}
-                        </td>
-                        <td className="num-cell" style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: (p.pointsEarned ?? 0) > 0 ? 'var(--result-w)' : 'var(--text-muted)' }}>
-                          {p.resolved ? p.pointsEarned : '—'}
-                        </td>
-                        <td className="num-cell" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: p.resolved ? 'var(--result-w)' : 'var(--text-muted)' }}>
-                          {p.resolved ? 'Scored' : 'Pending'}
+                    {filteredPicks.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ padding: 24, textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
+                          No picks match the current filters.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      filteredPicks.map((p, i) => (
+                        <tr key={i}>
+                          <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600 }}>
+                            {p.displayName || p.username || '—'}
+                          </td>
+                          <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
+                            {p.matchLabel}
+                          </td>
+                          <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>
+                            {p.pickedTeam}
+                          </td>
+                          <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
+                            {p.diffBand}
+                          </td>
+                          <td className="num-cell" style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: (p.pointsEarned ?? 0) > 0 ? 'var(--result-w)' : 'var(--text-muted)' }}>
+                            {p.resolved ? p.pointsEarned : '—'}
+                          </td>
+                          <td className="num-cell" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: p.resolved ? 'var(--result-w)' : 'var(--text-muted)' }}>
+                            {p.resolved ? 'Scored' : 'Pending'}
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
