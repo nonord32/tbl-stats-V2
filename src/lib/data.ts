@@ -63,10 +63,19 @@ function safeInt(val: string | undefined, fallback = 0): number {
   return isNaN(n) ? fallback : n;
 }
 
-// Convert raw rows + a header row index into array of objects
+// Convert raw rows + a header row index into array of objects.
+// Duplicate header names are disambiguated by appending "__<index>" so no
+// column silently overwrites another. Lookups go through pick() which
+// compares normalized header text and ignores the disambiguator suffix.
 function toObjects(rows: string[][], headerRowIndex: number): Record<string, string>[] {
   if (headerRowIndex >= rows.length) return [];
-  const headers = rows[headerRowIndex].map((h) => h.trim());
+  const rawHeaders = rows[headerRowIndex].map((h) => h.trim());
+  const seen = new Map<string, number>();
+  const headers = rawHeaders.map((h) => {
+    const count = seen.get(h) ?? 0;
+    seen.set(h, count + 1);
+    return count === 0 ? h : `${h}__${count}`;
+  });
   return rows.slice(headerRowIndex + 1).map((row) => {
     const obj: Record<string, string> = {};
     headers.forEach((h, i) => {
@@ -74,6 +83,68 @@ function toObjects(rows: string[][], headerRowIndex: number): Record<string, str
     });
     return obj;
   });
+}
+
+// Normalize a header/field name for forgiving comparison.
+// Strips the "__<n>" duplicate-disambiguator suffix added by toObjects().
+// "Match ID" -> "matchid", "Match_ID" -> "matchid", "Match-Id" -> "matchid"
+function normKey(s: string): string {
+  return s.replace(/__\d+$/, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+// Case-insensitive, whitespace/punctuation-tolerant field lookup.
+// Returns the first non-empty value among the candidate names.
+function pick(row: Record<string, string>, ...names: string[]): string {
+  const wanted = new Set(names.map(normKey));
+  for (const key of Object.keys(row)) {
+    if (wanted.has(normKey(key))) {
+      const v = row[key];
+      if (v != null && v !== '') return v;
+    }
+  }
+  return '';
+}
+
+// Known short team names used in the Data tab. When the "Team" column header
+// is missing or mislabeled, we identify the team column by which one has the
+// most values matching this set.
+const KNOWN_TEAM_NAMES = new Set([
+  'atlanta', 'boston', 'dallas', 'houston', 'las vegas', 'los angeles',
+  'miami', 'nashville', 'nyc', 'philadelphia', 'phoenix', 'san antonio',
+]);
+
+// Heuristic: find the column whose values most often match a known team name.
+// Used as a fallback when the "Team" header isn't literally named "Team".
+function detectTeamColumn(objects: Record<string, string>[]): string | null {
+  if (objects.length === 0) return null;
+  const keys = Object.keys(objects[0]);
+  const sample = objects.slice(0, 50);
+  let bestKey: string | null = null;
+  let bestScore = 0;
+  for (const key of keys) {
+    let score = 0;
+    for (const obj of sample) {
+      const v = (obj[key] || '').trim().toLowerCase();
+      if (KNOWN_TEAM_NAMES.has(v)) score++;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestKey = key;
+    }
+  }
+  return bestScore >= 3 ? bestKey : null;
+}
+
+// Scan the first N rows for a header row that contains any of the given keywords
+// (compared via normKey). Returns -1 if none found.
+function findHeaderRow(rows: string[][], keywords: string[], scanDepth = 20): number {
+  const wanted = new Set(keywords.map(normKey));
+  for (let i = 0; i < Math.min(rows.length, scanDepth); i++) {
+    for (const cell of rows[i]) {
+      if (wanted.has(normKey(cell))) return i;
+    }
+  }
+  return -1;
 }
 
 // ─── Fighter Stats Parser ──────────────────────────────────────────────────────
@@ -121,50 +192,45 @@ function parseFighters(rows: string[][]): { fighters: FighterStat[]; lastUpdated
   } catch {}
 
   // Find the header row by scanning for a row that contains "Fighter"
-  let headerRowIndex = 6; // default guess
-  for (let i = 0; i < Math.min(rows.length, 15); i++) {
-    if (rows[i].some((cell) => cell.trim() === 'Fighter')) {
-      headerRowIndex = i;
-      break;
-    }
-  }
+  const found = findHeaderRow(rows, ['Fighter', 'Fighter Name', 'Rank']);
+  const headerRowIndex = found >= 0 ? found : 6;
 
   const objects = toObjects(rows, headerRowIndex);
 
-  const fighters: FighterStat[] = objects
-    .filter((r) => r['Fighter'] && r['Fighter'].trim() !== '' && r['Fighter'] !== 'Fighter')
-    .map((r) => {
-      const name = r['Fighter'].trim();
-      const recordStr = (r['Record'] || '0-0').trim();
+  const fighters = objects
+    .map((r): FighterStat | null => {
+      const name = pick(r, 'Fighter', 'Fighter Name').trim();
+      if (!name || name === 'Fighter') return null;
+      const recordStr = (pick(r, 'Record') || '0-0').trim();
       const parts = recordStr.split('-');
       const wins = safeInt(parts[0]);
       const losses = safeInt(parts[1]);
 
       // Win % stored as "100%" — convert to 0-1 decimal
-      const winPctRaw = safeNum(r['Win %'] || r['Win%'] || '0');
+      const winPctRaw = safeNum(pick(r, 'Win %', 'Win%', 'WinPct') || '0');
       const winPct = winPctRaw > 1 ? winPctRaw / 100 : winPctRaw;
 
-      const instagramRaw = r['Instagram'] || r['Instagram URL'] || r['IG'] || r['Instagram Handle'] || '';
+      const instagramRaw = pick(r, 'Instagram', 'Instagram URL', 'IG', 'Instagram Handle');
       const instagram = cleanInstagramUrl(instagramRaw) || undefined;
 
       return {
         name,
-        team: (r['Team'] || '').trim(),
-        weightClass: (r['Weight'] || '').trim(),
-        gender: (r['Gender'] || '').trim(),
+        team: pick(r, 'Team').trim(),
+        weightClass: pick(r, 'Weight', 'Weight Class').trim(),
+        gender: pick(r, 'Gender').trim(),
         wins,
         losses,
         record: recordStr,
-        war: safeNum(r['Fighter WAR']),
-        nppr: safeNum(r['NPPR']),
-        netPts: safeNum(r['Total Net Points']),
+        war: safeNum(pick(r, 'Fighter WAR', 'WAR')),
+        nppr: safeNum(pick(r, 'NPPR')),
+        netPts: safeNum(pick(r, 'Total Net Points', 'Net Points')),
         winPct,
-        rounds: safeInt(r['Rounds Fought'] || r['Rounds'] || r['Round'] || r['Total Rounds'] || r['# Rounds'] || r['Num Rounds']),
+        rounds: safeInt(pick(r, 'Rounds Fought', 'Rounds', 'Round', 'Total Rounds', '# Rounds', 'Num Rounds')),
         slug: toSlug(name),
         instagram,
       } satisfies FighterStat;
     })
-    .filter((f) => f.name !== '');
+    .filter((f): f is FighterStat => f !== null && f.name !== '');
 
   return { fighters, lastUpdated };
 }
@@ -175,22 +241,23 @@ function parseFighters(rows: string[][]): { fighters: FighterStat[]; lastUpdated
 //   Row 2+: Data
 // Note: column headers may be truncated to ~12 chars in CSV export
 function parseTeams(rows: string[][]): TeamStanding[] {
-  // Header is row 1 (index 0)
-  const objects = toObjects(rows, 0);
+  // Scan for the header row — sheet may have a title/notes row before headers.
+  const headerRowIndex = Math.max(0, findHeaderRow(rows, ['Team', 'Record']));
+  const objects = toObjects(rows, headerRowIndex);
 
   return objects
-    .filter((r) => r['Team'] && r['Team'].trim() !== '' && r['Team'] !== 'Team')
-    .map((r) => {
-      const team = r['Team'].trim();
-      const recordStr = (r['Record'] || '0-0').trim();
+    .map((r): TeamStanding | null => {
+      const team = pick(r, 'Team').trim();
+      if (!team || team === 'Team') return null;
+      const recordStr = (pick(r, 'Record') || '0-0').trim();
       const parts = recordStr.split('-');
       const wins = safeInt(parts[0]);
       const losses = safeInt(parts[1]);
 
       // Try all possible truncated column name variants
-      const pfVal = r['Points Scored'] || r['Points Scor'] || r['Points For'] || r['PF'] || '0';
-      const paVal = r['Points Allowed'] || r['Points Allow'] || r['Points Against'] || r['PA'] || '0';
-      const diffVal = r['Point Differential'] || r['Point Differ'] || r['Point Different'] || r['Diff'] || '0';
+      const pfVal = pick(r, 'Points Scored', 'Points Scor', 'Points For', 'PF') || '0';
+      const paVal = pick(r, 'Points Allowed', 'Points Allow', 'Points Against', 'PA') || '0';
+      const diffVal = pick(r, 'Point Differential', 'Point Differ', 'Point Different', 'Diff') || '0';
 
       const pf = safeNum(pfVal);
       const pa = safeNum(paVal);
@@ -204,11 +271,11 @@ function parseTeams(rows: string[][]): TeamStanding[] {
         pf,
         pa,
         diff,
-        streak: (r['Streak'] || '').trim(),
+        streak: pick(r, 'Streak').trim(),
         slug: toSlug(team),
       } satisfies TeamStanding;
     })
-    .filter((t) => t.team !== '');
+    .filter((t): t is TeamStanding => t !== null && t.team !== '');
 }
 
 // ─── Match Data Parser ─────────────────────────────────────────────────────────
@@ -223,14 +290,28 @@ function parseMatchData(rows: string[][]): {
   teamMatches: Record<string, TeamMatch[]>;
   fighterHistory: Record<string, FightHistory[]>;
 } {
-  const objects = toObjects(rows, 0);
+  // Scan for the header row — the sheet may have a title/notes row before headers.
+  const headerRowIndex = Math.max(0, findHeaderRow(rows, [
+    'Match ID', 'MatchID', 'Match Id', 'Fighter Name', 'FighterName', 'Fighter',
+  ]));
+  const objects = toObjects(rows, headerRowIndex);
   const teamMatches: Record<string, TeamMatch[]> = {};
   const fighterHistory: Record<string, FightHistory[]> = {};
+
+  // Fallback team-column detection — the Data tab currently has the team
+  // column mislabeled as "Fighter Name" (duplicate of column A), so
+  // pick(r, 'Team') returns nothing. Detect by content instead.
+  const detectedTeamKey = detectTeamColumn(objects);
+  const teamOf = (r: Record<string, string>) => {
+    const direct = pick(r, 'Team', "Fighter's Team", 'Fighter Team').trim();
+    if (direct) return direct;
+    return detectedTeamKey ? (r[detectedTeamKey] || '').trim() : '';
+  };
 
   // Group all rows by Match ID
   const matchGroups: Map<string, Record<string, string>[]> = new Map();
   objects.forEach((row) => {
-    const matchId = (row['Match ID'] || '').trim();
+    const matchId = pick(row, 'Match ID', 'MatchID', 'Match Id').trim();
     if (!matchId) return;
     if (!matchGroups.has(matchId)) matchGroups.set(matchId, []);
     matchGroups.get(matchId)!.push(row);
@@ -240,10 +321,10 @@ function parseMatchData(rows: string[][]): {
     if (matchRows.length === 0) return;
 
     const firstRow = matchRows[0];
-    const date = firstRow['Date of Fight'] || '';
+    const date = pick(firstRow, 'Date of Fight', 'Date');
 
     // Get the two teams in this match
-    const teamsInMatch = Array.from(new Set(matchRows.map((r) => r['Team']).filter(Boolean)));
+    const teamsInMatch = Array.from(new Set(matchRows.map(teamOf).filter(Boolean)));
     if (teamsInMatch.length < 2) return;
     const team1 = teamsInMatch[0];
     const team2 = teamsInMatch[1];
@@ -252,7 +333,7 @@ function parseMatchData(rows: string[][]): {
     const roundGroups: Map<string, Record<string, string>[]> = new Map();
     matchRows.forEach((row) => {
       // Group by Round ID (unique per bout) but display Round Num
-      const roundId = (row['Round ID'] || '').trim();
+      const roundId = pick(row, 'Round ID', 'RoundID').trim();
       if (!roundGroups.has(roundId)) roundGroups.set(roundId, []);
       roundGroups.get(roundId)!.push(row);
     });
@@ -261,25 +342,25 @@ function parseMatchData(rows: string[][]): {
     let wins1 = 0;
     let wins2 = 0;
 
-    roundGroups.forEach((roundRows) => {
+    roundGroups.forEach((roundRows, roundIdStr) => {
       // Find the row for each team in this round
-      const f1Row = roundRows.find((r) => r['Team'] === team1);
-      const f2Row = roundRows.find((r) => r['Team'] === team2);
+      const f1Row = roundRows.find((r) => teamOf(r) === team1);
+      const f2Row = roundRows.find((r) => teamOf(r) === team2);
       if (!f1Row || !f2Row) return;
+      const roundId = safeInt(roundIdStr);
 
-      const fighter1 = (f1Row['Fighter Name'] || '').trim();
-      const fighter2 = (f2Row['Fighter Name'] || '').trim();
-      const phase = (f1Row['Round Phase'] || '').trim();
+      const fighter1 = pick(f1Row, 'Fighter Name', 'FighterName', 'Fighter').trim();
+      const fighter2 = pick(f2Row, 'Fighter Name', 'FighterName', 'Fighter').trim();
+      const phase = pick(f1Row, 'Round Phase', 'Phase').trim();
       const roundNum = safeInt(
-        f1Row['Round Num'] || f1Row['Round #'] || f1Row['Round Number'] ||
-        f1Row['Rnd'] || f1Row['Round'] || f1Row['Bout'] || f1Row['Bout #']
+        pick(f1Row, 'Round Num', 'Round #', 'Round Number', 'Rnd', 'Round', 'Bout', 'Bout #')
       );
-      const weightClass = (f1Row['Weight Class'] || '').trim();
-      const gender = (f1Row['Gender'] || '').trim();
+      const weightClass = pick(f1Row, 'Weight Class', 'Weight').trim();
+      const gender = pick(f1Row, 'Gender').trim();
 
       // Result: "W - Decision", "L - Decision", "W - KO", etc.
-      const result1Raw = (f1Row['Result'] || '').trim();
-      const result2Raw = (f2Row['Result'] || '').trim();
+      const result1Raw = pick(f1Row, 'Result').trim();
+      const result2Raw = pick(f2Row, 'Result').trim();
       const isWin1 = result1Raw.toUpperCase().startsWith('W');
       const isLoss1 = result1Raw.toUpperCase().startsWith('L');
 
@@ -296,10 +377,10 @@ function parseMatchData(rows: string[][]): {
       const resultMethod = extractMethod(result1Raw) || extractMethod(result2Raw);
 
       // Points Earned = actual score, Net Points = pts earned minus pts allowed
-      const pts1 = safeNum(f1Row['Points Earned'] || f1Row['Points'] || f1Row['Score'] || f1Row['Pts']);
-      const pts2 = safeNum(f2Row['Points Earned'] || f2Row['Points'] || f2Row['Score'] || f2Row['Pts']);
-      const netPts1 = safeNum(f1Row['Net Points'] || f1Row['Diff'] || f1Row['Point Diff']);
-      const netPts2 = safeNum(f2Row['Net Points'] || f2Row['Diff'] || f2Row['Point Diff']);
+      const pts1 = safeNum(pick(f1Row, 'Points Earned', 'Points', 'Score', 'Pts'));
+      const pts2 = safeNum(pick(f2Row, 'Points Earned', 'Points', 'Score', 'Pts'));
+      const netPts1 = safeNum(pick(f1Row, 'Net Points', 'Diff', 'Point Diff'));
+      const netPts2 = safeNum(pick(f2Row, 'Net Points', 'Diff', 'Point Diff'));
 
       const winner = isWin1 ? fighter1 : isLoss1 ? fighter2 : '';
       if (isWin1) wins1++;
@@ -333,6 +414,7 @@ function parseMatchData(rows: string[][]): {
           resultMethod: resultMethod || undefined,
           netPts,
           matchIndex: safeInt(matchId),
+          roundId,
         });
       };
 
@@ -345,11 +427,11 @@ function parseMatchData(rows: string[][]): {
     // Use Match Result column directly — it reflects the actual team-level outcome
     // (TBL decides winners by total points, not bout count, so counting round wins is wrong).
     // Fall back to round-win count only if the column is missing.
-    const team1AnyRow = matchRows.find((r) => r['Team'] === team1);
-    const team2AnyRow = matchRows.find((r) => r['Team'] === team2);
+    const team1AnyRow = matchRows.find((r) => teamOf(r) === team1);
+    const team2AnyRow = matchRows.find((r) => teamOf(r) === team2);
 
-    const mr1Raw = (team1AnyRow?.['Match Result'] || '').trim().toUpperCase();
-    const mr2Raw = (team2AnyRow?.['Match Result'] || '').trim().toUpperCase();
+    const mr1Raw = (team1AnyRow ? pick(team1AnyRow, 'Match Result') : '').trim().toUpperCase();
+    const mr2Raw = (team2AnyRow ? pick(team2AnyRow, 'Match Result') : '').trim().toUpperCase();
 
     const result1: 'W' | 'L' | 'D' = mr1Raw === 'W' ? 'W' : mr1Raw === 'L' ? 'L'
       : (wins1 > wins2 ? 'W' : wins1 < wins2 ? 'L' : 'D');
@@ -357,8 +439,8 @@ function parseMatchData(rows: string[][]): {
       : (wins2 > wins1 ? 'W' : wins2 < wins1 ? 'L' : 'D');
 
     // Use Match PF/PA for accurate total points (these are pre-aggregated in the sheet)
-    const rawPF1 = safeNum(team1AnyRow?.['Match PF'] || '');
-    const rawPF2 = safeNum(team2AnyRow?.['Match PF'] || '');
+    const rawPF1 = safeNum(team1AnyRow ? pick(team1AnyRow, 'Match PF') : '');
+    const rawPF2 = safeNum(team2AnyRow ? pick(team2AnyRow, 'Match PF') : '');
     const pf1 = rawPF1 || boxScore.reduce((s, r) => s + r.score1, 0);
     const pf2 = rawPF2 || boxScore.reduce((s, r) => s + r.score2, 0);
 
@@ -384,9 +466,16 @@ function parseMatchData(rows: string[][]): {
     addTeamMatch(team2, team1, result2, pf2, pf1, flippedBoxScore);
   });
 
-  // Sort by date desc
+  // Sort fighter history by date desc, then Round ID desc. Round ID is the
+  // unique, monotonic bout identifier from the Data tab (column H), so it
+  // orders same-date bouts (Launch -> Middle -> Money) correctly without
+  // relying on the per-match Round Num which can collide across matches.
   Object.keys(fighterHistory).forEach((slug) => {
-    fighterHistory[slug].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    fighterHistory[slug].sort((a, b) => {
+      const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+      if (dateDiff !== 0) return dateDiff;
+      return b.roundId - a.roundId;
+    });
   });
   Object.keys(teamMatches).forEach((team) => {
     teamMatches[team].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -398,7 +487,11 @@ function parseMatchData(rows: string[][]): {
 // ─── Streak Calculators ────────────────────────────────────────────────────────
 export function calcFighterStreak(history: FightHistory[]): string {
   if (!history.length) return '';
-  const sorted = [...history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const sorted = [...history].sort((a, b) => {
+    const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+    if (dateDiff !== 0) return dateDiff;
+    return b.roundId - a.roundId;
+  });
   const first = sorted[0].result;
   let count = 0;
   for (const h of sorted) {
@@ -535,10 +628,9 @@ export async function getAllData(): Promise<ParsedSheetData> {
   let highlights: HighlightEntry[] = [];
   try { highlights = parseHighlights(highlightsRawRows); } catch { highlights = []; }
 
-  // Always recompute streak from match data — never trust the sheet's Streak column
-  // since it can be stale or manually entered incorrectly.
-  // Use fuzzy name matching in case the match data uses abbreviated team names
-  // (e.g. "NYC" vs "NYC Attitude").
+  // Recompute streak from match data when available — sheet value may be stale.
+  // Fall back to the sheet's Streak column if match data is missing so the
+  // column doesn't go blank when upstream parsing breaks.
   teams.forEach((t) => {
     let matches = teamMatches[t.team];
     if (!matches || matches.length === 0) {
@@ -547,8 +639,10 @@ export async function getAllData(): Promise<ParsedSheetData> {
       );
       matches = key ? teamMatches[key] : [];
     }
-    const computed = calcTeamStreak(matches);
-    t.streak = computed; // override sheet value entirely
+    if (matches && matches.length > 0) {
+      t.streak = calcTeamStreak(matches);
+    }
+    // else: keep the sheet value from parseTeams
   });
 
   return { fighters, teams, teamMatches, fighterHistory, schedule, highlights, lastUpdated };

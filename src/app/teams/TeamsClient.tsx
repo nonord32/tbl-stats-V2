@@ -228,16 +228,28 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
     return [...teams].sort((a, b) => sortDir === 'desc' ? base(a, b) : -base(a, b));
   }, [teams, sortKey, sortDir, teamMatches]);
 
-  // Determine which teams moved up due to H2H tiebreaker (for asterisk display)
+  // Determine which teams won a H2H tiebreaker and who they beat (for asterisk + tooltip).
   const h2hWinners = useMemo(() => {
-    const withoutH2H = [...teams].sort((a, b) => b.wins - a.wins || a.losses - b.losses || b.diff - a.diff);
-    const withH2H = [...teams].sort((a, b) => b.wins - a.wins || a.losses - b.losses || b.diff - a.diff || getH2HResult(a, b, teamMatches));
-    const winners = new Set<string>();
-    withH2H.forEach((t, i) => {
-      const prevRank = withoutH2H.findIndex((t2) => t2.slug === t.slug);
-      if (i < prevRank) winners.add(t.slug);
-    });
-    return winners;
+    const map = new Map<string, string[]>();
+    for (let i = 0; i < teams.length; i++) {
+      for (let j = i + 1; j < teams.length; j++) {
+        const a = teams[i];
+        const b = teams[j];
+        const tied = a.wins === b.wins && a.losses === b.losses && a.diff === b.diff;
+        if (!tied) continue;
+        const h2h = getH2HResult(a, b, teamMatches);
+        if (h2h < 0) {
+          const arr = map.get(a.slug) ?? [];
+          arr.push(b.team);
+          map.set(a.slug, arr);
+        } else if (h2h > 0) {
+          const arr = map.get(b.slug) ?? [];
+          arr.push(a.team);
+          map.set(b.slug, arr);
+        }
+      }
+    }
+    return map;
   }, [teams, teamMatches]);
 
   return (
@@ -338,7 +350,15 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                               />
                               <Link href={`/teams/${t.slug}`} className="fighter-name-btn">
-                                {t.team}{sortKey === 'record' && h2hWinners.has(t.slug) && <span title="Tiebreaker: head-to-head record" style={{ color: 'var(--accent)', marginLeft: 2, fontSize: 11 }}>*</span>}
+                                {t.team}
+                                {sortKey === 'record' && h2hWinners.has(t.slug) && (
+                                  <span
+                                    title={`Wins tiebreaker over ${h2hWinners.get(t.slug)!.join(', ')} via head-to-head record`}
+                                    style={{ color: 'var(--accent)', marginLeft: 2, fontSize: 11 }}
+                                  >
+                                    *
+                                  </span>
+                                )}
                               </Link>
                             </div>
                           </td>
@@ -384,7 +404,14 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
         </div>
         {h2hWinners.size > 0 && sortKey === 'record' && (
           <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-muted)', fontFamily: 'IBM Plex Mono, monospace' }}>
-            <span style={{ color: 'var(--accent)' }}>*</span> Tiebreaker: head-to-head record
+            {Array.from(h2hWinners.entries()).map(([slug, beaten]) => {
+              const winnerTeam = teams.find((t) => t.slug === slug)?.team ?? slug;
+              return (
+                <div key={slug}>
+                  <span style={{ color: 'var(--accent)' }}>*</span> {winnerTeam} wins tiebreaker over {beaten.join(', ')} via head-to-head record
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

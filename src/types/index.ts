@@ -43,6 +43,7 @@ export interface FightHistory {
   resultMethod?: string;  // e.g. "Decision", "KO", "Knockdown"
   netPts: number;
   matchIndex: number;
+  roundId: number;  // unique, monotonic across the season; used for stable sort
 }
 
 export interface TeamStanding {
