@@ -112,7 +112,10 @@ export function getGameStartUTC(
   return new Date(Date.UTC(year, month - 1, day, 0, gameUTCMinutes, 0));
 }
 
-/** Returns true if picks are still open (game hasn't started yet in UTC) */
+/** Grace period after the scheduled start during which picks are still accepted. */
+const PICK_GRACE_MS = 40 * 60 * 1000;
+
+/** Returns true if picks are still open (within PICK_GRACE_MS of game start). */
 export function isPickOpen(
   dateStr: string,
   timeStr: string,
@@ -123,5 +126,6 @@ export function isPickOpen(
     // Fallback: if we can't parse, allow picks (fail open)
     return true;
   }
-  return new Date() < gameStart;
+  const lockTime = new Date(gameStart.getTime() + PICK_GRACE_MS);
+  return new Date() < lockTime;
 }
