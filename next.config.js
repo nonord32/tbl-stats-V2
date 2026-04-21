@@ -4,6 +4,11 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  async redirects() {
+    return [
+      { source: '/rankings', destination: '/fighters', permanent: true },
+    ];
+  },
 };
 
 module.exports = nextConfig;
