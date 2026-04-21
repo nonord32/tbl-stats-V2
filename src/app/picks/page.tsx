@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getAllData } from '@/lib/data';
 import { isPickOpen } from '@/lib/gameTime';
+import { getCurrentWeek } from '@/lib/week';
 import { PicksClient } from './PicksClient';
 import type { UserPick } from '@/types';
 
@@ -30,20 +31,18 @@ export default async function PicksPage() {
 
   const picks: UserPick[] = (picksResult.data ?? []) as UserPick[];
 
-  // Show only Upcoming matches where picks are still open (game hasn't started)
-  const allUpcoming = sheetData.schedule.filter((s) => {
-    if (!s.matchIndex || s.status !== 'Upcoming') return false;
-    return isPickOpen(s.date, s.time, s.venueCity);
-  });
+  // Current active week (earliest week still taking picks)
+  const currentWeek = getCurrentWeek(sheetData.schedule);
 
-  // Find the current active week: earliest week with open picks
-  const currentWeek = allUpcoming.length > 0
-    ? Math.min(...allUpcoming.map((s) => Number(s.week)))
-    : null;
-
-  // Only show matches from the current active week
+  // Only show matches from the current active week with open pick windows
   const upcoming = currentWeek !== null
-    ? allUpcoming.filter((s) => Number(s.week) === currentWeek)
+    ? sheetData.schedule.filter(
+        (s) =>
+          s.matchIndex &&
+          s.status === 'Upcoming' &&
+          Number(s.week) === currentWeek &&
+          isPickOpen(s.date, s.time, s.venueCity)
+      )
     : [];
 
   // Pending picks = submitted but not yet resolved (may be for locked/started matches)
