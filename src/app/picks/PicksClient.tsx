@@ -1,7 +1,7 @@
 'use client';
 // src/app/picks/PicksClient.tsx
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { ScheduleEntry, UserPick, DiffBand } from '@/types';
 
 // Team slug → primary color
@@ -104,6 +104,16 @@ export function PicksClient({
   // Track deleted match indices so we hide them from the pending section
   const [deletedIndices, setDeletedIndices] = useState<Set<number>>(new Set());
 
+  // Debounce timers + last-saved snapshot per match, so auto-save only fires
+  // once per change and never re-POSTs an identical pick.
+  const saveTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+  const lastSaved = useRef<Record<number, { team: string; band: string }>>(
+    existingPicks.reduce((acc, p) => {
+      acc[p.match_index] = { team: p.picked_team, band: p.diff_band };
+      return acc;
+    }, {} as Record<number, { team: string; band: string }>)
+  );
+
   function getState(matchIndex: number): PickState {
     return pickStates[matchIndex] ?? { pickedTeam: '', diffBand: '', saving: false, saved: false, deleting: false, error: '' };
   }
@@ -115,10 +125,25 @@ export function PicksClient({
     }));
   }
 
-  async function savePick(matchIndex: number) {
-    const state = getState(matchIndex);
-    if (!state.pickedTeam || !state.diffBand) return;
+  // Called whenever the user picks a team or margin. Schedules a debounced
+  // save if both selections are present and differ from the last-saved pair.
+  function selectAndAutoSave(matchIndex: number, updates: Partial<PickState>) {
+    const next = { ...getState(matchIndex), ...updates, saved: false };
+    updateState(matchIndex, { ...updates, saved: false, error: '' });
 
+    if (next.pickedTeam && next.diffBand) {
+      const last = lastSaved.current[matchIndex];
+      const isDirty = !last || last.team !== next.pickedTeam || last.band !== next.diffBand;
+      if (!isDirty) return;
+
+      if (saveTimers.current[matchIndex]) clearTimeout(saveTimers.current[matchIndex]);
+      saveTimers.current[matchIndex] = setTimeout(() => {
+        savePick(matchIndex, next.pickedTeam, next.diffBand as DiffBand);
+      }, 400);
+    }
+  }
+
+  async function savePick(matchIndex: number, team: string, band: DiffBand) {
     updateState(matchIndex, { saving: true, error: '', saved: false });
 
     try {
@@ -127,8 +152,8 @@ export function PicksClient({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           match_index: matchIndex,
-          picked_team: state.pickedTeam,
-          diff_band: state.diffBand,
+          picked_team: team,
+          diff_band: band,
         }),
       });
 
@@ -137,6 +162,7 @@ export function PicksClient({
       if (!res.ok) {
         updateState(matchIndex, { saving: false, error: json.error ?? 'Failed to save pick' });
       } else {
+        lastSaved.current[matchIndex] = { team, band };
         updateState(matchIndex, { saving: false, saved: true });
       }
     } catch {
@@ -156,6 +182,11 @@ export function PicksClient({
       if (!res.ok) {
         updateState(matchIndex, { deleting: false, error: json.error ?? 'Failed to remove pick' });
       } else {
+        delete lastSaved.current[matchIndex];
+        if (saveTimers.current[matchIndex]) {
+          clearTimeout(saveTimers.current[matchIndex]);
+          delete saveTimers.current[matchIndex];
+        }
         updateState(matchIndex, { deleting: false, saved: false, pickedTeam: '', diffBand: '' });
         setDeletedIndices((prev) => new Set(prev).add(matchIndex));
       }
@@ -195,7 +226,6 @@ export function PicksClient({
             if (!entry.matchIndex) return null;
             const matchIndex = entry.matchIndex;
             const state = getState(matchIndex);
-            const canSave = !!state.pickedTeam && !!state.diffBand;
             const alreadyPicked = state.saved && !!state.pickedTeam;
 
             return (
@@ -229,7 +259,7 @@ export function PicksClient({
                       return (
                         <button
                           key={team}
-                          onClick={() => updateState(matchIndex, { pickedTeam: team, saved: false })}
+                          onClick={() => selectAndAutoSave(matchIndex, { pickedTeam: team })}
                           style={{
                             display: 'flex',
                             flexDirection: 'column',
@@ -278,7 +308,7 @@ export function PicksClient({
                     {BANDS.map((band) => (
                       <button
                         key={band.key}
-                        onClick={() => updateState(matchIndex, { diffBand: band.key, saved: false })}
+                        onClick={() => selectAndAutoSave(matchIndex, { diffBand: band.key })}
                         className={`pick-band-btn${state.diffBand === band.key ? ' selected' : ''}`}
                       >
                         <span style={{ fontWeight: 700 }}>{band.label}</span>
@@ -286,16 +316,22 @@ export function PicksClient({
                     ))}
                   </div>
 
-                  {/* Save / Delete */}
+                  {/* Auto-save status + Remove */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                    <button
-                      onClick={() => savePick(matchIndex)}
-                      disabled={!canSave || state.saving}
-                      className="btn btn-primary"
-                      style={{ opacity: (!canSave || state.saving) ? 0.5 : 1 }}
-                    >
-                      {state.saving ? 'Saving…' : alreadyPicked ? 'Update Pick' : 'Save Pick'}
-                    </button>
+                    {(() => {
+                      const hasBoth = !!state.pickedTeam && !!state.diffBand;
+                      if (state.saving) {
+                        return <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>⟳ Saving…</span>;
+                      }
+                      if (state.error) return null; // shown below
+                      if (state.saved && hasBoth) {
+                        return <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--result-w)', fontWeight: 700 }}>✓ Saved</span>;
+                      }
+                      if (!hasBoth) {
+                        return <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>Select a team and margin — saves automatically</span>;
+                      }
+                      return null;
+                    })()}
                     {alreadyPicked && (
                       <button
                         onClick={() => deletePick(matchIndex)}
@@ -310,6 +346,7 @@ export function PicksClient({
                           padding: '6px 12px',
                           borderRadius: 'var(--radius)',
                           cursor: 'pointer',
+                          marginLeft: 'auto',
                         }}
                       >
                         {state.deleting ? 'Removing…' : 'Remove pick'}
@@ -317,7 +354,7 @@ export function PicksClient({
                     )}
                     {state.error && (
                       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--result-l)', width: '100%' }}>
-                        {state.error}
+                        ⚠ {state.error}
                       </span>
                     )}
                   </div>
