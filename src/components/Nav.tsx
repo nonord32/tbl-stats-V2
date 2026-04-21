@@ -122,9 +122,6 @@ export function Nav() {
             <Link href="/results" className={`nav-link ${isActive('/results') ? 'active' : ''}`}>
               Results
             </Link>
-            <Link href="/rankings" className={`nav-link ${isActive('/rankings') ? 'active' : ''}`}>
-              Rankings
-            </Link>
             <Link href="/schedule" className={`nav-link ${isActive('/schedule') ? 'active' : ''}`}>
               Schedule
             </Link>

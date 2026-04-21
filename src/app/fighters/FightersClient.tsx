@@ -159,10 +159,28 @@ export function FightersClient({ fighters, fighterHistory, seoText, lastUpdated 
   const [genderFilter, setGenderFilter] = useState('');
   const [modalFighter, setModalFighter] = useState<FighterStat | null>(null);
 
-  const weightClasses = useMemo(
-    () => Array.from(new Set(fighters.map((f) => f.weightClass).filter(Boolean))).sort(),
-    [fighters]
+  // Every weight class the fighter has competed in — listed class plus any
+  // classes from their bout history. Fighters who've gone up/down a class
+  // (common in TBL) should appear in every relevant filter.
+  const fighterWeightClasses = useCallback(
+    (f: FighterStat): Set<string> => {
+      const classes = new Set<string>();
+      if (f.weightClass) classes.add(f.weightClass);
+      const history = fighterHistory[f.slug] || [];
+      history.forEach((h) => { if (h.weightClass) classes.add(h.weightClass); });
+      return classes;
+    },
+    [fighterHistory]
   );
+
+  const weightClasses = useMemo(() => {
+    const set = new Set<string>();
+    fighters.forEach((f) => {
+      fighterWeightClasses(f).forEach((wc) => set.add(wc));
+    });
+    return Array.from(set).sort();
+  }, [fighters, fighterWeightClasses]);
+
   const teams = useMemo(
     () => Array.from(new Set(fighters.map((f) => f.team).filter(Boolean))).sort(),
     [fighters]
@@ -184,12 +202,12 @@ export function FightersClient({ fighters, fighterHistory, seoText, lastUpdated 
     const q = search.trim().toLowerCase();
     return fighters.filter((f) => {
       if (q && !f.name.toLowerCase().includes(q)) return false;
-      if (weightFilter && f.weightClass !== weightFilter) return false;
+      if (weightFilter && !fighterWeightClasses(f).has(weightFilter)) return false;
       if (teamFilter && f.team !== teamFilter) return false;
       if (genderFilter && f.gender !== genderFilter) return false;
       return true;
     });
-  }, [fighters, search, weightFilter, teamFilter, genderFilter]);
+  }, [fighters, search, weightFilter, teamFilter, genderFilter, fighterWeightClasses]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
