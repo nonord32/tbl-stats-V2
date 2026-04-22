@@ -1,6 +1,7 @@
 // src/app/fighters/page.tsx
 import type { Metadata } from 'next';
 import { getAllData } from '@/lib/data';
+import { DataUnavailable } from '@/components/DataUnavailable';
 import { FightersClient } from './FightersClient';
 
 export const metadata: Metadata = {
@@ -31,12 +32,26 @@ export default async function FightersPage() {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
-      <FightersClient
-        fighters={data.fighters}
-        fighterHistory={data.fighterHistory}
-        lastUpdated={data.lastUpdated}
-        seoText="Individual fighter statistics for the 2026 TBL season. Rankings by WAR, NPPR, Net Points, and Win%. Filter by weight class, team, or gender."
-      />
+      {data.fighters.length === 0 ? (
+        <main>
+          <div className="page container" style={{ maxWidth: 560 }}>
+            <div className="page-header">
+              <h1>Fighter Stats</h1>
+            </div>
+            <DataUnavailable
+              title="Fighter stats are temporarily unavailable"
+              description="The fighter data couldn’t be loaded from the source. Try again in a minute."
+            />
+          </div>
+        </main>
+      ) : (
+        <FightersClient
+          fighters={data.fighters}
+          fighterHistory={data.fighterHistory}
+          lastUpdated={data.lastUpdated}
+          seoText="Individual fighter statistics for the 2026 TBL season. Rankings by WAR, NPPR, Net Points, and Win%. Filter by weight class, team, or gender."
+        />
+      )}
     </>
   );
 }

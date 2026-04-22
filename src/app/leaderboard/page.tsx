@@ -1,34 +1,66 @@
 // src/app/leaderboard/page.tsx
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import { createClient as createServiceClient } from '@supabase/supabase-js';
+import { createClient as createServiceClient, type SupabaseClient } from '@supabase/supabase-js';
 import { getAllData } from '@/lib/data';
+import { safeGetUser, safeQuery } from '@/lib/supabase/safe';
 import { LeaderboardClient } from './LeaderboardClient';
 
 export const dynamic = 'force-dynamic';
 
+interface PickRow {
+  user_id: string;
+  match_index: number;
+  points_earned: number | null;
+  resolved_at: string | null;
+}
+interface ProfileRow {
+  id: string;
+  display_name: string | null;
+  username: string;
+}
+
 export default async function LeaderboardPage() {
   const supabase = await createClient();
+  const user = await safeGetUser(supabase);
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Service role client bypasses RLS to see all picks. Guard construction so
+  // a missing env var doesn't crash — fall back to empty data.
+  let service: SupabaseClient | null = null;
+  try {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (url && key) {
+      service = createServiceClient(url, key);
+    } else {
+      console.error('[leaderboard] service role env vars missing');
+    }
+  } catch (err) {
+    console.error('[leaderboard] service client construction failed:', err);
+  }
 
-  // Use service role to bypass RLS and see all picks
-  const service = createServiceClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-
-  // Fetch all resolved picks + profiles
-  const [picksRes, profilesRes, sheetData] = await Promise.all([
+  const [picksData, profilesData, sheetData] = await Promise.all([
     service
-      .from('picks')
-      .select('user_id, match_index, points_earned, resolved_at')
-      .not('resolved_at', 'is', null),
-    service.from('profiles').select('id, display_name, username'),
+      ? safeQuery<PickRow[]>(
+          service
+            .from('picks')
+            .select('user_id, match_index, points_earned, resolved_at')
+            .not('resolved_at', 'is', null),
+          [],
+          'leaderboard.picks'
+        )
+      : Promise.resolve<PickRow[]>([]),
+    service
+      ? safeQuery<ProfileRow[]>(
+          service.from('profiles').select('id, display_name, username'),
+          [],
+          'leaderboard.profiles'
+        )
+      : Promise.resolve<ProfileRow[]>([]),
     getAllData(),
   ]);
+  const picksRes = { data: picksData };
+  const profilesRes = { data: profilesData };
 
   const profileMap = new Map(
     (profilesRes.data ?? []).map((p) => [p.id as string, p as { id: string; display_name: string | null; username: string }])
@@ -137,7 +169,7 @@ export default async function LeaderboardPage() {
                 <path d="M9 12l2 2 4-4"/>
               </svg>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: '#fff' }}>
-                Make your picks for Week 5
+                Make your picks for the upcoming matches
               </span>
             </div>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--accent)', fontWeight: 700, whiteSpace: 'nowrap' }}>

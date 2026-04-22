@@ -1,6 +1,7 @@
 // src/app/teams/page.tsx
 import type { Metadata } from 'next';
 import { getAllData } from '@/lib/data';
+import { DataUnavailable } from '@/components/DataUnavailable';
 import { TeamsClient } from './TeamsClient';
 
 export const metadata: Metadata = {
@@ -31,12 +32,26 @@ export default async function TeamsPage() {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
-      <TeamsClient
-        teams={data.teams}
-        teamMatches={data.teamMatches}
-        lastUpdated={data.lastUpdated}
-        seoText="Team Boxing League standings based on match results and performance across the season. Sorted by wins, with Points For, Points Against, and point differential."
-      />
+      {data.teams.length === 0 ? (
+        <main>
+          <div className="page container" style={{ maxWidth: 560 }}>
+            <div className="page-header">
+              <h1>Team Standings</h1>
+            </div>
+            <DataUnavailable
+              title="Standings are temporarily unavailable"
+              description="Team data couldn’t be loaded from the source. Try again in a minute."
+            />
+          </div>
+        </main>
+      ) : (
+        <TeamsClient
+          teams={data.teams}
+          teamMatches={data.teamMatches}
+          lastUpdated={data.lastUpdated}
+          seoText="Team Boxing League standings based on match results and performance across the season. Sorted by wins, with Points For, Points Against, and point differential."
+        />
+      )}
     </>
   );
 }

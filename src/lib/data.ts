@@ -612,21 +612,69 @@ function parseHighlights(rows: string[][]): HighlightEntry[] {
 
 // ─── Main export ───────────────────────────────────────────────────────────────
 export async function getAllData(): Promise<ParsedSheetData> {
+  // Each CSV fetch has its own fallback so one bad source (rename, network,
+  // rate limit) can't take down every page that uses getAllData.
+  const emptyRows: string[][] = [];
   const [fighterRawRows, teamRawRows, matchRawRows, scheduleRawRows, highlightsRawRows] = await Promise.all([
-    fetchRawCSV(SHEETS.fighters),
-    fetchRawCSV(SHEETS.teams),
-    fetchRawCSV(SHEETS.matches),
-    fetchRawCSV(SHEETS.schedule).catch(() => [] as string[][]),
-    fetchRawCSV(SHEETS.highlights).catch(() => [] as string[][]),
+    fetchRawCSV(SHEETS.fighters).catch((err) => {
+      console.error('[getAllData] fighters CSV fetch failed:', err);
+      return emptyRows;
+    }),
+    fetchRawCSV(SHEETS.teams).catch((err) => {
+      console.error('[getAllData] teams CSV fetch failed:', err);
+      return emptyRows;
+    }),
+    fetchRawCSV(SHEETS.matches).catch((err) => {
+      console.error('[getAllData] matches CSV fetch failed:', err);
+      return emptyRows;
+    }),
+    fetchRawCSV(SHEETS.schedule).catch((err) => {
+      console.error('[getAllData] schedule CSV fetch failed:', err);
+      return emptyRows;
+    }),
+    fetchRawCSV(SHEETS.highlights).catch((err) => {
+      console.error('[getAllData] highlights CSV fetch failed:', err);
+      return emptyRows;
+    }),
   ]);
 
-  const { fighters, lastUpdated } = parseFighters(fighterRawRows);
-  const teams = parseTeams(teamRawRows);
-  const { teamMatches, fighterHistory } = parseMatchData(matchRawRows);
+  // Wrap every parser so a single header-rename or malformed row doesn't
+  // throw out of the data layer. Each returns the empty shape of its output.
+  let fighters: FighterStat[] = [];
+  let lastUpdated = '';
+  try {
+    const parsed = parseFighters(fighterRawRows);
+    fighters = parsed.fighters;
+    lastUpdated = parsed.lastUpdated;
+  } catch (err) {
+    console.error('[getAllData] parseFighters threw:', err);
+  }
+
+  let teams: TeamStanding[] = [];
+  try {
+    teams = parseTeams(teamRawRows);
+  } catch (err) {
+    console.error('[getAllData] parseTeams threw:', err);
+  }
+
+  let teamMatches: Record<string, TeamMatch[]> = {};
+  let fighterHistory: Record<string, FightHistory[]> = {};
+  try {
+    const parsed = parseMatchData(matchRawRows);
+    teamMatches = parsed.teamMatches;
+    fighterHistory = parsed.fighterHistory;
+  } catch (err) {
+    console.error('[getAllData] parseMatchData threw:', err);
+  }
+
   let schedule: ReturnType<typeof parseSchedule> = [];
-  try { schedule = parseSchedule(scheduleRawRows); } catch { schedule = []; }
+  try { schedule = parseSchedule(scheduleRawRows); } catch (err) {
+    console.error('[getAllData] parseSchedule threw:', err);
+  }
   let highlights: HighlightEntry[] = [];
-  try { highlights = parseHighlights(highlightsRawRows); } catch { highlights = []; }
+  try { highlights = parseHighlights(highlightsRawRows); } catch (err) {
+    console.error('[getAllData] parseHighlights threw:', err);
+  }
 
   // Recompute streak from match data when available — sheet value may be stale.
   // Fall back to the sheet's Streak column if match data is missing so the

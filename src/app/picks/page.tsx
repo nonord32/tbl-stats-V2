@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getAllData } from '@/lib/data';
 import { isPickOpen } from '@/lib/gameTime';
 import { getCurrentWeek } from '@/lib/week';
+import { safeGetUser, safeQuery } from '@/lib/supabase/safe';
 import { PicksClient } from './PicksClient';
 import type { UserPick } from '@/types';
 
@@ -11,25 +12,24 @@ export const dynamic = 'force-dynamic';
 
 export default async function PicksPage() {
   const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await safeGetUser(supabase);
 
   if (!user) {
     redirect('/login');
   }
 
-  const [sheetData, picksResult] = await Promise.all([
+  const [sheetData, picks] = await Promise.all([
     getAllData(),
-    supabase
-      .from('picks')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('match_index', { ascending: true }),
+    safeQuery<UserPick[]>(
+      supabase
+        .from('picks')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('match_index', { ascending: true }),
+      [],
+      'picks.list'
+    ),
   ]);
-
-  const picks: UserPick[] = (picksResult.data ?? []) as UserPick[];
 
   // Current active week (earliest week still taking picks)
   const currentWeek = getCurrentWeek(sheetData.schedule);

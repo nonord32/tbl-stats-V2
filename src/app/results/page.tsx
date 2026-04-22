@@ -2,6 +2,7 @@
 import type { Metadata } from 'next';
 import { getAllData, extractUniqueMatches, toSlug } from '@/lib/data';
 import { getFullTeamName } from '@/lib/teams';
+import { DataUnavailable } from '@/components/DataUnavailable';
 import { ResultsClient } from './ResultsClient';
 
 export const metadata: Metadata = {
@@ -78,7 +79,21 @@ export default async function ResultsPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <ResultsClient matches={matches} lastUpdated={data.lastUpdated} highlights={data.highlights} />
+      {matches.length === 0 ? (
+        <main>
+          <div className="page container" style={{ maxWidth: 560 }}>
+            <div className="page-header">
+              <h1>Match Results</h1>
+            </div>
+            <DataUnavailable
+              title="Results are temporarily unavailable"
+              description="Match data couldn’t be loaded from the source. Try again in a minute."
+            />
+          </div>
+        </main>
+      ) : (
+        <ResultsClient matches={matches} lastUpdated={data.lastUpdated} highlights={data.highlights} />
+      )}
     </>
   );
 }
