@@ -285,7 +285,7 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
           </div>
 
           <div className="table-wrap">
-            <table>
+            <table data-mobile-full>
               <thead>
                 <tr>
                   <th className="col-team-rank" style={{ width: 32 }}>#</th>

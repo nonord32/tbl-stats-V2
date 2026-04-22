@@ -297,7 +297,7 @@ export function FightersClient({ fighters, fighterHistory, seoText, lastUpdated 
           </div>
 
           <div className="table-wrap">
-            <table>
+            <table data-mobile-full>
               <thead>
                 <tr>
                   <th className="col-rank" style={{ width: 32 }}>#</th>

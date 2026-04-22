@@ -1260,6 +1260,12 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
 @media (max-width: 600px) {
   .col-hide-mobile { display: none !important; }
 
+  /* Opt-out: tables marked data-mobile-full show every column on mobile too
+     and rely on horizontal scroll via .table-wrap. Used by fighters + team
+     standings where users want the full stat line. */
+  table[data-mobile-full] .col-hide-mobile { display: table-cell !important; }
+  table[data-mobile-full] .fighter-team-sub { display: none; }
+
   /* Fighter name cell: show team as subtitle when Team column is hidden */
   .fighter-team-sub {
     display: block;
