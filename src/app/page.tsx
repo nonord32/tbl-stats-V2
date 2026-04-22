@@ -1,6 +1,7 @@
 // src/app/page.tsx
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import type { User } from '@supabase/supabase-js';
 import { extractUniqueMatches, getAllData } from '@/lib/data';
 import { createClient } from '@/lib/supabase/server';
 import { isPickOpen } from '@/lib/gameTime';
@@ -42,14 +43,29 @@ export const dynamic = 'force-dynamic';
 const SITE_URL = 'https://tblstats.com';
 
 export default async function HomePage() {
-  const supabase = await createClient();
+  // Supabase-backed data (auth + picks) is a secondary concern on the homepage.
+  // If Supabase is paused/unreachable we still want to render the public
+  // content, so everything auth-related is wrapped in try/catch and falls
+  // back to the signed-out view.
+  let user: User | null = null;
+  let picks: UserPick[] = [];
+  try {
+    const supabase = await createClient();
+    const userResult = await supabase.auth.getUser();
+    user = userResult?.data?.user ?? null;
+    if (user) {
+      const { data: picksData } = await supabase
+        .from('picks')
+        .select('*')
+        .eq('user_id', user.id);
+      picks = (picksData ?? []) as UserPick[];
+    }
+  } catch (err) {
+    // Log so Vercel surfaces it; don't let it take down the homepage.
+    console.error('[homepage] supabase fetch failed:', err);
+  }
 
-  const [data, userResult] = await Promise.all([
-    getAllData(),
-    supabase.auth.getUser(),
-  ]);
-  const user = userResult.data.user;
-
+  const data = await getAllData();
   const { fighters, teams, teamMatches, schedule, highlights } = data;
   const homeHighlights = highlights.filter((h) => h.page === 'home');
 
@@ -91,16 +107,6 @@ export default async function HomePage() {
           lastWeekScheduleIndexes.has(m.matchIndex)
         )
       : [];
-
-  // User picks (only fetched if logged in)
-  let picks: UserPick[] = [];
-  if (user) {
-    const { data: picksData } = await supabase
-      .from('picks')
-      .select('*')
-      .eq('user_id', user.id);
-    picks = (picksData ?? []) as UserPick[];
-  }
 
   const thisWeekMatchIndexes = new Set(
     thisWeekMatchups
