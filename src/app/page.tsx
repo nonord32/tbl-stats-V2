@@ -1,22 +1,9 @@
 // src/app/page.tsx
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import type { User } from '@supabase/supabase-js';
-import { extractUniqueMatches, getAllData } from '@/lib/data';
-import { createClient } from '@/lib/supabase/server';
-import { isPickOpen } from '@/lib/gameTime';
-import {
-  getCurrentWeek,
-  getDisplayedCurrentWeek,
-  getLastCompletedWeek,
-} from '@/lib/week';
+import { getAllData } from '@/lib/data';
 import { HighlightsSection } from '@/components/HighlightsSection';
 import { HighlightsMarquee } from '@/components/HighlightsMarquee';
-import { WeekBanner } from '@/components/home/WeekBanner';
-import { UserPickSummary } from '@/components/home/UserPickSummary';
-import { ThisWeekMatchups } from '@/components/home/ThisWeekMatchups';
-import { LastWeekRecap } from '@/components/home/LastWeekRecap';
-import type { UserPick } from '@/types';
 
 export const metadata: Metadata = {
   // absolute bypasses the layout template so we don't get double-suffix
@@ -43,87 +30,9 @@ export const dynamic = 'force-dynamic';
 const SITE_URL = 'https://tblstats.com';
 
 export default async function HomePage() {
-  // Supabase-backed data (auth + picks) is a secondary concern on the homepage.
-  // If Supabase is paused/unreachable we still want to render the public
-  // content, so everything auth-related is wrapped in try/catch and falls
-  // back to the signed-out view.
-  let user: User | null = null;
-  let picks: UserPick[] = [];
-  try {
-    const supabase = await createClient();
-    const userResult = await supabase.auth.getUser();
-    user = userResult?.data?.user ?? null;
-    if (user) {
-      const { data: picksData } = await supabase
-        .from('picks')
-        .select('*')
-        .eq('user_id', user.id);
-      picks = (picksData ?? []) as UserPick[];
-    }
-  } catch (err) {
-    // Log so Vercel surfaces it; don't let it take down the homepage.
-    console.error('[homepage] supabase fetch failed:', err);
-  }
-
   const data = await getAllData();
-  const { fighters, teams, teamMatches, schedule, highlights } = data;
+  const { fighters, teams, highlights } = data;
   const homeHighlights = highlights.filter((h) => h.page === 'home');
-
-  // Week detection: picks-open (strict) drives openMatchCount & banner copy,
-  // displayed falls back to the earliest Upcoming week so the homepage still
-  // shows "Week N" once picks have locked but results aren't published yet.
-  const openCurrentWeek = getCurrentWeek(schedule);
-  const displayedCurrentWeek = openCurrentWeek ?? getDisplayedCurrentWeek(schedule);
-  const lastWeek = getLastCompletedWeek(schedule);
-
-  // This week's matchups — all Upcoming rows for the displayed week
-  const thisWeekMatchups = displayedCurrentWeek !== null
-    ? schedule.filter(
-        (s) => s.status === 'Upcoming' && Number(s.week) === displayedCurrentWeek
-      )
-    : [];
-
-  // Count of matches still open for picks (drives banner + user strip copy)
-  const openMatchCount = thisWeekMatchups.filter(
-    (s) => s.matchIndex !== null && isPickOpen(s.date, s.time, s.venueCity)
-  ).length;
-
-  // Last week recap — completed schedule rows joined to MatchResult for scores
-  const lastWeekScheduleIndexes = new Set(
-    lastWeek !== null
-      ? schedule
-          .filter(
-            (s) =>
-              s.status === 'Completed' &&
-              Number(s.week) === lastWeek &&
-              s.matchIndex !== null
-          )
-          .map((s) => s.matchIndex as number)
-      : []
-  );
-  const lastWeekMatches =
-    lastWeekScheduleIndexes.size > 0
-      ? extractUniqueMatches(teamMatches).filter((m) =>
-          lastWeekScheduleIndexes.has(m.matchIndex)
-        )
-      : [];
-
-  const thisWeekMatchIndexes = new Set(
-    thisWeekMatchups
-      .filter((s) => s.matchIndex !== null)
-      .map((s) => s.matchIndex as number)
-  );
-  const pickedThisWeekIndexes = new Set(
-    picks
-      .filter((p) => thisWeekMatchIndexes.has(p.match_index))
-      .map((p) => p.match_index)
-  );
-
-  const pointsLastWeek = user
-    ? picks
-        .filter((p) => lastWeekScheduleIndexes.has(p.match_index))
-        .reduce((sum, p) => sum + (p.points_earned ?? 0), 0)
-    : null;
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -200,37 +109,48 @@ export default async function HomePage() {
       {homeHighlights.length > 0 && <HighlightsMarquee highlights={homeHighlights} />}
 
       {/* ── Pick'em Banner ── */}
-      <WeekBanner week={openCurrentWeek} openMatchCount={openMatchCount} />
-
-      {/* ── Logged-in user strip ── */}
-      <UserPickSummary
-        isSignedIn={!!user}
-        currentWeek={displayedCurrentWeek}
-        lastWeek={lastWeek}
-        openMatchCount={openMatchCount}
-        picksThisWeekCount={pickedThisWeekIndexes.size}
-        pointsLastWeek={pointsLastWeek}
-      />
+      <section style={{ padding: '16px 0 0' }}>
+        <div className="container">
+          <Link href="/picks" style={{ textDecoration: 'none', display: 'block' }}>
+            <div style={{
+              background: 'linear-gradient(135deg, #1a0a00 0%, #2d1200 60%, #1a0a00 100%)',
+              border: '1px solid rgba(230,60,0,0.4)',
+              borderRadius: 'var(--radius)',
+              padding: '20px 24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 16,
+              flexWrap: 'wrap',
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <path d="M9 12l2 2 4-4"/>
+                  </svg>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--accent)' }}>
+                    Pick&apos;em
+                  </span>
+                </div>
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 700, color: '#fff', margin: 0 }}>
+                  Make your picks for the upcoming matches
+                </p>
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'rgba(255,255,255,0.5)', margin: '4px 0 0' }}>
+                  1pt for correct winner · 2pts for exact margin
+                </p>
+              </div>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: 'var(--accent)', whiteSpace: 'nowrap' }}>
+                Pick now →
+              </span>
+            </div>
+          </Link>
+        </div>
+      </section>
 
       {/* ── Quick Nav Cards ── */}
       <section className="page" style={{ paddingTop: 24 }}>
         <div className="container">
-          {/* ── This Week + Last Week Recap ── */}
-          {displayedCurrentWeek !== null && (
-            <ThisWeekMatchups
-              week={displayedCurrentWeek}
-              matches={thisWeekMatchups}
-              pickedMatchIndexes={pickedThisWeekIndexes}
-            />
-          )}
-          {lastWeek !== null && (
-            <LastWeekRecap
-              week={lastWeek}
-              matches={lastWeekMatches}
-              inProgress={lastWeek === displayedCurrentWeek}
-            />
-          )}
-
           {/* ── Top Performers Preview ── */}
           <div className="home-stats-grid">
             {/* Top Fighters by Net Points */}
