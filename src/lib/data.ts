@@ -11,6 +11,7 @@ import type {
   MatchResult,
   ScheduleEntry,
   HighlightEntry,
+  AwardEntry,
   ParsedSheetData,
 } from '@/types';
 
@@ -26,6 +27,8 @@ const SHEETS = {
     'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=1716719705&single=true&output=csv',
   highlights:
     'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=1508158260&single=true&output=csv',
+  awards:
+    'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=644608532&single=true&output=csv',
 };
 
 // ─── Utility ───────────────────────────────────────────────────────────────────
@@ -610,12 +613,35 @@ function parseHighlights(rows: string[][]): HighlightEntry[] {
     } satisfies HighlightEntry));
 }
 
+// ─── Awards Parser ────────────────────────────────────────────────────────────
+// Expected columns: Season | Award | Winner | Team | Notes
+function parseAwards(rows: string[][]): AwardEntry[] {
+  if (rows.length === 0) return [];
+  let headerRowIndex = 0;
+  for (let i = 0; i < Math.min(rows.length, 5); i++) {
+    if (rows[i].some((c) => /season|award|winner/i.test(c))) {
+      headerRowIndex = i;
+      break;
+    }
+  }
+  const objects = toObjects(rows, headerRowIndex);
+  return objects
+    .map((r) => ({
+      season: safeInt(r['Season'] || r['Year'] || ''),
+      award: (r['Award'] || '').trim(),
+      winner: (r['Winner'] || '').trim(),
+      team: (r['Team'] || '').trim(),
+      notes: (r['Notes'] || '').trim(),
+    } satisfies AwardEntry))
+    .filter((a) => a.season > 0 && a.award && a.winner);
+}
+
 // ─── Main export ───────────────────────────────────────────────────────────────
 export async function getAllData(): Promise<ParsedSheetData> {
   // Each CSV fetch has its own fallback so one bad source (rename, network,
   // rate limit) can't take down every page that uses getAllData.
   const emptyRows: string[][] = [];
-  const [fighterRawRows, teamRawRows, matchRawRows, scheduleRawRows, highlightsRawRows] = await Promise.all([
+  const [fighterRawRows, teamRawRows, matchRawRows, scheduleRawRows, highlightsRawRows, awardsRawRows] = await Promise.all([
     fetchRawCSV(SHEETS.fighters).catch((err) => {
       console.error('[getAllData] fighters CSV fetch failed:', err);
       return emptyRows;
@@ -634,6 +660,10 @@ export async function getAllData(): Promise<ParsedSheetData> {
     }),
     fetchRawCSV(SHEETS.highlights).catch((err) => {
       console.error('[getAllData] highlights CSV fetch failed:', err);
+      return emptyRows;
+    }),
+    fetchRawCSV(SHEETS.awards).catch((err) => {
+      console.error('[getAllData] awards CSV fetch failed:', err);
       return emptyRows;
     }),
   ]);
@@ -675,6 +705,10 @@ export async function getAllData(): Promise<ParsedSheetData> {
   try { highlights = parseHighlights(highlightsRawRows); } catch (err) {
     console.error('[getAllData] parseHighlights threw:', err);
   }
+  let awards: AwardEntry[] = [];
+  try { awards = parseAwards(awardsRawRows); } catch (err) {
+    console.error('[getAllData] parseAwards threw:', err);
+  }
 
   // Recompute streak from match data when available — sheet value may be stale.
   // Fall back to the sheet's Streak column if match data is missing so the
@@ -693,7 +727,7 @@ export async function getAllData(): Promise<ParsedSheetData> {
     // else: keep the sheet value from parseTeams
   });
 
-  return { fighters, teams, teamMatches, fighterHistory, schedule, highlights, lastUpdated };
+  return { fighters, teams, teamMatches, fighterHistory, schedule, highlights, awards, lastUpdated };
 }
 
 export async function getFighterBySlug(slug: string) {

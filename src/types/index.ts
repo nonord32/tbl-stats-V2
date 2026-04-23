@@ -111,6 +111,14 @@ export interface HighlightEntry {
   type: 'instagram' | 'youtube' | string;
 }
 
+export interface AwardEntry {
+  season: number;
+  award: string;   // e.g. "MVP"
+  winner: string;
+  team: string;
+  notes: string;
+}
+
 export interface ParsedSheetData {
   fighters: FighterStat[];
   teams: TeamStanding[];
@@ -118,6 +126,7 @@ export interface ParsedSheetData {
   fighterHistory: Record<string, FightHistory[]>;
   schedule: ScheduleEntry[];
   highlights: HighlightEntry[];
+  awards: AwardEntry[];
   lastUpdated: string;
 }
 

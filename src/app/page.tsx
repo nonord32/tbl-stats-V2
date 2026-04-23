@@ -6,6 +6,7 @@ import { getDisplayedCurrentWeek, scheduleForWeek } from '@/lib/week';
 import { HighlightsSection } from '@/components/HighlightsSection';
 import { HighlightsMarquee } from '@/components/HighlightsMarquee';
 import { ThisWeekMatchups } from '@/components/home/ThisWeekMatchups';
+import { HallOfChampions } from '@/components/home/HallOfChampions';
 
 export const metadata: Metadata = {
   // absolute bypasses the layout template so we don't get double-suffix
@@ -33,7 +34,7 @@ const SITE_URL = 'https://tblstats.com';
 
 export default async function HomePage() {
   const data = await getAllData();
-  const { fighters, teams, highlights, schedule } = data;
+  const { fighters, teams, highlights, schedule, awards } = data;
   const homeHighlights = highlights.filter((h) => h.page === 'home');
 
   const currentWeek = getDisplayedCurrentWeek(schedule);
@@ -157,6 +158,9 @@ export default async function HomePage() {
           </Link>
         </div>
       </section>
+
+      {/* ── Hall of Champions ── */}
+      <HallOfChampions awards={awards} />
 
       {/* ── This Week's Matchups ── */}
       {currentWeek !== null && currentWeekUpcoming.length > 0 && (
