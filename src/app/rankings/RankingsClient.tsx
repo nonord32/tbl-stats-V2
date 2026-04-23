@@ -24,7 +24,7 @@ type Gender = 'Male' | 'Female';
 // Minimum rounds a fighter must have fought to qualify for a ranking. Keeps
 // low-sample fighters off the top of the list (1-0 with one round shouldn't
 // beat a 3-1 fighter on net points).
-const MIN_ROUNDS = 3;
+const MIN_ROUNDS = 2;
 const TOP_N = 5;
 
 function classAnchor(wc: string) {
