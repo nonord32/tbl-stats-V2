@@ -42,7 +42,6 @@ export function HallOfChampions({ awards, fighterSlugs, limit = 5 }: Props) {
         <table>
           <thead>
             <tr>
-              <th style={{ width: 28 }}>#</th>
               <th>Year</th>
               <th>Award</th>
               <th>Winner</th>
@@ -50,12 +49,11 @@ export function HallOfChampions({ awards, fighterSlugs, limit = 5 }: Props) {
             </tr>
           </thead>
           <tbody>
-            {sorted.map((a, i) => {
+            {sorted.map((a) => {
               const slug = toSlug(a.winner);
               const linked = !fighterSlugs || fighterSlugs.has(slug);
               return (
                 <tr key={`${a.season}-${a.award}-${a.winner}`}>
-                  <td className="rank-cell">{i + 1}</td>
                   <td className="mono">{a.season}</td>
                   <td className="mono">{a.award}</td>
                   <td>

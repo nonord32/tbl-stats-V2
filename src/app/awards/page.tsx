@@ -51,7 +51,6 @@ function AwardCard({
               <th style={{ width: 72 }}>Season</th>
               <th>Winner</th>
               <th>Team</th>
-              <th>Notes</th>
             </tr>
           </thead>
           <tbody>
@@ -74,9 +73,6 @@ function AwardCard({
                     )}
                   </td>
                   <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{a.team}</td>
-                  <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-                    {a.notes || ''}
-                  </td>
                 </tr>
               );
             })}
