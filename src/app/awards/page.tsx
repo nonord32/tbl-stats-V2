@@ -29,7 +29,15 @@ export const dynamic = 'force-dynamic';
 
 const BASE = 'https://tblstats.com';
 
-function AwardCard({ award, entries }: { award: string; entries: AwardEntry[] }) {
+function AwardCard({
+  award,
+  entries,
+  fighterSlugs,
+}: {
+  award: string;
+  entries: AwardEntry[];
+  fighterSlugs: Set<string>;
+}) {
   const sorted = [...entries].sort((a, b) => b.season - a.season);
   return (
     <div className="card" style={{ marginBottom: 24 }}>
@@ -47,23 +55,31 @@ function AwardCard({ award, entries }: { award: string; entries: AwardEntry[] })
             </tr>
           </thead>
           <tbody>
-            {sorted.map((a) => (
-              <tr key={`${a.season}-${a.winner}`}>
-                <td className="mono">{a.season}</td>
-                <td>
-                  <Link
-                    href={`/fighters/${toSlug(a.winner)}`}
-                    style={{ color: 'var(--accent)', fontWeight: 600 }}
-                  >
-                    {a.winner}
-                  </Link>
-                </td>
-                <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{a.team}</td>
-                <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-                  {a.notes || ''}
-                </td>
-              </tr>
-            ))}
+            {sorted.map((a) => {
+              const slug = toSlug(a.winner);
+              const linked = fighterSlugs.has(slug);
+              return (
+                <tr key={`${a.season}-${a.winner}`}>
+                  <td className="mono">{a.season}</td>
+                  <td>
+                    {linked ? (
+                      <Link
+                        href={`/fighters/${slug}`}
+                        style={{ color: 'var(--accent)', fontWeight: 600 }}
+                      >
+                        {a.winner}
+                      </Link>
+                    ) : (
+                      <span style={{ fontWeight: 600 }}>{a.winner}</span>
+                    )}
+                  </td>
+                  <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{a.team}</td>
+                  <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                    {a.notes || ''}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -73,7 +89,8 @@ function AwardCard({ award, entries }: { award: string; entries: AwardEntry[] })
 
 export default async function AwardsPage() {
   const data = await getAllData();
-  const { awards } = data;
+  const { awards, fighters } = data;
+  const fighterSlugs = new Set(fighters.map((f) => f.slug));
 
   const byAward = new Map<string, AwardEntry[]>();
   for (const a of awards) {
@@ -126,7 +143,12 @@ export default async function AwardsPage() {
             />
           ) : (
             awardGroups.map(([award, entries]) => (
-              <AwardCard key={award} award={award} entries={entries} />
+              <AwardCard
+                key={award}
+                award={award}
+                entries={entries}
+                fighterSlugs={fighterSlugs}
+              />
             ))
           )}
         </div>

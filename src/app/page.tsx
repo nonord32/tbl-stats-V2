@@ -37,6 +37,8 @@ export default async function HomePage() {
   const { fighters, teams, highlights, schedule, awards } = data;
   const homeHighlights = highlights.filter((h) => h.page === 'home');
 
+  const fighterSlugs = new Set(fighters.map((f) => f.slug));
+
   const currentWeek = getDisplayedCurrentWeek(schedule);
   const currentWeekUpcoming =
     currentWeek !== null
@@ -287,7 +289,7 @@ export default async function HomePage() {
           {/* ── Hall of Champions ── */}
           {awards.length > 0 && (
             <div style={{ marginTop: 24 }}>
-              <HallOfChampions awards={awards} />
+              <HallOfChampions awards={awards} fighterSlugs={fighterSlugs} />
             </div>
           )}
 

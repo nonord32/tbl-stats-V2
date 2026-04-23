@@ -8,11 +8,14 @@ import type { AwardEntry } from '@/types';
 
 interface Props {
   awards: AwardEntry[];
+  /** Slugs of fighters present in the current roster — winners not in this
+   *  set render as plain text instead of a broken link. */
+  fighterSlugs?: Set<string>;
   /** Max rows to render. Defaults to 5. */
   limit?: number;
 }
 
-export function HallOfChampions({ awards, limit = 5 }: Props) {
+export function HallOfChampions({ awards, fighterSlugs, limit = 5 }: Props) {
   if (awards.length === 0) return null;
 
   const sorted = [...awards]
@@ -47,22 +50,30 @@ export function HallOfChampions({ awards, limit = 5 }: Props) {
             </tr>
           </thead>
           <tbody>
-            {sorted.map((a, i) => (
-              <tr key={`${a.season}-${a.award}-${a.winner}`}>
-                <td className="rank-cell">{i + 1}</td>
-                <td className="mono">{a.season}</td>
-                <td className="mono">{a.award}</td>
-                <td>
-                  <Link
-                    href={`/fighters/${toSlug(a.winner)}`}
-                    style={{ color: 'var(--accent)', fontWeight: 600 }}
-                  >
-                    {a.winner}
-                  </Link>
-                </td>
-                <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{a.team}</td>
-              </tr>
-            ))}
+            {sorted.map((a, i) => {
+              const slug = toSlug(a.winner);
+              const linked = !fighterSlugs || fighterSlugs.has(slug);
+              return (
+                <tr key={`${a.season}-${a.award}-${a.winner}`}>
+                  <td className="rank-cell">{i + 1}</td>
+                  <td className="mono">{a.season}</td>
+                  <td className="mono">{a.award}</td>
+                  <td>
+                    {linked ? (
+                      <Link
+                        href={`/fighters/${slug}`}
+                        style={{ color: 'var(--accent)', fontWeight: 600 }}
+                      >
+                        {a.winner}
+                      </Link>
+                    ) : (
+                      <span style={{ fontWeight: 600 }}>{a.winner}</span>
+                    )}
+                  </td>
+                  <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{a.team}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
