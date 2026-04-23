@@ -11,6 +11,8 @@ export function Footer() {
             Team Boxing League
           </a>
           {' '}·{' '}
+          <Link href="/awards">Awards</Link>
+          {' '}·{' '}
           <a href="https://www.instagram.com/teamboxingleague/" target="_blank" rel="noopener noreferrer">
             Instagram
           </a>

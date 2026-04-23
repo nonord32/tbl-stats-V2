@@ -160,7 +160,13 @@ export default async function HomePage() {
       </section>
 
       {/* ── Hall of Champions ── */}
-      <HallOfChampions awards={awards} />
+      {awards.length > 0 && (
+        <section style={{ padding: '24px 0 0' }}>
+          <div className="container">
+            <HallOfChampions awards={awards} />
+          </div>
+        </section>
+      )}
 
       {/* ── This Week's Matchups ── */}
       {currentWeek !== null && currentWeekUpcoming.length > 0 && (
