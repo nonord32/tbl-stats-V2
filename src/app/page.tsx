@@ -159,15 +159,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ── Hall of Champions ── */}
-      {awards.length > 0 && (
-        <section style={{ padding: '24px 0 0' }}>
-          <div className="container">
-            <HallOfChampions awards={awards} />
-          </div>
-        </section>
-      )}
-
       {/* ── This Week's Matchups ── */}
       {currentWeek !== null && currentWeekUpcoming.length > 0 && (
         <section style={{ padding: '24px 0 0' }}>
@@ -292,6 +283,13 @@ export default async function HomePage() {
               </div>
             </div>
           </div>
+
+          {/* ── Hall of Champions ── */}
+          {awards.length > 0 && (
+            <div style={{ marginTop: 24 }}>
+              <HallOfChampions awards={awards} />
+            </div>
+          )}
 
           {/* ── About TBL ── */}
           <div className="about-section">
