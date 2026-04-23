@@ -162,12 +162,22 @@ export function FightersClient({ fighters, fighterHistory, seoText, lastUpdated 
   // Every weight class the fighter has competed in — listed class plus any
   // classes from their bout history. Fighters who've gone up/down a class
   // (common in TBL) should appear in every relevant filter.
+  // A single fighter can be listed under multiple classes (e.g.
+  // "Light Heavyweight, Cruiserweight") — split on comma so each class is
+  // its own entry and no merged string leaks into the dropdown.
   const fighterWeightClasses = useCallback(
     (f: FighterStat): Set<string> => {
       const classes = new Set<string>();
-      if (f.weightClass) classes.add(f.weightClass);
+      const add = (wc: string | undefined) => {
+        if (!wc) return;
+        wc.split(',').forEach((part) => {
+          const trimmed = part.trim();
+          if (trimmed) classes.add(trimmed);
+        });
+      };
+      add(f.weightClass);
       const history = fighterHistory[f.slug] || [];
-      history.forEach((h) => { if (h.weightClass) classes.add(h.weightClass); });
+      history.forEach((h) => add(h.weightClass));
       return classes;
     },
     [fighterHistory]
