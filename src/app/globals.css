@@ -1717,3 +1717,277 @@ a:hover .schedule-row,
   .home-recap-score { font-size: 14px; }
   .home-week-match-name { font-size: 12px; }
 }
+
+/* ─── Weight-Class Rankings ──────────────────────────────────────────────── */
+.rank-controls {
+  position: sticky;
+  top: var(--nav-h);
+  z-index: 10;
+  background: var(--bg);
+  padding: 12px 0;
+  margin: 8px 0 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.rank-gender-toggle {
+  display: inline-flex;
+  gap: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 3px;
+  align-self: flex-start;
+}
+.rank-gender-btn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  padding: 7px 18px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.rank-gender-btn:hover { color: var(--text); }
+.rank-gender-btn--active {
+  background: var(--accent);
+  color: #fff;
+}
+.rank-gender-btn--active:hover { color: #fff; }
+
+.rank-jump {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 2px;
+}
+.rank-jump-chip {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  border-radius: 999px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+}
+.rank-jump-chip:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  text-decoration: none;
+}
+
+.rank-section {
+  padding: 24px 0 32px;
+  scroll-margin-top: calc(var(--nav-h) + 80px);
+}
+.rank-section-title {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text-heading);
+  margin: 0 0 4px;
+}
+.rank-section-lede {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0 0 16px;
+}
+
+/* Champion card (rank #1) — visually distinct */
+.rank-card-champion {
+  display: block;
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  margin-bottom: 10px;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.rank-card-champion:hover {
+  text-decoration: none;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1), 0 2px 8px rgba(0,0,0,0.06);
+}
+.rank-card-champion-stripe {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+}
+.rank-card-champion-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 20px 28px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.rank-card-champion-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-width: 0;
+}
+.rank-card-champion-rank {
+  font-family: var(--font-mono);
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.rank-card-champion-name {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-heading);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+.rank-card-champion-team {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.rank-card-champion-team img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+.rank-card-champion-stats {
+  text-align: right;
+  flex-shrink: 0;
+}
+.rank-card-champion-netpts {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.rank-card-champion-record {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  letter-spacing: 0.02em;
+}
+
+/* Contender row (ranks 2–5) — compact horizontal layout */
+.rank-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 6px;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.12s, border-color 0.12s;
+}
+.rank-card:hover {
+  background: var(--bg-table-alt);
+  border-color: var(--text-muted);
+  text-decoration: none;
+}
+.rank-card-rank {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-muted);
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.rank-card-logo {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.rank-card-name-group {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.rank-card-name {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.rank-card-team {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.rank-card-record {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.rank-card-netpts {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  flex-shrink: 0;
+  min-width: 54px;
+  text-align: right;
+}
+.rank-card--muted {
+  opacity: 0.55;
+  cursor: default;
+  background: transparent;
+  border-style: dashed;
+}
+.rank-card--muted:hover {
+  background: transparent;
+  border-color: var(--border);
+}
+.rank-card--muted .rank-card-name {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .rank-card-champion-inner { padding: 16px 16px 16px 20px; }
+  .rank-card-champion-rank { font-size: 24px; }
+  .rank-card-champion-name { font-size: 17px; }
+  .rank-card-champion-netpts { font-size: 22px; }
+  .rank-card-champion-left { gap: 12px; }
+  .rank-card-champion-stats { width: 100%; text-align: left; }
+  .rank-card { padding: 10px 14px; gap: 10px; }
+  .rank-card-record { display: none; }
+  .rank-section-title { font-size: 18px; }
+}

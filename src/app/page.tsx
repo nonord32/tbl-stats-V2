@@ -157,17 +157,30 @@ export default async function HomePage() {
             <div className="card">
               <div className="card-header">
                 <span className="card-title">Top Fighters by Net Pts</span>
-                <Link
-                  href="/fighters"
-                  style={{
-                    fontFamily: 'IBM Plex Mono, monospace',
-                    fontSize: 11,
-                    color: 'var(--accent)',
-                    letterSpacing: '0.04em',
-                  }}
-                >
-                  View all →
-                </Link>
+                <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+                  <Link
+                    href="/rankings"
+                    style={{
+                      fontFamily: 'IBM Plex Mono, monospace',
+                      fontSize: 11,
+                      color: 'var(--accent)',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    By weight class →
+                  </Link>
+                  <Link
+                    href="/fighters"
+                    style={{
+                      fontFamily: 'IBM Plex Mono, monospace',
+                      fontSize: 11,
+                      color: 'var(--accent)',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    View all →
+                  </Link>
+                </div>
               </div>
               <div className="table-wrap">
                 <table>

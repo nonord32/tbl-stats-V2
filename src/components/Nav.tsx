@@ -43,6 +43,18 @@ const BOTTOM_NAV_ITEMS = [
     ),
   },
   {
+    href: '/rankings',
+    label: 'Ranks',
+    exact: false,
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M6 9l6-6 6 6"/>
+        <path d="M12 3v12"/>
+        <circle cx="12" cy="19" r="2"/>
+      </svg>
+    ),
+  },
+  {
     href: '/teams',
     label: 'Standings',
     exact: false,
@@ -115,6 +127,9 @@ export function Nav() {
             </Link>
             <Link href="/fighters" className={`nav-link ${isActive('/fighters') ? 'active' : ''}`}>
               Fighters
+            </Link>
+            <Link href="/rankings" className={`nav-link ${isActive('/rankings') ? 'active' : ''}`}>
+              Rankings
             </Link>
             <Link href="/teams" className={`nav-link ${isActive('/teams') ? 'active' : ''}`}>
               Standings

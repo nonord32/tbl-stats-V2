@@ -5,6 +5,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import type { FighterStat, FightHistory } from '@/types';
 import { calcFighterStreak } from '@/lib/data';
+import { getFighterWeightClasses } from '@/lib/fighters';
 import { getTeamColorByName, getTeamLogoPathByName } from '@/lib/teams';
 
 type SortKey = 'war' | 'nppr' | 'netPts' | 'winPct' | 'rounds' | 'record' | 'name';
@@ -162,24 +163,9 @@ export function FightersClient({ fighters, fighterHistory, seoText, lastUpdated 
   // Every weight class the fighter has competed in — listed class plus any
   // classes from their bout history. Fighters who've gone up/down a class
   // (common in TBL) should appear in every relevant filter.
-  // A single fighter can be listed under multiple classes (e.g.
-  // "Light Heavyweight, Cruiserweight") — split on comma so each class is
-  // its own entry and no merged string leaks into the dropdown.
   const fighterWeightClasses = useCallback(
-    (f: FighterStat): Set<string> => {
-      const classes = new Set<string>();
-      const add = (wc: string | undefined) => {
-        if (!wc) return;
-        wc.split(',').forEach((part) => {
-          const trimmed = part.trim();
-          if (trimmed) classes.add(trimmed);
-        });
-      };
-      add(f.weightClass);
-      const history = fighterHistory[f.slug] || [];
-      history.forEach((h) => add(h.weightClass));
-      return classes;
-    },
+    (f: FighterStat): Set<string> =>
+      getFighterWeightClasses(f, fighterHistory[f.slug] || []),
     [fighterHistory]
   );
 
