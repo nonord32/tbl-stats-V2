@@ -2,8 +2,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getAllData } from '@/lib/data';
+import { getDisplayedCurrentWeek, scheduleForWeek } from '@/lib/week';
 import { HighlightsSection } from '@/components/HighlightsSection';
 import { HighlightsMarquee } from '@/components/HighlightsMarquee';
+import { ThisWeekMatchups } from '@/components/home/ThisWeekMatchups';
 
 export const metadata: Metadata = {
   // absolute bypasses the layout template so we don't get double-suffix
@@ -31,8 +33,16 @@ const SITE_URL = 'https://tblstats.com';
 
 export default async function HomePage() {
   const data = await getAllData();
-  const { fighters, teams, highlights } = data;
+  const { fighters, teams, highlights, schedule } = data;
   const homeHighlights = highlights.filter((h) => h.page === 'home');
+
+  const currentWeek = getDisplayedCurrentWeek(schedule);
+  const currentWeekUpcoming =
+    currentWeek !== null
+      ? scheduleForWeek(schedule, currentWeek).filter(
+          (s) => s.status === 'Upcoming'
+        )
+      : [];
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -147,6 +157,18 @@ export default async function HomePage() {
           </Link>
         </div>
       </section>
+
+      {/* ── This Week's Matchups ── */}
+      {currentWeek !== null && currentWeekUpcoming.length > 0 && (
+        <section style={{ padding: '24px 0 0' }}>
+          <div className="container">
+            <ThisWeekMatchups
+              week={currentWeek}
+              matches={currentWeekUpcoming}
+            />
+          </div>
+        </section>
+      )}
 
       {/* ── Quick Nav Cards ── */}
       <section className="page" style={{ paddingTop: 24 }}>
