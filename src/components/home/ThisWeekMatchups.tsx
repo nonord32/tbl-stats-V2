@@ -3,8 +3,9 @@
 
 import Link from 'next/link';
 import { toSlug } from '@/lib/data';
-import { getFullTeamName } from '@/lib/teams';
+import { getFullTeamName, getTeamLogoPath } from '@/lib/teams';
 import { isPickOpen } from '@/lib/gameTime';
+import { LogoImage } from '@/components/LogoImage';
 import type { ScheduleEntry } from '@/types';
 
 interface Props {
@@ -61,26 +62,18 @@ function MatchupRow({
   const inner = (
     <>
       <div className="home-week-match-teams">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={`/logos/${team1Slug}.png`}
+        <LogoImage
+          src={getTeamLogoPath(team1Slug)}
           alt={team1Name}
           className="home-week-match-logo"
-          onError={(e) => {
-            (e.target as HTMLImageElement).style.display = 'none';
-          }}
         />
         <span className="home-week-match-name">{team1Name}</span>
         <span className="home-week-match-vs">vs</span>
         <span className="home-week-match-name">{team2Name}</span>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={`/logos/${team2Slug}.png`}
+        <LogoImage
+          src={getTeamLogoPath(team2Slug)}
           alt={team2Name}
           className="home-week-match-logo"
-          onError={(e) => {
-            (e.target as HTMLImageElement).style.display = 'none';
-          }}
         />
       </div>
       <div className="home-week-match-meta">
