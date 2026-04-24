@@ -2697,13 +2697,18 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
   .gz-hero-net { font-size: 44px !important; }
 }
 
-/* Home result cards: tighten layout + shrink team names so full names fit. */
+/* Home result cards: tighten layout + swap full names for 3-letter abbrs
+   so even "Miami Assassins" / "Dallas Enforcers" fit narrow phones. */
+.gz-result-name-full { display: inline; }
+.gz-result-name-abbr { display: none; }
 @media (max-width: 640px) {
   .gz-result-card { padding: 12px 10px !important; gap: 8px !important; }
-  .gz-result-card .tbl-display { font-size: 13px !important; line-height: 1.1 !important; }
+  .gz-result-card .tbl-display { font-size: 18px !important; line-height: 1.05 !important; letter-spacing: -0.01em; }
   .gz-result-card .gz-result-score { font-size: 22px !important; padding: 0 6px !important; }
   .gz-result-card .gz-result-score span[style*="italic"] { font-size: 16px !important; margin: 0 3px !important; }
-  .gz-result-card img { width: 26px !important; height: 26px !important; }
+  .gz-result-card img { width: 28px !important; height: 28px !important; }
+  .gz-result-name-full { display: none; }
+  .gz-result-name-abbr { display: inline; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -3023,16 +3028,24 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Schedule — mobile: tighten GameCard, keep single column.
+   Schedule — mobile: tighten GameCard, keep single column, ensure logos
+   sit fully inside the card box (no overflow on narrow phones).
    =========================================================================== */
+.gz-game-card { overflow: hidden; }
+.gz-game-card__when-short { display: none; }
+.gz-game-card__when-full { display: inline; }
 @media (max-width: 720px) {
   .gz-schedule-grid { gap: 8px !important; }
   .gz-game-card {
-    padding: 10px 12px !important;
-    gap: 8px !important;
+    padding: 12px 14px !important;
+    gap: 10px !important;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) !important;
   }
-  .gz-game-card__logo { width: 28px !important; height: 28px !important; }
-  .gz-game-card__abbr { font-size: 18px !important; }
+  .gz-game-card__team { min-width: 0 !important; gap: 6px !important; }
+  .gz-game-card__logo { width: 26px !important; height: 26px !important; flex-shrink: 0; }
+  .gz-game-card__abbr { font-size: 17px !important; white-space: nowrap; overflow: hidden; }
   .gz-game-card__score { font-size: 18px !important; }
-  .gz-game-card__center { min-width: 70px !important; }
+  .gz-game-card__center { min-width: 64px !important; }
+  .gz-game-card__when-full { display: none; }
+  .gz-game-card__when-short { display: inline; }
 }

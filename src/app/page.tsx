@@ -56,6 +56,28 @@ function teamSlug(name: string): string {
   return s.replace(/\s+/g, '-');
 }
 
+// Compact 2–3 letter abbreviation for narrow cards (mobile result tiles,
+// hero banner). Mirrors the mapping used on the Schedule page.
+function shortAbbr(team: string): string {
+  const city = getCityName(team).toUpperCase();
+  const map: Record<string, string> = {
+    'NEW YORK': 'NYC',
+    NYC: 'NYC',
+    'LOS ANGELES': 'LA',
+    'LAS VEGAS': 'LV',
+    'SAN ANTONIO': 'SA',
+    ATLANTA: 'ATL',
+    BOSTON: 'BOS',
+    DALLAS: 'DAL',
+    HOUSTON: 'HOU',
+    MIAMI: 'MIA',
+    NASHVILLE: 'NSH',
+    PHILADELPHIA: 'PHI',
+    PHOENIX: 'PHX',
+  };
+  return map[city] ?? city.slice(0, 3);
+}
+
 // ─── Hero: featured fight card + fighter in focus ────────────────────────────
 function FightCardHero({
   featured,
@@ -802,7 +824,8 @@ function WeekendResults({ results }: { results: ResultCard[] }) {
                       color: team1Won ? 'var(--tbl-ink)' : 'var(--tbl-ink-mute)',
                     }}
                   >
-                    {getFullTeamName(teamSlug(r.team1))}
+                    <span className="gz-result-name-full">{getFullTeamName(teamSlug(r.team1))}</span>
+                    <span className="gz-result-name-abbr">{shortAbbr(r.team1)}</span>
                   </div>
                   <div
                     style={{
@@ -883,7 +906,8 @@ function WeekendResults({ results }: { results: ResultCard[] }) {
                       color: !team1Won ? 'var(--tbl-ink)' : 'var(--tbl-ink-mute)',
                     }}
                   >
-                    {getFullTeamName(teamSlug(r.team2))}
+                    <span className="gz-result-name-full">{getFullTeamName(teamSlug(r.team2))}</span>
+                    <span className="gz-result-name-abbr">{shortAbbr(r.team2)}</span>
                   </div>
                   {r.phase && (
                     <div
@@ -926,8 +950,8 @@ function MobileMatchBanner({
 
   const logo1 = getTeamLogoPathByName(team1);
   const logo2 = getTeamLogoPathByName(team2);
-  const abbr1 = teamAbbr(team1);
-  const abbr2 = teamAbbr(team2);
+  const abbr1 = shortAbbr(team1);
+  const abbr2 = shortAbbr(team2);
   const rec1 = teamRecords.get(team1) ?? '';
   const rec2 = teamRecords.get(team2) ?? '';
 

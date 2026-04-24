@@ -193,13 +193,28 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
     [fighterHistory]
   );
 
+  // The TBL women's classes share names with men's (Bantamweight, Featherweight,
+  // Super Lightweight) but compete in their own bracket — surface them as
+  // dedicated "Female X" options in the dropdown so the filter splits cleanly.
+  const FEMALE_CLASSES = useMemo(
+    () => new Set(['Bantamweight', 'Featherweight', 'Super Lightweight']),
+    []
+  );
+
   const weightClasses = useMemo(() => {
     const set = new Set<string>();
     fighters.forEach((f) => {
-      fighterWeightClasses(f).forEach((wc) => set.add(wc));
+      const classes = fighterWeightClasses(f);
+      classes.forEach((wc) => {
+        if (f.gender === 'Female' && FEMALE_CLASSES.has(wc)) {
+          set.add(`Female ${wc}`);
+        } else {
+          set.add(wc);
+        }
+      });
     });
     return Array.from(set).sort();
-  }, [fighters, fighterWeightClasses]);
+  }, [fighters, fighterWeightClasses, FEMALE_CLASSES]);
 
   const teams = useMemo(
     () => Array.from(new Set(fighters.map((f) => f.team).filter(Boolean))).sort(),
@@ -251,7 +266,18 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
     const weekNum = weekFilter ? Number(weekFilter) : null;
     return displayedFighters.filter((f) => {
       if (q && !f.name.toLowerCase().includes(q)) return false;
-      if (weightFilter && !fighterWeightClasses(f).has(weightFilter)) return false;
+      if (weightFilter) {
+        // "Female X" picks female fighters in class X. A bare class name
+        // matches either gender for that class — except the three women's
+        // classes (Bantam / Feather / Super Light), which only match the
+        // men's bracket so the dropdown splits cleanly.
+        const isFemaleOption = weightFilter.startsWith('Female ');
+        const baseClass = isFemaleOption ? weightFilter.slice(7) : weightFilter;
+        const fClasses = fighterWeightClasses(f);
+        if (!fClasses.has(baseClass)) return false;
+        if (isFemaleOption && f.gender !== 'Female') return false;
+        if (!isFemaleOption && FEMALE_CLASSES.has(baseClass) && f.gender === 'Female') return false;
+      }
       if (teamFilter && f.team !== teamFilter) return false;
       if (genderFilter && f.gender !== genderFilter) return false;
       if (weekNum !== null) {
@@ -260,7 +286,7 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
       }
       return true;
     });
-  }, [displayedFighters, search, weightFilter, teamFilter, genderFilter, weekFilter, fighterWeightClasses, fighterHistory, matchIndexToWeek]);
+  }, [displayedFighters, search, weightFilter, teamFilter, genderFilter, weekFilter, fighterWeightClasses, fighterHistory, matchIndexToWeek, FEMALE_CLASSES]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -347,7 +373,7 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
               <div className="fighters-mobile-row__body">
                 <div className="fighters-mobile-row__name">{f.name}</div>
                 <div className="fighters-mobile-row__meta">
-                  {f.weightClass} · {f.record} · {(f.winPct * 100).toFixed(0)}%
+                  {f.weightClass} · {f.record} · WAR {f.war.toFixed(2)}
                 </div>
               </div>
               <div className="fighters-mobile-row__value">

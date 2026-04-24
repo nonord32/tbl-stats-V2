@@ -38,15 +38,35 @@ function short(team: string): string {
   return map[city] ?? city.slice(0, 3);
 }
 
-function formatWhen(e: ScheduleEntry): string {
-  try {
-    const d = new Date(e.date);
-    const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
-    const md = `${d.getMonth() + 1}/${d.getDate()}`;
-    return e.time ? `${weekday} ${md} · ${e.time}` : `${weekday} ${md}`;
-  } catch {
-    return e.time ? `${e.date} · ${e.time}` : e.date;
+// Parse date strings that may or may not include a year ("4/24", "4/24/2026",
+// "2026-04-24"). new Date("4/24") is Invalid in V8, so we fall back to a
+// manual parser before giving up.
+function parseScheduleDate(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  const direct = new Date(dateStr);
+  if (!isNaN(direct.getTime())) return direct;
+  const us = dateStr.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?$/);
+  if (us) {
+    const year = us[3] ? parseInt(us[3]) : 2026;
+    const d = new Date(year, parseInt(us[1]) - 1, parseInt(us[2]));
+    if (!isNaN(d.getTime())) return d;
   }
+  return null;
+}
+
+function formatWhen(e: ScheduleEntry): string {
+  const d = parseScheduleDate(e.date);
+  if (!d) return e.time ? `${e.date} · ${e.time}` : e.date;
+  const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
+  const md = `${d.getMonth() + 1}/${d.getDate()}`;
+  return e.time ? `${weekday} ${md} · ${e.time}` : `${weekday} ${md}`;
+}
+
+// Just the kickoff time (e.g. "7:00 PM"), with the noisy "Local" suffix
+// stripped — used in the compact mobile schedule cards.
+function formatTimeOnly(time: string | undefined): string {
+  if (!time) return '';
+  return time.replace(/\s*local\s*$/i, '').trim();
 }
 
 interface GameCardProps {
@@ -133,6 +153,7 @@ function GameCard({ entry, score }: GameCardProps) {
         </div>
         {entry.time && !isCompleted && !isCancelled && (
           <div
+            className="gz-game-card__when"
             style={{
               fontSize: 9,
               letterSpacing: '0.14em',
@@ -141,7 +162,8 @@ function GameCard({ entry, score }: GameCardProps) {
               color: mutedFg,
             }}
           >
-            {formatWhen(entry)}
+            <span className="gz-game-card__when-full">{formatWhen(entry)}</span>
+            <span className="gz-game-card__when-short">{formatTimeOnly(entry.time)}</span>
           </div>
         )}
       </div>
