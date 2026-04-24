@@ -2561,3 +2561,101 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
   color: inherit;
   cursor: pointer;
 }
+
+/* ── Mobile chrome (<1024px) ─────────────────────────────────────────────
+   Hide the desktop top-nav link list on mobile; rely on the bottom tab
+   bar for primary navigation. Reserve body space for the fixed tab bar. */
+@media (max-width: 1023px) {
+  .tbl-top-nav__links { display: none; }
+  .tbl-top-nav {
+    padding: 10px 18px;
+    border-bottom: 2px solid var(--tbl-ink);
+    gap: 12px;
+  }
+  .tbl-top-nav__wordmark { font-size: 20px; letter-spacing: -0.01em; }
+  .tbl-top-nav__logo { height: 28px; }
+  .tbl-top-nav__tagline { font-size: 9px; letter-spacing: 0.16em; }
+
+  /* Leave room for the fixed bottom tab bar + iOS home indicator. */
+  body {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+}
+
+/* Fixed bottom tab bar — only shown on mobile */
+.tbl-mobile-tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  background: var(--tbl-paper);
+  border-top: 2px solid var(--tbl-ink);
+  display: none;
+  grid-template-columns: repeat(5, 1fr);
+  padding: 8px 4px calc(10px + env(safe-area-inset-bottom));
+}
+@media (max-width: 1023px) {
+  .tbl-mobile-tab-bar { display: grid; }
+}
+.tbl-mobile-tab-bar__tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 4px 0;
+  text-decoration: none;
+  color: var(--tbl-ink-soft);
+  font-family: var(--tbl-font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 500;
+  min-height: 44px;
+}
+.tbl-mobile-tab-bar__tab.is-active {
+  color: var(--tbl-accent);
+  font-weight: 700;
+}
+.tbl-mobile-tab-bar__tab:hover { text-decoration: none; color: var(--tbl-accent); }
+
+/* Pick'em page: stack the header and per-row grid on narrow phones so the
+   stat block drops below the title and the team panels stack. */
+@media (max-width: 640px) {
+  .gz-picks-header {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+    align-items: flex-start !important;
+    padding: 26px 18px 22px !important;
+  }
+  .gz-picks-header .tbl-display { font-size: 48px !important; }
+
+  .gz-pick-row__grid {
+    grid-template-columns: 1fr !important;
+  }
+  .gz-pick-row__grid > div:first-child {
+    border-right: none !important;
+    border-bottom: 1px solid var(--tbl-ink);
+    padding: 14px 16px !important;
+    flex-direction: row !important;
+    align-items: baseline !important;
+    gap: 10px !important;
+    flex-wrap: wrap;
+  }
+  .gz-pick-row__grid > button {
+    border-right: none !important;
+  }
+  .gz-pick-row__grid > button + button {
+    border-top: 1px solid var(--tbl-ink);
+  }
+}
+
+/* Pick'em promo card: give the CTA a full-width target on mobile */
+@media (max-width: 640px) {
+  .gz-pickem-card > :last-child {
+    width: 100%;
+    text-align: center;
+  }
+  .gz-pickem-card .tbl-display { font-size: 22px !important; }
+}

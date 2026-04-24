@@ -7,6 +7,7 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { TopStrip } from '@/components/chrome/TopStrip';
 import { TopNav } from '@/components/chrome/TopNav';
+import { MobileTabBar } from '@/components/chrome/MobileTabBar';
 import { GazetteFooter } from '@/components/chrome/GazetteFooter';
 
 export const viewport: Viewport = {
@@ -62,6 +63,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <TopNav />
           <main>{children}</main>
           <GazetteFooter />
+          <MobileTabBar />
         </ThemeProvider>
         <Analytics />
         <SpeedInsights />
