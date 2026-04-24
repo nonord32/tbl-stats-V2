@@ -8,7 +8,7 @@ import Link from 'next/link';
 import type { FighterStat, FightHistory } from '@/types';
 import { compareWeightClass } from '@/lib/weightClasses';
 import { PageHeader } from '@/components/chrome/PageHeader';
-import { getTeamLogoPathByName } from '@/lib/teams';
+import { getTeamLogoPathByName, getCityName } from '@/lib/teams';
 
 interface Props {
   fighters: FighterStat[];
@@ -169,7 +169,7 @@ function CategoryList({ cat, fighters }: { cat: Category; fighters: FighterStat[
           const val = f[cat.key];
           const pct = Math.min(100, (Math.abs(val) / maxAbs) * 100);
           const isTop = i === 0;
-          const teamAbbr = (f.team.split(' ')[0] ?? f.team).toUpperCase();
+          const teamLabel = getCityName(f.team).toUpperCase();
           const logo = getTeamLogoPathByName(f.team);
           return (
             <Link
@@ -216,7 +216,7 @@ function CategoryList({ cat, fighters }: { cat: Category; fighters: FighterStat[
                       letterSpacing: '0.1em',
                     }}
                   >
-                    · {teamAbbr}
+                    · {teamLabel}
                   </span>
                 </div>
                 <div

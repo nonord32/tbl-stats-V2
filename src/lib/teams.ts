@@ -69,3 +69,16 @@ export function getTeamLogoPathByName(name: string): string {
   const key = nameKey(name);
   return key ? `/logos/${key}.png` : '';
 }
+
+/** Just the city portion of the team, with proper casing.
+ *  "las vegas" / "Las Vegas Hustle" → "Las Vegas"; "nyc" → "NYC".
+ *  Falls back to the input string when the team isn't recognized. */
+export function getCityName(name: string): string {
+  const key = nameKey(name);
+  if (!key) return name;
+  if (key === 'nyc') return 'NYC';
+  return key
+    .split('-')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}

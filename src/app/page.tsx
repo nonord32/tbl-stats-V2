@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getAllData, extractUniqueMatches } from '@/lib/data';
 import { getDisplayedCurrentWeek, scheduleForWeek } from '@/lib/week';
-import { getFullTeamName, getTeamLogoPathByName } from '@/lib/teams';
+import { getFullTeamName, getTeamLogoPathByName, getCityName } from '@/lib/teams';
 import { HallOfChampions } from '@/components/home/HallOfChampions';
 import type { FighterStat, ScheduleEntry, TeamStanding, MatchResult } from '@/types';
 
@@ -516,7 +516,7 @@ function TopSix({ fighters }: { fighters: FighterStat[] }) {
                     textTransform: 'uppercase',
                   }}
                 >
-                  {getFullTeamName(slug).split(' ')[0]} · {f.weightClass}
+                  {getCityName(f.team)} · {f.weightClass}
                 </div>
                 <div
                   style={{
@@ -928,18 +928,28 @@ export default async function HomePage() {
       a.team.localeCompare(b.team)
   );
 
+  // Map each completed match back to its schedule week so result cards can
+  // show "Week 3" etc. instead of the boxScore's scoring-phase label.
+  const weekByMatchIndex = new Map<number, number>();
+  schedule.forEach((s) => {
+    if (s.matchIndex != null) weekByMatchIndex.set(s.matchIndex, s.week);
+  });
+
   // Real match results from the teamMatches data (same source the /results
   // page uses), sorted newest-first and capped at 6 cards.
   const completed: ResultCard[] = extractUniqueMatches(teamMatches)
     .slice(0, 6)
-    .map((m: MatchResult) => ({
-      date: m.date,
-      team1: m.team1,
-      team2: m.team2,
-      s1: m.score1,
-      s2: m.score2,
-      phase: m.boxScore?.[0]?.phase ? `Week ${m.boxScore[0].phase}` : undefined,
-    }));
+    .map((m: MatchResult) => {
+      const wk = weekByMatchIndex.get(m.matchIndex);
+      return {
+        date: m.date,
+        team1: m.team1,
+        team2: m.team2,
+        s1: m.score1,
+        s2: m.score2,
+        phase: wk != null ? `Week ${wk}` : undefined,
+      };
+    });
 
   const jsonLd = {
     '@context': 'https://schema.org',
