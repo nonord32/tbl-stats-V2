@@ -1,5 +1,5 @@
 'use client';
-// src/app/signup/page.tsx
+// src/app/forgot-password/page.tsx
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -24,32 +24,22 @@ const buttonStyle: React.CSSProperties = {
   padding: '12px 16px',
 };
 
-export default function SignupPage() {
+export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email || !password) return;
+    if (!email) return;
     setSubmitting(true);
-    setError(null);
     const supabase = createClient();
-    const { error: signUpError } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=/picks`,
-      },
+    // Intentionally ignore error so the success state doesn't leak whether
+    // the email exists. Errors are still surfaced via Supabase logs.
+    await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
     });
-    if (signUpError) {
-      setError(signUpError.message);
-      setSubmitting(false);
-      return;
-    }
-    setSubmittedEmail(email.trim());
+    setSubmitted(true);
     setSubmitting(false);
   }
 
@@ -60,21 +50,20 @@ export default function SignupPage() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/tbl-logo.png" alt="TBL" style={{ width: 56, height: 56, objectFit: 'contain', margin: '0 auto 16px' }} />
           <h1 style={{ fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 700, color: 'var(--text-heading)', marginBottom: 6 }}>
-            Create account
+            Reset password
           </h1>
           <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-            TBL Pick&apos;em · 2026
+            We&apos;ll email you a link
           </p>
         </div>
 
-        {submittedEmail ? (
+        {submitted ? (
           <div style={{ textAlign: 'left' }}>
             <p style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text)', marginBottom: 8 }}>
               Check your email.
             </p>
             <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-              We sent a confirmation link to <strong style={{ color: 'var(--text)' }}>{submittedEmail}</strong>.
-              Click it to finish creating your account.
+              If an account exists for that address, we just sent a link to reset your password.
             </p>
             <div style={{ marginTop: 20, textAlign: 'center' }}>
               <Link href="/login" style={linkStyle}>Back to sign in</Link>
@@ -93,34 +82,18 @@ export default function SignupPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={submitting}
               />
-              <input
-                type="password"
-                autoComplete="new-password"
-                required
-                minLength={6}
-                placeholder="Password (min 6 characters)"
-                className="auth-input"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={submitting}
-              />
-              {error && (
-                <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--result-l)', margin: 0 }}>
-                  {error}
-                </p>
-              )}
               <button
                 type="submit"
-                disabled={submitting || !email || !password}
+                disabled={submitting || !email}
                 className="btn"
                 style={{ ...buttonStyle, opacity: submitting ? 0.7 : 1, marginTop: 4 }}
               >
-                {submitting ? 'Creating account…' : 'Create account'}
+                {submitting ? 'Sending…' : 'Send reset link'}
               </button>
             </form>
 
             <div style={{ marginTop: 20 }}>
-              <Link href="/login" style={linkStyle}>Already have an account? Sign in</Link>
+              <Link href="/login" style={linkStyle}>Back to sign in</Link>
             </div>
           </>
         )}
