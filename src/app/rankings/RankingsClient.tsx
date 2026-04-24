@@ -32,9 +32,9 @@ interface Category {
 
 const CATEGORIES: Category[] = [
   { key: 'war',    label: 'Wins Above Replacement', format: (v) => v.toFixed(2) },
-  { key: 'nppr',   label: 'Net Points Per Round',   format: (v) => v.toFixed(3) },
-  { key: 'netPts', label: 'Net Points',             format: (v) => (v >= 0 ? '+' : '') + v.toFixed(1) },
-  { key: 'winPct', label: 'Win Percentage',         format: (v) => (v * 100).toFixed(1) + '%' },
+  { key: 'nppr',   label: 'Net Points Per Round',   format: (v) => v.toFixed(2) },
+  { key: 'netPts', label: 'Net Points',             format: (v) => (v >= 0 ? '+' : '') + v.toFixed(0) },
+  { key: 'winPct', label: 'Win Percentage',         format: (v) => (v * 100).toFixed(0) + '%' },
 ];
 
 export function RankingsClient({ fighters, lastUpdated }: Props) {

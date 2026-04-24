@@ -75,9 +75,9 @@ function FighterModal({
             {[
               { label: 'Record', value: fighter.record },
               { label: 'WAR', value: fighter.war.toFixed(2) },
-              { label: 'NPPR', value: fighter.nppr.toFixed(3) },
-              { label: 'Net Pts', value: fighter.netPts.toFixed(1) },
-              { label: 'Win%', value: `${(fighter.winPct * 100).toFixed(1)}%` },
+              { label: 'NPPR', value: fighter.nppr.toFixed(2) },
+              { label: 'Net Pts', value: `${fighter.netPts >= 0 ? '+' : ''}${fighter.netPts.toFixed(0)}` },
+              { label: 'Win%', value: `${(fighter.winPct * 100).toFixed(0)}%` },
               { label: 'Rounds', value: fighter.rounds },
             ].map((s) => (
               <div className="stat-box" key={s.label}>
@@ -126,7 +126,7 @@ function FighterModal({
                         )}
                       </td>
                       <td className="num-cell mono" style={{ color: h.netPts >= 0 ? 'var(--result-w)' : 'var(--result-l)' }}>
-                        {h.netPts >= 0 ? '+' : ''}{h.netPts.toFixed(1)}
+                        {h.netPts >= 0 ? '+' : ''}{h.netPts.toFixed(0)}
                       </td>
                     </tr>
                   ))}
@@ -356,10 +356,10 @@ export function FightersClient({ fighters, fighterHistory, seoText, lastUpdated 
                       <td className="col-hide-mobile" style={{ fontSize: 12 }}>{f.gender}</td>
                       <td className="num-cell mono col-record">{f.record}</td>
                       <td className="num-cell mono col-war" style={{ color: f.netPts >= 0 ? 'var(--result-w)' : 'var(--result-l)' }}>
-                        {f.netPts >= 0 ? '+' : ''}{f.netPts.toFixed(1)}
+                        {f.netPts >= 0 ? '+' : ''}{f.netPts.toFixed(0)}
                       </td>
-                      <td className="num-cell mono col-hide-mobile">{f.nppr.toFixed(3)}</td>
-                      <td className="num-cell mono col-hide-mobile">{(f.winPct * 100).toFixed(1)}%</td>
+                      <td className="num-cell mono col-hide-mobile">{f.nppr.toFixed(2)}</td>
+                      <td className="num-cell mono col-hide-mobile">{(f.winPct * 100).toFixed(0)}%</td>
                       <td className="num-cell mono col-hide-mobile">{f.war.toFixed(2)}</td>
                       <td className="num-cell mono col-hide-mobile">{f.rounds}</td>
                       <td>{streak && <StreakBadge streak={streak} />}</td>

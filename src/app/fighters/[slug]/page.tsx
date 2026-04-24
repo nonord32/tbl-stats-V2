@@ -29,7 +29,7 @@ export async function generateMetadata({
   const metaTeamName = getFullTeamName(tSlug);
   return {
     title: `${fighter.name} — ${metaTeamName}`,
-    description: `${fighter.name} TBL stats: ${fighter.record} record, WAR ${fighter.war.toFixed(2)}, NPPR ${fighter.nppr.toFixed(3)}, Net Points ${fighter.netPts.toFixed(1)}. ${fighter.weightClass} · ${fighter.gender}.`,
+    description: `${fighter.name} TBL stats: ${fighter.record} record, WAR ${fighter.war.toFixed(2)}, NPPR ${fighter.nppr.toFixed(2)}, Net Points ${fighter.netPts.toFixed(0)}. ${fighter.weightClass} · ${fighter.gender}.`,
     openGraph: {
       url: `https://tblstats.com/fighters/${params.slug}`,
       title: `${fighter.name} | TBL Stats`,
@@ -99,12 +99,12 @@ export default async function FighterPage({
   const heroStats = [
     { l: 'Record', v: fighter.record },
     { l: 'WAR', v: fighter.war.toFixed(2), accent: true },
-    { l: 'NPPR', v: fighter.nppr.toFixed(3) },
+    { l: 'NPPR', v: fighter.nppr.toFixed(2) },
     {
       l: 'Net Pts',
-      v: `${fighter.netPts >= 0 ? '+' : ''}${fighter.netPts.toFixed(1)}`,
+      v: `${fighter.netPts >= 0 ? '+' : ''}${fighter.netPts.toFixed(0)}`,
     },
-    { l: 'Win%', v: `${(fighter.winPct * 100).toFixed(1)}%` },
+    { l: 'Win%', v: `${(fighter.winPct * 100).toFixed(0)}%` },
     { l: 'Rounds', v: String(fighter.rounds) },
   ];
 
@@ -409,7 +409,7 @@ export default async function FighterPage({
                           }}
                         >
                           {h.netPts >= 0 ? '+' : ''}
-                          {h.netPts.toFixed(1)}
+                          {h.netPts.toFixed(0)}
                         </td>
                       </tr>
                     );

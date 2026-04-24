@@ -251,7 +251,7 @@ function FightCardHero({
                   style={{ fontSize: 80, lineHeight: 0.9, color: 'var(--tbl-accent)' }}
                 >
                   {focus.netPts >= 0 ? '+' : ''}
-                  {focus.netPts.toFixed(1)}
+                  {focus.netPts.toFixed(0)}
                 </div>
                 <div
                   style={{
@@ -281,8 +281,8 @@ function FightCardHero({
               {[
                 { l: 'REC', v: focus.record },
                 { l: 'WAR', v: focus.war.toFixed(2) },
-                { l: 'NPPR', v: focus.nppr.toFixed(3) },
-                { l: 'WIN%', v: `${(focus.winPct * 100).toFixed(1)}` },
+                { l: 'NPPR', v: focus.nppr.toFixed(2) },
+                { l: 'WIN%', v: `${(focus.winPct * 100).toFixed(0)}` },
                 { l: 'RNDS', v: String(focus.rounds) },
               ].map((s, i) => (
                 <div
@@ -546,7 +546,7 @@ function TopSix({ fighters }: { fighters: FighterStat[] }) {
                         color: isTop ? 'var(--tbl-accent-bright)' : 'var(--tbl-accent)',
                       }}
                     >
-                      {f.netPts >= 0 ? '+' : ''}{f.netPts.toFixed(1)}
+                      {f.netPts >= 0 ? '+' : ''}{f.netPts.toFixed(0)}
                     </div>
                   </div>
                   <div>
