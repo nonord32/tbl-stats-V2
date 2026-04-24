@@ -916,8 +916,16 @@ export default async function HomePage() {
   const focus = fightersByNetPts[0] ?? null;
   const topSix = fightersByNetPts.slice(0, 6);
 
+  // Tiebreakers (in order): wins ↓, losses ↑, point differential ↓, points for ↓,
+  // then name asc as a stable final key. Mirrors the Teams page logic so the home
+  // snippet and the full standings agree row-for-row.
   const topTeams = [...teams].sort(
-    (a, b) => b.wins - a.wins || b.diff - a.diff
+    (a, b) =>
+      b.wins - a.wins ||
+      a.losses - b.losses ||
+      b.diff - a.diff ||
+      b.pf - a.pf ||
+      a.team.localeCompare(b.team)
   );
 
   // Real match results from the teamMatches data (same source the /results

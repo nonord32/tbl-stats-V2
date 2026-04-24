@@ -1,82 +1,63 @@
 'use client';
 // src/app/rankings/RankingsClient.tsx
+// Gazette: four categories (WAR, NPPR, Net Pts, Win%) — top-5 leaders in each,
+// filterable by weight class and gender.
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { FighterStat, FightHistory } from '@/types';
-import { toSlug } from '@/lib/data';
-import { getFighterWeightClasses } from '@/lib/fighters';
 import { compareWeightClass } from '@/lib/weightClasses';
 import { PageHeader } from '@/components/chrome/PageHeader';
-import {
-  getFullTeamName,
-  getTeamColorByName,
-  getTeamLogoPathByName,
-} from '@/lib/teams';
+import { getTeamLogoPathByName } from '@/lib/teams';
 
 interface Props {
   fighters: FighterStat[];
+  // Accepted but currently unused; kept for future per-weight computation.
   fighterHistory: Record<string, FightHistory[]>;
   lastUpdated: string;
 }
 
-type Gender = 'Male' | 'Female';
+type Gender = 'All' | 'Male' | 'Female';
 
-// Minimum rounds a fighter must have fought to qualify. Keeps low-sample
-// fighters off the top of the list.
+// Fighters need at least this many rounds to appear in rankings, so a 1-0
+// fighter with one round doesn't beat out a 3-1 fighter on net points.
 const MIN_ROUNDS = 2;
+const TOP_N = 5;
 
-function classAnchor(wc: string) {
-  return `class-${toSlug(wc)}`;
+interface Category {
+  key: 'war' | 'nppr' | 'netPts' | 'winPct';
+  label: string;
+  format: (v: number) => string;
 }
 
-export function RankingsClient({ fighters, fighterHistory, lastUpdated }: Props) {
-  const [gender, setGender] = useState<Gender>('Male');
+const CATEGORIES: Category[] = [
+  { key: 'war',    label: 'Wins Above Replacement', format: (v) => v.toFixed(2) },
+  { key: 'nppr',   label: 'Net Points Per Round',   format: (v) => v.toFixed(3) },
+  { key: 'netPts', label: 'Net Points',             format: (v) => (v >= 0 ? '+' : '') + v.toFixed(1) },
+  { key: 'winPct', label: 'Win Percentage',         format: (v) => (v * 100).toFixed(1) + '%' },
+];
+
+export function RankingsClient({ fighters, lastUpdated }: Props) {
+  const [gender, setGender] = useState<Gender>('All');
   const [weightClass, setWeightClass] = useState<string>('All');
 
-  const classToFighters = useMemo(() => {
-    const map = new Map<string, FighterStat[]>();
-    fighters.forEach((f) => {
-      if (f.gender !== gender) return;
-      if (f.rounds < MIN_ROUNDS) return;
-      const history = fighterHistory[f.slug] || [];
-      const classes = getFighterWeightClasses(f, history);
-      classes.forEach((wc) => {
-        const bucket = map.get(wc) ?? [];
-        bucket.push(f);
-        map.set(wc, bucket);
-      });
+  const weightClasses = useMemo(() => {
+    const set = new Set<string>();
+    fighters.forEach((f) => f.weightClass && set.add(f.weightClass));
+    return Array.from(set).sort(compareWeightClass);
+  }, [fighters]);
+
+  const filtered = useMemo(() => {
+    return fighters.filter((f) => {
+      if (f.rounds < MIN_ROUNDS) return false;
+      if (gender !== 'All' && f.gender !== gender) return false;
+      if (weightClass !== 'All' && f.weightClass !== weightClass) return false;
+      return true;
     });
-    map.forEach((list) => list.sort((a, b) => b.netPts - a.netPts));
-    return map;
-  }, [fighters, fighterHistory, gender]);
-
-  const orderedClasses = useMemo(
-    () => Array.from(classToFighters.keys()).sort(compareWeightClass),
-    [classToFighters]
-  );
-
-  // Keep the class filter valid when switching gender.
-  const visibleClasses = weightClass === 'All'
-    ? orderedClasses
-    : orderedClasses.filter((wc) => wc === weightClass);
+  }, [fighters, gender, weightClass]);
 
   const filterSlot = (
     <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-      <div className="gz-seg" role="tablist" aria-label="Gender">
-        {(['Male', 'Female'] as Gender[]).map((g) => (
-          <button
-            key={g}
-            type="button"
-            role="tab"
-            aria-selected={gender === g}
-            className={`gz-seg__btn${gender === g ? ' is-active' : ''}`}
-            onClick={() => setGender(g)}
-          >
-            {g === 'Male' ? 'Men' : 'Women'}
-          </button>
-        ))}
-      </div>
       <label className="gz-filter">
         <span className="gz-filter__label">Weight</span>
         <select
@@ -85,9 +66,21 @@ export function RankingsClient({ fighters, fighterHistory, lastUpdated }: Props)
           onChange={(e) => setWeightClass(e.target.value)}
         >
           <option value="All">All</option>
-          {orderedClasses.map((wc) => (
+          {weightClasses.map((wc) => (
             <option key={wc} value={wc}>{wc}</option>
           ))}
+        </select>
+      </label>
+      <label className="gz-filter">
+        <span className="gz-filter__label">Gender</span>
+        <select
+          className="gz-filter__select"
+          value={gender}
+          onChange={(e) => setGender(e.target.value as Gender)}
+        >
+          <option value="All">All</option>
+          <option value="Male">Men</option>
+          <option value="Female">Women</option>
         </select>
       </label>
     </div>
@@ -96,123 +89,159 @@ export function RankingsClient({ fighters, fighterHistory, lastUpdated }: Props)
   return (
     <>
       <PageHeader
-        eyebrow="The Record"
-        title="Weight Class Rankings"
-        subtitle={`Ranked by net points · minimum ${MIN_ROUNDS} rounds to qualify${lastUpdated ? ` · updated ${lastUpdated}` : ''}`}
+        eyebrow="Pound for Pound"
+        title="Fighter Rankings"
+        subtitle={`Four Categories · Top Five in Each${lastUpdated ? ` · Updated ${lastUpdated}` : ''}`}
         right={filterSlot}
       />
 
-      <div className="tbl-page-body">
-        {visibleClasses.length === 0 && (
-          <div className="card" style={{ padding: 24, textAlign: 'center' }}>
-            <p style={{ fontFamily: 'var(--tbl-font-mono)', fontSize: 13, color: 'var(--tbl-ink-soft)' }}>
-              No {gender === 'Male' ? 'men' : 'women'} have fought enough rounds to qualify yet.
-            </p>
+      <div
+        className="gz-rank-grid"
+        style={{
+          padding: '26px 32px 36px',
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          columnGap: 40,
+          rowGap: 32,
+        }}
+      >
+        {filtered.length === 0 ? (
+          <div
+            style={{
+              gridColumn: '1 / -1',
+              padding: 24,
+              textAlign: 'center',
+              border: '1.5px solid var(--tbl-ink)',
+              background: 'var(--tbl-paper)',
+              fontFamily: 'var(--tbl-font-mono)',
+              fontSize: 12,
+              color: 'var(--tbl-ink-soft)',
+            }}
+          >
+            No qualifying fighters for this filter combination.
           </div>
+        ) : (
+          CATEGORIES.map((cat) => (
+            <CategoryList key={cat.key} cat={cat} fighters={filtered} />
+          ))
         )}
-
-        {visibleClasses.map((wc) => {
-          const all = classToFighters.get(wc) ?? [];
-          const champion = all[0];
-          const contenders = all.slice(1);
-
-          return (
-            <section
-              key={wc}
-              id={classAnchor(wc)}
-              className="gz-rank-section"
-              aria-labelledby={`heading-${classAnchor(wc)}`}
-            >
-              <div className="tbl-section-rule">
-                <span id={`heading-${classAnchor(wc)}`}>
-                  {wc} · {all.length} {all.length === 1 ? 'Fighter' : 'Fighters'}
-                </span>
-                <span>Ranked by Net Points</span>
-              </div>
-
-              {champion && <ChampionCard rank={1} f={champion} />}
-              {contenders.map((f, i) => (
-                <ContenderRow key={f.slug} rank={i + 2} f={f} />
-              ))}
-            </section>
-          );
-        })}
       </div>
     </>
   );
 }
 
-function ChampionCard({ rank, f }: { rank: number; f: FighterStat }) {
-  const teamColor = getTeamColorByName(f.team) || 'var(--tbl-accent)';
-  const logo = getTeamLogoPathByName(f.team);
-  const teamFull = getFullTeamName(toSlug(f.team)) || f.team;
-  const netPtsColor = f.netPts >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)';
+function CategoryList({ cat, fighters }: { cat: Category; fighters: FighterStat[] }) {
+  const sorted = [...fighters]
+    .sort((a, b) => b[cat.key] - a[cat.key])
+    .slice(0, TOP_N);
+  if (sorted.length === 0) return null;
+  const topVal = sorted[0][cat.key];
+  const maxAbs = Math.max(
+    Math.abs(topVal),
+    ...sorted.map((f) => Math.abs(f[cat.key]))
+  ) || 1;
 
   return (
-    <Link href={`/fighters/${f.slug}`} className="gz-rank-champ">
-      <span className="gz-rank-champ__stripe" style={{ background: teamColor }} />
-      <div className="gz-rank-champ__inner">
-        <div className="gz-rank-champ__left">
-          <div className="gz-rank-champ__rank">#{rank}</div>
-          <div>
-            <div className="gz-rank-champ__name">{f.name}</div>
-            <div className="gz-rank-champ__team">
-              {logo && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={logo}
-                  alt={teamFull}
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
+    <div>
+      <div className="tbl-eyebrow">{cat.label}</div>
+      <div
+        className="tbl-display"
+        style={{ fontSize: 30, lineHeight: 1, marginTop: 4, marginBottom: 14 }}
+      >
+        Leaders
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        {sorted.map((f, i) => {
+          const val = f[cat.key];
+          const pct = Math.min(100, (Math.abs(val) / maxAbs) * 100);
+          const isTop = i === 0;
+          const teamAbbr = (f.team.split(' ')[0] ?? f.team).toUpperCase();
+          const logo = getTeamLogoPathByName(f.team);
+          return (
+            <Link
+              key={f.slug}
+              href={`/fighters/${f.slug}`}
+              className="gz-cat-row"
+              aria-label={`${f.name}, ${cat.label}: ${cat.format(val)}`}
+            >
+              <div
+                className="tbl-display"
+                style={{
+                  fontSize: 20,
+                  fontWeight: 900,
+                  color: isTop ? 'var(--tbl-accent)' : 'var(--tbl-ink-soft)',
+                }}
+              >
+                {i + 1}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  {logo && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={logo}
+                      alt=""
+                      style={{ width: 20, height: 20, objectFit: 'contain', flexShrink: 0 }}
+                    />
+                  )}
+                  <span
+                    className="tbl-display"
+                    style={{
+                      fontSize: 15,
+                      fontWeight: isTop ? 900 : 700,
+                      color: 'var(--tbl-ink)',
+                    }}
+                  >
+                    {f.name}
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: 'var(--tbl-font-mono)',
+                      fontSize: 10,
+                      color: 'var(--tbl-ink-soft)',
+                      letterSpacing: '0.1em',
+                    }}
+                  >
+                    · {teamAbbr}
+                  </span>
+                </div>
+                <div
+                  style={{
+                    marginTop: 4,
+                    height: 6,
+                    background: 'rgba(20,17,11,0.08)',
+                    position: 'relative',
                   }}
-                />
-              )}
-              <span>{teamFull}</span>
-            </div>
-          </div>
-        </div>
-        <div className="gz-rank-champ__stats">
-          <div className="gz-rank-champ__netpts" style={{ color: netPtsColor }}>
-            {f.netPts >= 0 ? '+' : ''}
-            {f.netPts.toFixed(1)}
-          </div>
-          <div className="gz-rank-champ__record">
-            {f.record} · {(f.winPct * 100).toFixed(0)}% wins
-          </div>
-        </div>
+                  aria-hidden="true"
+                >
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: 0,
+                      top: 0,
+                      height: '100%',
+                      width: `${pct}%`,
+                      background: isTop ? 'var(--tbl-accent)' : 'var(--tbl-ink)',
+                    }}
+                  />
+                </div>
+              </div>
+              <div
+                className="tbl-display"
+                style={{
+                  fontSize: 22,
+                  fontWeight: 900,
+                  color: isTop ? 'var(--tbl-accent)' : 'var(--tbl-ink)',
+                  minWidth: 72,
+                  textAlign: 'right',
+                }}
+              >
+                {cat.format(val)}
+              </div>
+            </Link>
+          );
+        })}
       </div>
-    </Link>
-  );
-}
-
-function ContenderRow({ rank, f }: { rank: number; f: FighterStat }) {
-  const logo = getTeamLogoPathByName(f.team);
-  const teamFull = getFullTeamName(toSlug(f.team)) || f.team;
-  const netPtsColor = f.netPts >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)';
-
-  return (
-    <Link href={`/fighters/${f.slug}`} className="gz-rank-row">
-      <span className="gz-rank-row__rank">{rank}</span>
-      {logo && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={logo}
-          alt={teamFull}
-          className="gz-rank-row__logo"
-          onError={(e) => {
-            (e.target as HTMLImageElement).style.display = 'none';
-          }}
-        />
-      )}
-      <div className="gz-rank-row__names">
-        <span className="gz-rank-row__name">{f.name}</span>
-        <span className="gz-rank-row__team">{teamFull}</span>
-      </div>
-      <span className="gz-rank-row__record">{f.record}</span>
-      <span className="gz-rank-row__netpts" style={{ color: netPtsColor }}>
-        {f.netPts >= 0 ? '+' : ''}
-        {f.netPts.toFixed(1)}
-      </span>
-    </Link>
+    </div>
   );
 }

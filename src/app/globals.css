@@ -2459,3 +2459,48 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
   .gz-rank-row { padding: 10px 12px; gap: 10px; }
   .gz-rank-row__record { display: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Gazette — category leaderboard row (used on Rankings 2x2 grid)
+   =========================================================================== */
+.gz-cat-row {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px dotted rgba(20,17,11,0.3);
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.1s;
+}
+.gz-cat-row:hover {
+  background: rgba(20,17,11,0.03);
+  text-decoration: none;
+  color: inherit;
+}
+
+@media (max-width: 900px) {
+  .gz-rank-grid { grid-template-columns: 1fr !important; column-gap: 0 !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Gazette — fighter profile responsive
+   =========================================================================== */
+@media (max-width: 900px) {
+  .gz-fighter-hero { grid-template-columns: 1fr !important; align-items: flex-start !important; }
+  .gz-fighter-hero .gz-hero-stats {
+    border-left: none !important;
+    padding-left: 0 !important;
+    border-top: 2px solid var(--tbl-ink);
+    padding-top: 14px !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    width: 100%;
+  }
+  .gz-fighter-body { grid-template-columns: 1fr !important; }
+  .gz-fighter-left { border-right: none !important; border-bottom: 1px solid rgba(20,17,11,0.2); }
+}
+@media (max-width: 540px) {
+  .gz-fighter-hero .tbl-display { font-size: 56px !important; }
+  .gz-fighter-hero .gz-hero-stats { grid-template-columns: repeat(2, 1fr) !important; }
+}
