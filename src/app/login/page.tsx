@@ -1,7 +1,7 @@
 'use client';
 // src/app/login/page.tsx
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 
@@ -26,16 +26,17 @@ const buttonStyle: React.CSSProperties = {
 };
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [redirectingGoogle, setRedirectingGoogle] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('error') === 'auth_callback_failed') {
+    const code = params.get('error');
+    if (code === 'auth_callback_failed') {
       setError('Sign-in failed. Try again.');
+    } else if (code) {
+      setError(decodeURIComponent(code));
     }
   }, []);
 
@@ -49,33 +50,9 @@ export default function LoginPage() {
     });
   }
 
-  async function handleEmailSignIn(e: React.FormEvent) {
-    e.preventDefault();
-    if (!email || !password) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password }),
-      });
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        setError(json.error || 'Sign-in failed. Try again.');
-        setSubmitting(false);
-        return;
-      }
-    } catch {
-      setError('Network error. Please try again.');
-      setSubmitting(false);
-      return;
-    }
-    // Full reload (not router.push) so the server gets the just-set cookies
-    // on the next request — works around iOS Safari cookie-handoff quirks.
-    window.location.href = '/picks';
-  }
-
+  // Form is a normal POST to /api/auth/login. The route handler responds
+  // with a 303 redirect (success → /picks, failure → /login?error=…) and
+  // the browser follows it with the freshly-set auth cookies attached.
   return (
     <main className="auth-page">
       <div className="auth-form card" style={{ textAlign: 'center' }}>
@@ -116,25 +93,28 @@ export default function LoginPage() {
           <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
         </div>
 
-        <form onSubmit={handleEmailSignIn} style={{ display: 'flex', flexDirection: 'column', gap: 10, textAlign: 'left' }}>
+        <form
+          action="/api/auth/login"
+          method="POST"
+          onSubmit={() => setSubmitting(true)}
+          style={{ display: 'flex', flexDirection: 'column', gap: 10, textAlign: 'left' }}
+        >
           <input
             type="email"
+            name="email"
             autoComplete="email"
             required
             placeholder="Email"
             className="auth-input"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
             disabled={submitting}
           />
           <input
             type="password"
+            name="password"
             autoComplete="current-password"
             required
             placeholder="Password"
             className="auth-input"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
             disabled={submitting}
           />
           {error && (
@@ -144,7 +124,7 @@ export default function LoginPage() {
           )}
           <button
             type="submit"
-            disabled={submitting || !email || !password}
+            disabled={submitting}
             className="btn"
             style={{ ...buttonStyle, opacity: submitting ? 0.7 : 1, marginTop: 4 }}
           >

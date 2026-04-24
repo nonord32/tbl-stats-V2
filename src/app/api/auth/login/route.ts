@@ -1,32 +1,75 @@
 // src/app/api/auth/login/route.ts
-// Server-side email + password sign-in. Browser-only signInWithPassword
-// works on most desktop browsers but iOS Safari's tracking-prevention can
-// drop JS-set cookies, leaving /picks redirecting back to /login. Doing
-// the exchange here lets the server set Set-Cookie headers on the response
-// that the browser must honor.
-import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+// Server-side email + password sign-in. The login form posts here as a
+// regular form submission so the browser performs a top-level navigation
+// that follows the 302 redirect with the just-issued auth cookies attached.
+// This is more iOS-Safari-friendly than the prior browser-fetch flow,
+// which was having its cookies dropped by tracking prevention.
+import { NextResponse, type NextRequest } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
 
-export async function POST(request: Request) {
-  let body: { email?: string; password?: string };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+export async function POST(request: NextRequest) {
+  const contentType = request.headers.get('content-type') ?? '';
+  let email: string | undefined;
+  let password: string | undefined;
+  let wantsJson = false;
+
+  if (contentType.includes('application/json')) {
+    wantsJson = true;
+    try {
+      const body = (await request.json()) as { email?: string; password?: string };
+      email = body.email?.trim();
+      password = body.password;
+    } catch {
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+    }
+  } else {
+    const form = await request.formData();
+    email = form.get('email')?.toString().trim();
+    password = form.get('password')?.toString();
   }
 
-  const email = body.email?.trim();
-  const password = body.password;
+  const failRedirect = (msg: string) =>
+    NextResponse.redirect(
+      new URL(`/login?error=${encodeURIComponent(msg)}`, request.url),
+      { status: 303 }
+    );
+
   if (!email || !password) {
-    return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
+    return wantsJson
+      ? NextResponse.json({ error: 'Email and password are required' }, { status: 400 })
+      : failRedirect('Email and password are required');
   }
 
-  const supabase = await createClient();
+  // Build the success response up front so we can attach Set-Cookie headers
+  // from the supabase setAll callback directly to it.
+  const successRedirect = NextResponse.redirect(new URL('/picks', request.url), { status: 303 });
+  const okJson = NextResponse.json({ ok: true });
+  const responseToCarryCookies = wantsJson ? okJson : successRedirect;
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            responseToCarryCookies.cookies.set(name, value, options);
+          });
+        },
+      },
+    }
+  );
+
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
+    return wantsJson
+      ? NextResponse.json({ error: error.message }, { status: 401 })
+      : failRedirect(error.message);
   }
 
-  return NextResponse.json({ ok: true });
+  return responseToCarryCookies;
 }
