@@ -64,17 +64,12 @@ export default async function RankingsPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       {data.fighters.length === 0 ? (
-        <main>
-          <div className="page container" style={{ maxWidth: 560 }}>
-            <div className="page-header">
-              <h1>Weight Class Rankings</h1>
-            </div>
-            <DataUnavailable
-              title="Rankings are temporarily unavailable"
-              description="Fighter data couldn’t be loaded from the source. Try again in a minute."
-            />
-          </div>
-        </main>
+        <div className="tbl-page-body" style={{ maxWidth: 560 }}>
+          <DataUnavailable
+            title="Rankings are temporarily unavailable"
+            description="Fighter data couldn’t be loaded from the source. Try again in a minute."
+          />
+        </div>
       ) : (
         <RankingsClient
           fighters={data.fighters}

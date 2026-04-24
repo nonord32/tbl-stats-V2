@@ -2,10 +2,11 @@
 // Gazette-direction home: FightCard hero → Top Six → Standings (2-col) → Weekend Results.
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getAllData } from '@/lib/data';
+import { getAllData, extractUniqueMatches } from '@/lib/data';
 import { getDisplayedCurrentWeek, scheduleForWeek } from '@/lib/week';
 import { getFullTeamName, getTeamLogoPathByName } from '@/lib/teams';
-import type { FighterStat, ScheduleEntry, TeamStanding } from '@/types';
+import { HallOfChampions } from '@/components/home/HallOfChampions';
+import type { FighterStat, ScheduleEntry, TeamStanding, MatchResult } from '@/types';
 
 export const metadata: Metadata = {
   title: { absolute: 'TBL Stats | Every Round. Every Fighter. Every Team.' },
@@ -78,10 +79,10 @@ function FightCardHero({
         style={{
           background: 'var(--tbl-ink)',
           color: 'var(--tbl-bg)',
-          padding: '36px 40px',
+          padding: '32px 36px',
           position: 'relative',
           overflow: 'hidden',
-          minHeight: 420,
+          minHeight: 340,
         }}
       >
         <div
@@ -100,29 +101,29 @@ function FightCardHero({
             style={{
               fontFamily: 'var(--tbl-font-mono)',
               fontSize: 11,
-              letterSpacing: '0.3em',
+              letterSpacing: '0.28em',
               color: 'var(--tbl-accent-bright)',
               textTransform: 'uppercase',
               fontWeight: 700,
             }}
           >
             {featured
-              ? `Main Event · ${featured.date}${featured.time ? ' · ' + featured.time : ''}`
+              ? `Next Event · ${featured.date}${featured.time ? ' · ' + featured.time : ''}`
               : 'Team Boxing League · 2026 Season'}
           </div>
           {featured ? (
             <>
               <div
                 className="tbl-display"
-                style={{ fontSize: 136, lineHeight: 0.85, marginTop: 20 }}
+                style={{ fontSize: 96, lineHeight: 0.9, marginTop: 16 }}
               >
                 {teamAbbr(featured.team1)}
                 <span
                   style={{
                     display: 'inline-block',
                     transform: 'rotate(-2deg)',
-                    margin: '0 14px',
-                    fontSize: 88,
+                    margin: '0 12px',
+                    fontSize: 60,
                     color: 'var(--tbl-accent-bright)',
                     fontStyle: 'italic',
                     fontWeight: 900,
@@ -133,7 +134,7 @@ function FightCardHero({
               </div>
               <div
                 className="tbl-display"
-                style={{ fontSize: 136, lineHeight: 0.85, marginTop: -8 }}
+                style={{ fontSize: 96, lineHeight: 0.9, marginTop: -4 }}
               >
                 {teamAbbr(featured.team2)}
               </div>
@@ -154,7 +155,7 @@ function FightCardHero({
               )}
             </>
           ) : (
-            <div className="tbl-display" style={{ fontSize: 112, lineHeight: 0.85, marginTop: 20 }}>
+            <div className="tbl-display" style={{ fontSize: 84, lineHeight: 0.9, marginTop: 16 }}>
               TBL
             </div>
           )}
@@ -176,7 +177,7 @@ function FightCardHero({
               <img
                 src={getTeamLogoPathByName(featured.team1)}
                 alt=""
-                style={{ width: 76, height: 76, objectFit: 'contain' }}
+                style={{ width: 60, height: 60, objectFit: 'contain' }}
               />
             )}
             <div
@@ -184,7 +185,7 @@ function FightCardHero({
                 color: 'var(--tbl-accent-bright)',
                 fontFamily: 'var(--tbl-font-serif)',
                 fontStyle: 'italic',
-                fontSize: 40,
+                fontSize: 32,
                 fontWeight: 900,
               }}
             >
@@ -195,7 +196,7 @@ function FightCardHero({
               <img
                 src={getTeamLogoPathByName(featured.team2)}
                 alt=""
-                style={{ width: 76, height: 76, objectFit: 'contain' }}
+                style={{ width: 60, height: 60, objectFit: 'contain' }}
               />
             )}
           </div>
@@ -205,7 +206,7 @@ function FightCardHero({
       {/* Fighter in focus */}
       <div
         style={{
-          padding: '36px 40px',
+          padding: '32px 36px',
           position: 'relative',
           borderLeft: '3px solid var(--tbl-ink)',
         }}
@@ -214,14 +215,14 @@ function FightCardHero({
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
               <div>
-                <div className="tbl-eyebrow">Fighter in Focus · #1 WAR</div>
+                <div className="tbl-eyebrow">Fighter in Focus · #1 Net Pts</div>
                 <Link
                   href={`/fighters/${focus.slug}`}
                   className="tbl-display"
                   style={{
-                    fontSize: 84,
-                    lineHeight: 0.9,
-                    marginTop: 14,
+                    fontSize: 60,
+                    lineHeight: 0.95,
+                    marginTop: 12,
                     color: 'var(--tbl-ink)',
                     display: 'block',
                     textDecoration: 'none',
@@ -238,7 +239,7 @@ function FightCardHero({
                     letterSpacing: '0.18em',
                     color: 'var(--tbl-ink-soft)',
                     textTransform: 'uppercase',
-                    marginTop: 12,
+                    marginTop: 10,
                   }}
                 >
                   {getFullTeamName(teamSlug(focus.team))} · {focus.weightClass}
@@ -247,9 +248,10 @@ function FightCardHero({
               <div style={{ textAlign: 'right' }}>
                 <div
                   className="tbl-display"
-                  style={{ fontSize: 112, lineHeight: 0.85, color: 'var(--tbl-accent)' }}
+                  style={{ fontSize: 80, lineHeight: 0.9, color: 'var(--tbl-accent)' }}
                 >
-                  {focus.war.toFixed(2)}
+                  {focus.netPts >= 0 ? '+' : ''}
+                  {focus.netPts.toFixed(1)}
                 </div>
                 <div
                   style={{
@@ -261,7 +263,7 @@ function FightCardHero({
                     marginTop: 4,
                   }}
                 >
-                  WAR
+                  NET PTS
                 </div>
               </div>
             </div>
@@ -269,7 +271,7 @@ function FightCardHero({
             {/* Stat strip */}
             <div
               style={{
-                marginTop: 22,
+                marginTop: 18,
                 display: 'grid',
                 gridTemplateColumns: 'repeat(5, 1fr)',
                 borderTop: '2px solid var(--tbl-ink)',
@@ -278,18 +280,15 @@ function FightCardHero({
             >
               {[
                 { l: 'REC', v: focus.record },
+                { l: 'WAR', v: focus.war.toFixed(2) },
                 { l: 'NPPR', v: focus.nppr.toFixed(3) },
-                { l: 'NET', v: `${focus.netPts >= 0 ? '+' : ''}${focus.netPts.toFixed(1)}` },
                 { l: 'WIN%', v: `${(focus.winPct * 100).toFixed(1)}` },
-                {
-                  l: 'RNDS',
-                  v: String(focus.rounds),
-                },
+                { l: 'RNDS', v: String(focus.rounds) },
               ].map((s, i) => (
                 <div
                   key={s.l}
                   style={{
-                    padding: '14px 8px',
+                    padding: '10px 6px',
                     textAlign: 'center',
                     borderRight: i < 4 ? '1px solid rgba(20,17,11,0.18)' : 'none',
                   }}
@@ -308,7 +307,7 @@ function FightCardHero({
                   </div>
                   <div
                     className="tbl-display"
-                    style={{ fontSize: 30, lineHeight: 1, color: 'var(--tbl-ink)', marginTop: 4 }}
+                    style={{ fontSize: 24, lineHeight: 1, color: 'var(--tbl-ink)', marginTop: 4 }}
                   >
                     {s.v}
                   </div>
@@ -418,7 +417,7 @@ function TopSix({ fighters }: { fighters: FighterStat[] }) {
       >
         <div>
           <div className="tbl-eyebrow">Pound for Pound</div>
-          <div className="tbl-display" style={{ fontSize: 52, lineHeight: 1, marginTop: 4 }}>
+          <div className="tbl-display" style={{ fontSize: 38, lineHeight: 1, marginTop: 4 }}>
             The Top Six
           </div>
         </div>
@@ -433,7 +432,7 @@ function TopSix({ fighters }: { fighters: FighterStat[] }) {
             textDecoration: 'none',
           }}
         >
-          Sorted by WAR · View all →
+          Sorted by Net Points · View all →
         </Link>
       </div>
 
@@ -454,13 +453,13 @@ function TopSix({ fighters }: { fighters: FighterStat[] }) {
               key={f.slug}
               href={`/fighters/${f.slug}`}
               style={{
-                padding: 18,
+                padding: 14,
                 borderRight: '1px solid rgba(20,17,11,0.15)',
                 borderBottom: '1px solid rgba(20,17,11,0.15)',
                 background: isTop ? 'var(--tbl-ink)' : 'var(--tbl-paper)',
                 color: isTop ? 'var(--tbl-bg)' : 'var(--tbl-ink)',
                 position: 'relative',
-                minHeight: 260,
+                minHeight: 210,
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
@@ -471,7 +470,7 @@ function TopSix({ fighters }: { fighters: FighterStat[] }) {
                 <div
                   className="tbl-display"
                   style={{
-                    fontSize: 84,
+                    fontSize: 64,
                     lineHeight: 0.85,
                     color: isTop ? 'var(--tbl-accent-bright)' : 'rgba(20,17,11,0.18)',
                     letterSpacing: '-0.03em',
@@ -486,10 +485,10 @@ function TopSix({ fighters }: { fighters: FighterStat[] }) {
                     alt=""
                     style={{
                       position: 'absolute',
-                      top: 16,
-                      right: 16,
-                      width: 34,
-                      height: 34,
+                      top: 12,
+                      right: 12,
+                      width: 28,
+                      height: 28,
                       objectFit: 'contain',
                     }}
                   />
@@ -499,7 +498,7 @@ function TopSix({ fighters }: { fighters: FighterStat[] }) {
                 <div
                   className="tbl-display"
                   style={{
-                    fontSize: 22,
+                    fontSize: 18,
                     lineHeight: 1.05,
                     fontWeight: 800,
                     color: isTop ? 'var(--tbl-bg)' : 'var(--tbl-ink)',
@@ -521,7 +520,7 @@ function TopSix({ fighters }: { fighters: FighterStat[] }) {
                 </div>
                 <div
                   style={{
-                    marginTop: 12,
+                    marginTop: 10,
                     display: 'grid',
                     gridTemplateColumns: '1fr 1fr',
                     gap: 6,
@@ -537,17 +536,17 @@ function TopSix({ fighters }: { fighters: FighterStat[] }) {
                         textTransform: 'uppercase',
                       }}
                     >
-                      WAR
+                      NET
                     </div>
                     <div
                       className="tbl-display"
                       style={{
-                        fontSize: 22,
+                        fontSize: 18,
                         lineHeight: 1,
                         color: isTop ? 'var(--tbl-accent-bright)' : 'var(--tbl-accent)',
                       }}
                     >
-                      {f.war.toFixed(2)}
+                      {f.netPts >= 0 ? '+' : ''}{f.netPts.toFixed(1)}
                     </div>
                   </div>
                   <div>
@@ -565,7 +564,7 @@ function TopSix({ fighters }: { fighters: FighterStat[] }) {
                     <div
                       className="tbl-display"
                       style={{
-                        fontSize: 22,
+                        fontSize: 18,
                         lineHeight: 1,
                         color: isTop ? 'var(--tbl-bg)' : 'var(--tbl-ink)',
                       }}
@@ -738,7 +737,7 @@ function WeekendResults({ results }: { results: ResultCard[] }) {
       >
         <div>
           <div className="tbl-eyebrow">Recent Results</div>
-          <div className="tbl-display" style={{ fontSize: 46, lineHeight: 1, marginTop: 4 }}>
+          <div className="tbl-display" style={{ fontSize: 34, lineHeight: 1, marginTop: 4 }}>
             From the Weekend
           </div>
         </div>
@@ -825,26 +824,31 @@ function WeekendResults({ results }: { results: ResultCard[] }) {
               <div
                 className="tbl-display"
                 style={{
-                  fontSize: 38,
+                  fontSize: 30,
                   lineHeight: 1,
                   padding: '0 10px',
                   borderLeft: '1px solid rgba(20,17,11,0.2)',
                   borderRight: '1px solid rgba(20,17,11,0.2)',
+                  whiteSpace: 'nowrap',
                 }}
               >
-                <span style={{ color: team1Won ? 'var(--tbl-accent)' : 'var(--tbl-ink)' }}>{r.s1}</span>
+                <span style={{ color: team1Won ? 'var(--tbl-accent)' : 'var(--tbl-ink)' }}>
+                  {r.s1.toFixed(1)}
+                </span>
                 <span
                   style={{
                     color: 'var(--tbl-ink-mute)',
                     margin: '0 6px',
-                    fontSize: 26,
+                    fontSize: 22,
                     fontStyle: 'italic',
                     fontWeight: 400,
                   }}
                 >
                   —
                 </span>
-                <span style={{ color: !team1Won ? 'var(--tbl-accent)' : 'var(--tbl-ink)' }}>{r.s2}</span>
+                <span style={{ color: !team1Won ? 'var(--tbl-accent)' : 'var(--tbl-ink)' }}>
+                  {r.s2.toFixed(1)}
+                </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 {getTeamLogoPathByName(r.team2) && (
@@ -897,7 +901,8 @@ function WeekendResults({ results }: { results: ResultCard[] }) {
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 export default async function HomePage() {
-  const { fighters, teams, schedule } = await getAllData();
+  const { fighters, teams, schedule, teamMatches, awards } = await getAllData();
+  const fighterSlugs = new Set(fighters.map((f) => f.slug));
 
   const currentWeek = getDisplayedCurrentWeek(schedule);
   const weekMatches =
@@ -906,30 +911,26 @@ export default async function HomePage() {
   const featured = upcoming[0] ?? null;
   const alsoThisWeek = upcoming.slice(1);
 
-  const fightersByWar = [...fighters].sort((a, b) => b.war - a.war);
-  const focus = fightersByWar[0] ?? null;
-  const topSix = fightersByWar.slice(0, 6);
+  // Sort by Net Points for both "Fighter in Focus" and "Top Six".
+  const fightersByNetPts = [...fighters].sort((a, b) => b.netPts - a.netPts);
+  const focus = fightersByNetPts[0] ?? null;
+  const topSix = fightersByNetPts.slice(0, 6);
 
   const topTeams = [...teams].sort(
     (a, b) => b.wins - a.wins || b.diff - a.diff
   );
 
-  // Completed schedule entries → simple result cards. Score numbers aren't in
-  // ScheduleEntry, so we show scoreless bouts when no matchIndex link data is
-  // threaded here — this uses zeros as a placeholder until result-score data
-  // is plumbed in. Shown sorted newest-first.
-  const completed = schedule
-    .filter((s) => s.status === 'Completed')
-    .slice()
-    .reverse()
+  // Real match results from the teamMatches data (same source the /results
+  // page uses), sorted newest-first and capped at 6 cards.
+  const completed: ResultCard[] = extractUniqueMatches(teamMatches)
     .slice(0, 6)
-    .map((s) => ({
-      date: s.date,
-      team1: s.team1,
-      team2: s.team2,
-      s1: 0,
-      s2: 0,
-      phase: `Week ${s.week}`,
+    .map((m: MatchResult) => ({
+      date: m.date,
+      team1: m.team1,
+      team2: m.team2,
+      s1: m.score1,
+      s2: m.score2,
+      phase: m.boxScore?.[0]?.phase ? `Week ${m.boxScore[0].phase}` : undefined,
     }));
 
   const jsonLd = {
@@ -974,6 +975,20 @@ export default async function HomePage() {
       <TopSix fighters={topSix} />
       <StandingsTwoCol teams={topTeams} />
       <WeekendResults results={completed} />
+      {awards.length > 0 && (
+        <div style={{ padding: '0 32px 40px' }}>
+          <div style={{ marginBottom: 16 }}>
+            <div className="tbl-eyebrow">Past MVPs & Trophies</div>
+            <div
+              className="tbl-display"
+              style={{ fontSize: 34, lineHeight: 1, marginTop: 4 }}
+            >
+              Hall of Champions
+            </div>
+          </div>
+          <HallOfChampions awards={awards} fighterSlugs={fighterSlugs} />
+        </div>
+      )}
     </>
   );
 }

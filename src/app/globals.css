@@ -2264,3 +2264,198 @@ main { padding-top: 0 !important; }
 @media (max-width: 520px) {
   .gz-topsix-grid { grid-template-columns: 1fr !important; }
 }
+
+/* Cap page content to the Gazette canvas width on wide screens — chrome bands
+   (TopStrip / TopNav / Footer) remain full-width for the newspaper band feel. */
+main { max-width: 1360px; margin: 0 auto; width: 100%; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Gazette — segment + filter controls (used in PageHeader right slot)
+   =========================================================================== */
+.gz-seg {
+  display: inline-flex;
+  border: 1.5px solid var(--tbl-ink);
+  background: var(--tbl-paper);
+}
+.gz-seg__btn {
+  padding: 7px 14px;
+  font-family: var(--tbl-font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  background: transparent;
+  color: var(--tbl-ink);
+  border: none;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.gz-seg__btn + .gz-seg__btn { border-left: 1.5px solid var(--tbl-ink); }
+.gz-seg__btn:hover { background: rgba(20, 17, 11, 0.05); }
+.gz-seg__btn.is-active { background: var(--tbl-accent); color: #fff; }
+.gz-seg__btn.is-active:hover { background: var(--tbl-accent); color: #fff; }
+
+.gz-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--tbl-font-mono);
+  font-size: 11px;
+  color: var(--tbl-ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+}
+.gz-filter__label { font-weight: 700; }
+.gz-filter__select {
+  font-family: var(--tbl-font-mono);
+  font-size: 12px;
+  padding: 6px 10px;
+  background: var(--tbl-paper);
+  border: 1.5px solid var(--tbl-ink);
+  color: var(--tbl-ink);
+  border-radius: 0;
+  min-width: 140px;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6' width='10' height='6'><path fill='%2314110b' d='M0 0l5 6 5-6z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
+.gz-filter__select:focus {
+  outline: 2px solid var(--tbl-accent);
+  outline-offset: -1.5px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Gazette — rankings section
+   =========================================================================== */
+.gz-rank-section { margin-bottom: 36px; }
+
+.gz-rank-champ {
+  display: block;
+  position: relative;
+  background: var(--tbl-paper);
+  border: 1.5px solid var(--tbl-ink);
+  overflow: hidden;
+  margin-bottom: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.12s;
+}
+.gz-rank-champ:hover { background: rgba(20, 17, 11, 0.03); text-decoration: none; color: inherit; }
+.gz-rank-champ__stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; }
+.gz-rank-champ__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px 18px 26px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.gz-rank-champ__left { display: flex; align-items: center; gap: 20px; min-width: 0; }
+.gz-rank-champ__rank {
+  font-family: var(--tbl-font-serif);
+  font-weight: 900;
+  font-size: 32px;
+  color: var(--tbl-accent);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.gz-rank-champ__name {
+  font-family: var(--tbl-font-serif);
+  font-weight: 900;
+  font-size: 22px;
+  color: var(--tbl-ink);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+.gz-rank-champ__team {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--tbl-font-mono);
+  font-size: 12px;
+  color: var(--tbl-ink-soft);
+  margin-top: 4px;
+}
+.gz-rank-champ__team img { width: 18px; height: 18px; object-fit: contain; }
+.gz-rank-champ__stats { text-align: right; flex-shrink: 0; }
+.gz-rank-champ__netpts {
+  font-family: var(--tbl-font-serif);
+  font-weight: 900;
+  font-size: 28px;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.gz-rank-champ__record {
+  font-family: var(--tbl-font-mono);
+  font-size: 11px;
+  color: var(--tbl-ink-soft);
+  margin-top: 6px;
+  letter-spacing: 0.02em;
+}
+
+.gz-rank-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  background: var(--tbl-paper);
+  border: 1.5px solid var(--tbl-ink);
+  border-top: none;
+  color: inherit;
+  text-decoration: none;
+  transition: background 0.12s;
+}
+.gz-rank-row:first-of-type { border-top: 1.5px solid var(--tbl-ink); }
+.gz-rank-row:hover { background: rgba(20, 17, 11, 0.04); text-decoration: none; color: inherit; }
+.gz-rank-row__rank {
+  font-family: var(--tbl-font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--tbl-ink-soft);
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.gz-rank-row__logo { width: 22px; height: 22px; object-fit: contain; flex-shrink: 0; }
+.gz-rank-row__names { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.gz-rank-row__name {
+  font-family: var(--tbl-font-serif);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--tbl-ink);
+  letter-spacing: -0.01em;
+}
+.gz-rank-row__team {
+  font-family: var(--tbl-font-mono);
+  font-size: 11px;
+  color: var(--tbl-ink-soft);
+}
+.gz-rank-row__record {
+  font-family: var(--tbl-font-mono);
+  font-size: 12px;
+  color: var(--tbl-ink-soft);
+  flex-shrink: 0;
+}
+.gz-rank-row__netpts {
+  font-family: var(--tbl-font-serif);
+  font-weight: 900;
+  font-size: 16px;
+  flex-shrink: 0;
+  min-width: 56px;
+  text-align: right;
+}
+
+@media (max-width: 640px) {
+  .gz-rank-champ__inner { padding: 14px 14px 14px 18px; }
+  .gz-rank-champ__rank { font-size: 24px; }
+  .gz-rank-champ__name { font-size: 18px; }
+  .gz-rank-champ__netpts { font-size: 22px; }
+  .gz-rank-champ__left { gap: 12px; }
+  .gz-rank-champ__stats { width: 100%; text-align: left; }
+  .gz-rank-row { padding: 10px 12px; gap: 10px; }
+  .gz-rank-row__record { display: none; }
+}
