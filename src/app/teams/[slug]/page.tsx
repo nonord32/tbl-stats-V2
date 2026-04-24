@@ -504,7 +504,7 @@ export default async function TeamPage({
           )}
         </div>
 
-        <div style={{ padding: '26px 32px' }}>
+        <div className="gz-team-body__right" style={{ padding: '26px 32px' }}>
           {nextMatch && (
             <>
               <SectionRule left="Next Match" />

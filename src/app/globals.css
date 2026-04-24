@@ -2546,8 +2546,10 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
   .gz-team-body { grid-template-columns: 1fr !important; }
   .gz-team-body__left {
     border-right: none !important;
-    border-bottom: 1px solid rgba(20,17,11,0.2);
+    border-top: 1px solid rgba(20,17,11,0.2);
+    order: 2;
   }
+  .gz-team-body__right { order: 1; }
 }
 @media (max-width: 540px) {
   .gz-team-hero__stats { grid-template-columns: repeat(2, 1fr) !important; }
@@ -3025,6 +3027,11 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
     column-gap: 0 !important;
     row-gap: 22px !important;
   }
+}
+
+/* Fighter profile: hide the Form · Last 10 strip on phones — desktop only. */
+@media (max-width: 720px) {
+  .gz-fighter-form { display: none !important; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

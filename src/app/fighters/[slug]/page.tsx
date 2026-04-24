@@ -53,7 +53,9 @@ export default async function FighterPage({
   const result = await getFighterBySlug(params.slug);
   if (!result) notFound();
 
-  const { fighter, history, streak } = result;
+  const { fighter, history, streak, warRank } = result;
+  // Last 10 bouts in chronological order (oldest → newest) for the form strip.
+  const formLast10 = [...history].slice(0, 10).reverse();
 
   const teamSlug = fighter.team
     .toLowerCase()
@@ -139,7 +141,11 @@ export default async function FighterPage({
 
       {/* Hero */}
       <div style={{ padding: '22px 32px 26px', borderBottom: '3px double var(--tbl-ink)' }}>
-        <div className="tbl-eyebrow">Fighter Profile</div>
+        <div className="tbl-eyebrow">
+          Fighter
+          {warRank > 0 && <> · #{warRank} WAR</>}
+          {streak && <> · Streak {streak}</>}
+        </div>
         <div
           className="gz-fighter-hero"
           style={{
@@ -288,6 +294,41 @@ export default async function FighterPage({
           </div>
         </div>
       </div>
+
+      {/* Form · Last 10 — desktop-only strip of W/L pills (oldest → newest). */}
+      {formLast10.length > 0 && (
+        <div className="gz-fighter-form" style={{ padding: '20px 32px 4px' }}>
+          <SectionRule
+            left={`Form · Last ${formLast10.length}`}
+            right={`Streak ${streak || '—'}`}
+          />
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {formLast10.map((h, i) => {
+              const isWin = h.result === 'W';
+              return (
+                <div
+                  key={i}
+                  className="tbl-display"
+                  style={{
+                    width: 36,
+                    height: 32,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: isWin ? 'var(--tbl-green)' : 'var(--tbl-red)',
+                    color: '#fff',
+                    fontSize: 16,
+                    fontWeight: 900,
+                  }}
+                  title={`${h.date} · ${h.opponent} · ${h.result}`}
+                >
+                  {h.result}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Body: Fight History */}
       <div>

@@ -776,6 +776,11 @@ export async function getFighterBySlug(slug: string) {
   const history = data.fighterHistory[slug] || [];
   const streak = calcFighterStreak(history);
 
+  // 1-based rank within the WAR leaderboard so the profile eyebrow can read
+  // "FIGHTER · #N WAR · STREAK W5" alongside the rest of the Gazette tokens.
+  const byWar = [...data.fighters].sort((a, b) => b.war - a.war);
+  const warRank = byWar.findIndex((f) => f.slug === slug) + 1; // 0 → unranked
+
   // Resolve full team name: the Leaderboard tab may store abbreviated names
   // (e.g. "Las Vegas") while the Standings tab has the full name ("Las Vegas Hustle").
   const fullTeamName =
@@ -786,7 +791,7 @@ export async function getFighterBySlug(slug: string) {
         fighter.team.startsWith(t.team)
     )?.team ?? fighter.team;
 
-  return { fighter, history, streak, fullTeamName };
+  return { fighter, history, streak, fullTeamName, warRank };
 }
 
 export async function getTeamBySlug(slug: string) {

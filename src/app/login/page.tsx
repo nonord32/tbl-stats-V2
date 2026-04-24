@@ -3,7 +3,6 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
 const linkStyle: React.CSSProperties = {
@@ -27,7 +26,6 @@ const buttonStyle: React.CSSProperties = {
 };
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -56,18 +54,26 @@ export default function LoginPage() {
     if (!email || !password) return;
     setSubmitting(true);
     setError(null);
-    const supabase = createClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
-    if (signInError) {
-      setError(signInError.message);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setError(json.error || 'Sign-in failed. Try again.');
+        setSubmitting(false);
+        return;
+      }
+    } catch {
+      setError('Network error. Please try again.');
       setSubmitting(false);
       return;
     }
-    router.push('/picks');
-    router.refresh();
+    // Full reload (not router.push) so the server gets the just-set cookies
+    // on the next request — works around iOS Safari cookie-handoff quirks.
+    window.location.href = '/picks';
   }
 
   return (
