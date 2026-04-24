@@ -8,7 +8,6 @@ import { getMatchByIndex, toSlug } from '@/lib/data';
 import { getFullTeamName, getTeamLogoPathByName } from '@/lib/teams';
 import { SectionRule } from '@/components/chrome/SectionRule';
 import { HighlightsSection } from '@/components/HighlightsSection';
-import type { BoxScoreRound } from '@/types';
 
 export const revalidate = 300;
 export const dynamic = 'force-dynamic';
@@ -43,21 +42,7 @@ export async function generateMetadata({
   };
 }
 
-// Collapse a flat list of BoxScoreRound rows into bouts (one bout = one
-// fighter pairing at one weight class). Each bout keeps its rounds sorted.
-function groupBouts(rows: BoxScoreRound[]) {
-  const byKey = new Map<string, BoxScoreRound[]>();
-  for (const r of rows) {
-    const key = `${r.weightClass ?? r.phase ?? ''}|${r.fighter1}|${r.fighter2}`;
-    if (!byKey.has(key)) byKey.set(key, []);
-    byKey.get(key)!.push(r);
-  }
-  return Array.from(byKey.values()).map((rounds) =>
-    rounds.slice().sort((a, b) => a.round - b.round)
-  );
-}
-
-// Short team label used in the Dec (decision) box.
+// Short team label used in column headers.
 function teamShort(team: string): string {
   const map: Record<string, string> = {
     nyc: 'NYC',
@@ -114,16 +99,6 @@ export default async function MatchPage({
   const team1Won = match.result === 'W';
   const team2Won = match.result === 'L';
 
-  const bouts = groupBouts(match.boxScore);
-
-  // Pad rounds so every bout row renders the same column count.
-  const maxRounds = bouts.reduce((m, b) => Math.max(m, b.length), 3);
-
-  const boutTotals = bouts.map((rounds) => {
-    const a = rounds.reduce((s, r) => s + r.score1, 0);
-    const b = rounds.reduce((s, r) => s + r.score2, 0);
-    return { a, b };
-  });
   const totalA = match.score1;
   const totalB = match.score2;
 
@@ -507,9 +482,9 @@ export default async function MatchPage({
         </div>
       )}
 
-      {/* Round-by-Round breakdown, grouped by phase, with Weight column */}
+      {/* Round-by-Round — flat, one row per round */}
       <div style={{ padding: '18px 32px 36px' }}>
-        <SectionRule left="Round-by-Round" right="A·B format per round" />
+        <SectionRule left="Round-by-Round" right={`${match.boxScore.length} rounds`} />
         <div style={{ overflowX: 'auto' }}>
           <table
             style={{
@@ -522,18 +497,15 @@ export default async function MatchPage({
             <thead>
               <tr style={{ borderBottom: '2px solid var(--tbl-ink)' }}>
                 {[
+                  { label: 'Round', align: 'left' as const },
                   { label: 'Weight', align: 'left' as const },
                   { label: `${team1Abbr} Fighter`, align: 'left' as const },
-                  ...Array.from({ length: maxRounds }).map((_, i) => ({
-                    label: `R${i + 1}`,
-                    align: 'center' as const,
-                  })),
-                  { label: 'Tot', align: 'center' as const },
-                  { label: `${team2Abbr} Fighter`, align: 'right' as const },
-                  { label: 'Dec', align: 'center' as const },
-                ].map((h, i) => (
+                  { label: `${team2Abbr} Fighter`, align: 'left' as const },
+                  { label: 'Result', align: 'center' as const },
+                  { label: 'Net Pts', align: 'right' as const },
+                ].map((h) => (
                   <th
-                    key={`${h.label}-${i}`}
+                    key={h.label}
                     style={{
                       padding: '8px',
                       textAlign: h.align,
@@ -551,131 +523,112 @@ export default async function MatchPage({
               </tr>
             </thead>
             <tbody>
-              {bouts.map((rounds, i) => {
-                const first = rounds[0];
-                if (!first) return null;
-                const wc = first.weightClass || first.phase || '—';
-                const a = boutTotals[i].a;
-                const b = boutTotals[i].b;
-                const winnerA = a > b;
-                const winnerB = b > a;
-                const stripe = i % 2 === 0 ? 'transparent' : 'rgba(20,17,11,0.025)';
-                return (
-                  <tr
-                    key={i}
-                    style={{
-                      borderBottom: '1px dotted rgba(20,17,11,0.3)',
-                      background: stripe,
-                    }}
-                  >
-                    <td style={{ padding: '12px 8px', color: 'var(--tbl-ink-soft)', fontWeight: 700 }}>
-                      {wc}
-                    </td>
-                    <td
+              {[...match.boxScore]
+                .sort((a, b) => a.round - b.round)
+                .map((row, i) => {
+                  const win1 = row.score1 > row.score2;
+                  const win2 = row.score2 > row.score1;
+                  const net = row.score1 - row.score2;
+                  const resultLabel = win1 ? 'W' : win2 ? 'L' : 'D';
+                  const resultColor = win1
+                    ? 'var(--tbl-green)'
+                    : win2
+                    ? 'var(--tbl-red)'
+                    : 'var(--tbl-ink-soft)';
+                  const stripe = i % 2 === 0 ? 'transparent' : 'rgba(20,17,11,0.025)';
+                  return (
+                    <tr
+                      key={i}
                       style={{
-                        padding: '12px 8px',
-                        fontFamily: 'var(--tbl-font-serif)',
-                        fontSize: 15,
-                        fontWeight: 700,
-                        color: winnerA ? 'var(--tbl-accent)' : 'var(--tbl-ink)',
+                        borderBottom: '1px dotted rgba(20,17,11,0.3)',
+                        background: stripe,
                       }}
                     >
-                      <Link
-                        href={`/fighters/${toSlug(first.fighter1)}`}
-                        style={{ color: 'inherit', textDecoration: 'none' }}
+                      <td
+                        style={{
+                          padding: '12px 8px',
+                          fontWeight: 700,
+                          color: 'var(--tbl-ink)',
+                        }}
                       >
-                        {first.fighter1}
-                      </Link>
-                    </td>
-                    {Array.from({ length: maxRounds }).map((_, j) => {
-                      const r = rounds[j];
-                      if (!r) {
-                        return (
-                          <td
-                            key={j}
-                            style={{ padding: '12px 8px', textAlign: 'center', color: 'var(--tbl-ink-mute)' }}
-                          >
-                            —
-                          </td>
-                        );
-                      }
-                      const ra = r.score1;
-                      const rb = r.score2;
-                      return (
-                        <td key={j} style={{ padding: '12px 8px', textAlign: 'center' }}>
-                          <span
-                            style={{
-                              fontWeight: ra > rb ? 900 : 500,
-                              color: ra > rb ? 'var(--tbl-green)' : 'var(--tbl-ink-soft)',
-                            }}
-                          >
-                            {ra}
-                          </span>
-                          <span style={{ opacity: 0.4, margin: '0 3px' }}>·</span>
-                          <span
-                            style={{
-                              fontWeight: rb > ra ? 900 : 500,
-                              color: rb > ra ? 'var(--tbl-green)' : 'var(--tbl-ink-soft)',
-                            }}
-                          >
-                            {rb}
-                          </span>
-                        </td>
-                      );
-                    })}
-                    <td
-                      style={{
-                        padding: '12px 8px',
-                        textAlign: 'center',
-                        fontFamily: 'var(--tbl-font-serif)',
-                        fontSize: 18,
-                        fontWeight: 900,
-                      }}
-                    >
-                      <span style={{ color: winnerA ? 'var(--tbl-accent)' : 'var(--tbl-ink)' }}>{a}</span>
-                      <span style={{ opacity: 0.4, margin: '0 4px' }}>—</span>
-                      <span style={{ color: winnerB ? 'var(--tbl-accent)' : 'var(--tbl-ink)' }}>{b}</span>
-                    </td>
-                    <td
-                      style={{
-                        padding: '12px 8px',
-                        textAlign: 'right',
-                        fontFamily: 'var(--tbl-font-serif)',
-                        fontSize: 15,
-                        fontWeight: 700,
-                        color: winnerB ? 'var(--tbl-accent)' : 'var(--tbl-ink)',
-                      }}
-                    >
-                      <Link
-                        href={`/fighters/${toSlug(first.fighter2)}`}
-                        style={{ color: 'inherit', textDecoration: 'none' }}
+                        {row.round}
+                      </td>
+                      <td
+                        style={{
+                          padding: '12px 8px',
+                          color: 'var(--tbl-ink-soft)',
+                          fontWeight: 700,
+                        }}
                       >
-                        {first.fighter2}
-                      </Link>
-                    </td>
-                    <td style={{ padding: '12px 8px', textAlign: 'center' }}>
-                      {a !== b && (
+                        {row.weightClass || row.phase || '—'}
+                      </td>
+                      <td
+                        style={{
+                          padding: '12px 8px',
+                          fontFamily: 'var(--tbl-font-serif)',
+                          fontSize: 15,
+                          fontWeight: 700,
+                          color: win1 ? 'var(--tbl-accent)' : 'var(--tbl-ink)',
+                        }}
+                      >
+                        <Link
+                          href={`/fighters/${toSlug(row.fighter1)}`}
+                          style={{ color: 'inherit', textDecoration: 'none' }}
+                        >
+                          {row.fighter1}
+                        </Link>
+                      </td>
+                      <td
+                        style={{
+                          padding: '12px 8px',
+                          fontFamily: 'var(--tbl-font-serif)',
+                          fontSize: 15,
+                          fontWeight: 700,
+                          color: win2 ? 'var(--tbl-accent)' : 'var(--tbl-ink)',
+                        }}
+                      >
+                        <Link
+                          href={`/fighters/${toSlug(row.fighter2)}`}
+                          style={{ color: 'inherit', textDecoration: 'none' }}
+                        >
+                          {row.fighter2}
+                        </Link>
+                      </td>
+                      <td style={{ padding: '12px 8px', textAlign: 'center' }}>
                         <span
                           style={{
                             display: 'inline-block',
+                            minWidth: 28,
                             padding: '2px 10px',
-                            background: winnerA ? 'var(--tbl-green)' : 'var(--tbl-red)',
+                            background: resultColor,
                             color: '#fff',
                             fontFamily: 'var(--tbl-font-serif)',
                             fontWeight: 900,
                             fontSize: 13,
                           }}
                         >
-                          {winnerA ? team1Abbr : team2Abbr}
+                          {resultLabel}
                         </span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+                      </td>
+                      <td
+                        style={{
+                          padding: '12px 8px',
+                          textAlign: 'right',
+                          fontFamily: 'var(--tbl-font-serif)',
+                          fontSize: 15,
+                          fontWeight: 700,
+                          color: net > 0 ? 'var(--tbl-green)' : net < 0 ? 'var(--tbl-red)' : 'var(--tbl-ink-soft)',
+                        }}
+                      >
+                        {net > 0 ? '+' : ''}
+                        {net.toFixed(1)}
+                      </td>
+                    </tr>
+                  );
+                })}
               <tr style={{ background: 'var(--tbl-ink)', color: 'var(--tbl-bg)' }}>
                 <td
-                  colSpan={2 + maxRounds}
+                  colSpan={5}
                   style={{
                     padding: '14px 8px',
                     fontFamily: 'var(--tbl-font-mono)',
@@ -685,27 +638,26 @@ export default async function MatchPage({
                     fontWeight: 700,
                   }}
                 >
-                  Match Total
+                  Match Total ({team1Abbr} vs {team2Abbr})
                 </td>
                 <td
                   style={{
                     padding: '14px 8px',
-                    textAlign: 'center',
+                    textAlign: 'right',
                     fontFamily: 'var(--tbl-font-serif)',
                     fontWeight: 900,
-                    fontSize: 22,
+                    fontSize: 18,
                     whiteSpace: 'nowrap',
+                    color: team1Won
+                      ? 'var(--tbl-accent-bright)'
+                      : team2Won
+                      ? '#f5a3a3'
+                      : 'inherit',
                   }}
                 >
-                  <span style={{ color: team1Won ? 'var(--tbl-accent-bright)' : 'inherit' }}>
-                    {totalA.toFixed(0)}
-                  </span>
-                  <span style={{ opacity: 0.4, margin: '0 6px' }}>—</span>
-                  <span style={{ color: team2Won ? 'var(--tbl-accent-bright)' : 'inherit' }}>
-                    {totalB.toFixed(0)}
-                  </span>
+                  {totalA - totalB > 0 ? '+' : ''}
+                  {(totalA - totalB).toFixed(1)}
                 </td>
-                <td colSpan={2} />
               </tr>
             </tbody>
           </table>
