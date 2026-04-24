@@ -4,13 +4,12 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getAllData, getFighterBySlug } from '@/lib/data';
+import { getFighterBySlug } from '@/lib/data';
 import {
   getTeamLogoPathByName,
   getFullTeamName,
 } from '@/lib/teams';
 import { SectionRule } from '@/components/chrome/SectionRule';
-import type { FightHistory, BoxScoreRound } from '@/types';
 
 export const revalidate = 300;
 export const dynamic = 'force-dynamic';
@@ -46,55 +45,6 @@ export async function generateMetadata({
   };
 }
 
-// Compute per-round raw points by joining FightHistory with teamMatches'
-// boxScore rows (matched by matchIndex + opponent + round number). Returns
-// { ptsPerRound, oppPtsPerRound, roundKOs, shutouts } as best-effort averages.
-function deriveCareerAverages(
-  fighterName: string,
-  history: FightHistory[],
-  teamMatches: Record<string, { matchIndex: number; boxScore: BoxScoreRound[] }[]>
-) {
-  let ownScoreSum = 0;
-  let oppScoreSum = 0;
-  let roundCount = 0;
-  let shutouts = 0;
-  let roundKOs = 0;
-
-  // Build a lookup: matchIndex -> box score rounds (from either team's side).
-  const matchBoxScores = new Map<number, BoxScoreRound[]>();
-  Object.values(teamMatches).forEach((rows) => {
-    rows.forEach((m) => {
-      if (!matchBoxScores.has(m.matchIndex)) matchBoxScores.set(m.matchIndex, m.boxScore);
-    });
-  });
-
-  for (const h of history) {
-    if (h.resultMethod === 'KO' && h.result === 'W') roundKOs++;
-    const rounds = matchBoxScores.get(h.matchIndex) ?? [];
-    const row = rounds.find(
-      (r) =>
-        (r.fighter1 === fighterName || r.fighter2 === fighterName) &&
-        String(r.round) === String(h.round)
-    );
-    if (!row) continue;
-    const isF1 = row.fighter1 === fighterName;
-    const own = isF1 ? row.score1 : row.score2;
-    const opp = isF1 ? row.score2 : row.score1;
-    ownScoreSum += own;
-    oppScoreSum += opp;
-    roundCount++;
-    if (opp === 0) shutouts++;
-  }
-
-  return {
-    ptsPerRound: roundCount ? ownScoreSum / roundCount : 0,
-    oppPtsPerRound: roundCount ? oppScoreSum / roundCount : 0,
-    roundKOs,
-    shutouts,
-    roundsJoined: roundCount,
-  };
-}
-
 export default async function FighterPage({
   params,
 }: {
@@ -104,7 +54,6 @@ export default async function FighterPage({
   if (!result) notFound();
 
   const { fighter, history, streak } = result;
-  const { teamMatches } = await getAllData();
 
   const teamSlug = fighter.team
     .toLowerCase()
@@ -113,8 +62,6 @@ export default async function FighterPage({
   const fullTeamName = getFullTeamName(teamSlug);
   const teamLogo = getTeamLogoPathByName(fighter.team);
   const isWStreak = streak.startsWith('W');
-
-  const averages = deriveCareerAverages(fighter.name, history, teamMatches);
 
   const BASE = 'https://tblstats.com';
   const jsonLd = {
@@ -161,16 +108,6 @@ export default async function FighterPage({
     { l: 'Rounds', v: String(fighter.rounds) },
   ];
 
-  const averageCards =
-    averages.roundsJoined > 0
-      ? [
-          { l: 'Pts/Round', v: averages.ptsPerRound.toFixed(2) },
-          { l: 'Opp Pts/R', v: averages.oppPtsPerRound.toFixed(2) },
-          { l: 'Round KOs', v: String(averages.roundKOs) },
-          { l: 'Shutouts', v: String(averages.shutouts) },
-        ]
-      : null;
-
   return (
     <>
       <script
@@ -202,9 +139,7 @@ export default async function FighterPage({
 
       {/* Hero */}
       <div style={{ padding: '22px 32px 26px', borderBottom: '3px double var(--tbl-ink)' }}>
-        <div className="tbl-eyebrow">
-          Fighter Profile · {fighter.instagram ? 'Verified' : fighter.weightClass}
-        </div>
+        <div className="tbl-eyebrow">Fighter Profile</div>
         <div
           className="gz-fighter-hero"
           style={{
@@ -354,64 +289,8 @@ export default async function FighterPage({
         </div>
       </div>
 
-      {/* Body: Career Averages + Fight History */}
-      <div
-        className="gz-fighter-body"
-        style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: 0 }}
-      >
-        <div
-          className="gz-fighter-left"
-          style={{
-            padding: '24px 32px',
-            borderRight: '1px solid rgba(20,17,11,0.2)',
-          }}
-        >
-          <SectionRule left="Career Averages" />
-          {averageCards ? (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-              {averageCards.map((s) => (
-                <div
-                  key={s.l}
-                  style={{
-                    background: 'var(--tbl-paper)',
-                    border: '1.5px solid var(--tbl-ink)',
-                    padding: 14,
-                  }}
-                >
-                  <div
-                    style={{
-                      fontFamily: 'var(--tbl-font-mono)',
-                      fontSize: 9,
-                      letterSpacing: '0.22em',
-                      color: 'var(--tbl-ink-soft)',
-                      textTransform: 'uppercase',
-                      fontWeight: 700,
-                    }}
-                  >
-                    {s.l}
-                  </div>
-                  <div
-                    className="tbl-display"
-                    style={{ fontSize: 28, lineHeight: 1, marginTop: 4 }}
-                  >
-                    {s.v}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p
-              style={{
-                fontFamily: 'var(--tbl-font-mono)',
-                fontSize: 12,
-                color: 'var(--tbl-ink-soft)',
-              }}
-            >
-              Round-by-round data unavailable.
-            </p>
-          )}
-        </div>
-
+      {/* Body: Fight History */}
+      <div>
         <div style={{ padding: '24px 32px' }}>
           <SectionRule
             left="Fight History · 2026 Season"

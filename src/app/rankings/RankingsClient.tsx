@@ -41,9 +41,20 @@ export function RankingsClient({ fighters, lastUpdated }: Props) {
   const [gender, setGender] = useState<Gender>('All');
   const [weightClass, setWeightClass] = useState<string>('All');
 
+  // Expand combined strings like "Light Heavyweight, Cruiserweight" into the
+  // underlying classes so a fighter at two weights shows up in both filter
+  // options instead of as a third "combined" entry in the dropdown.
+  const splitClasses = (raw: string): string[] =>
+    raw
+      .split(/[,/]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+
   const weightClasses = useMemo(() => {
     const set = new Set<string>();
-    fighters.forEach((f) => f.weightClass && set.add(f.weightClass));
+    fighters.forEach((f) => {
+      splitClasses(f.weightClass).forEach((c) => set.add(c));
+    });
     return Array.from(set).sort(compareWeightClass);
   }, [fighters]);
 
@@ -51,7 +62,10 @@ export function RankingsClient({ fighters, lastUpdated }: Props) {
     return fighters.filter((f) => {
       if (f.rounds < MIN_ROUNDS) return false;
       if (gender !== 'All' && f.gender !== gender) return false;
-      if (weightClass !== 'All' && f.weightClass !== weightClass) return false;
+      if (weightClass !== 'All') {
+        const classes = splitClasses(f.weightClass);
+        if (!classes.includes(weightClass)) return false;
+      }
       return true;
     });
   }, [fighters, gender, weightClass]);
