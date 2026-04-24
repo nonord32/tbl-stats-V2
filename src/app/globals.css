@@ -2549,3 +2549,12 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
 @media (max-width: 540px) {
   .gz-team-hero__stats { grid-template-columns: repeat(2, 1fr) !important; }
 }
+
+/* Home result cards: hover affordance (they link to the match detail page) */
+.gz-result-card { transition: background 0.12s, box-shadow 0.12s; }
+.gz-result-card:hover {
+  background: rgba(20,17,11,0.04);
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}

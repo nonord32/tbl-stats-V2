@@ -714,6 +714,7 @@ function StandingsTwoCol({ teams }: { teams: TeamStanding[] }) {
 
 // ─── Weekend Results (recent completed matches) ─────────────────────────────
 interface ResultCard {
+  matchIndex: number;
   date: string;
   team1: string;
   team2: string;
@@ -763,8 +764,10 @@ function WeekendResults({ results }: { results: ResultCard[] }) {
         {results.slice(0, 6).map((r, i) => {
           const team1Won = r.s1 > r.s2;
           return (
-            <div
+            <Link
               key={`${i}-${r.team1}-${r.team2}`}
+              href={`/matches/${r.matchIndex}`}
+              className="gz-result-card"
               style={{
                 background: 'var(--tbl-paper)',
                 border: '1.5px solid var(--tbl-ink)',
@@ -773,6 +776,8 @@ function WeekendResults({ results }: { results: ResultCard[] }) {
                 gridTemplateColumns: '1fr auto 1fr',
                 alignItems: 'center',
                 gap: 14,
+                textDecoration: 'none',
+                color: 'inherit',
               }}
             >
               <div
@@ -891,7 +896,7 @@ function WeekendResults({ results }: { results: ResultCard[] }) {
                   )}
                 </div>
               </div>
-            </div>
+            </Link>
           );
         })}
       </div>
@@ -942,6 +947,7 @@ export default async function HomePage() {
     .map((m: MatchResult) => {
       const wk = weekByMatchIndex.get(m.matchIndex);
       return {
+        matchIndex: m.matchIndex,
         date: m.date,
         team1: m.team1,
         team2: m.team2,
