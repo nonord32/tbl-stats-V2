@@ -1,5 +1,5 @@
 // src/app/matches/[matchIndex]/page.tsx
-// Gazette match page: dark hero with Winner / Fell + big serif team names,
+// Gazette match page: dark hero with Winner / Loser + big serif team names,
 // followed by a bout-by-bout box score with a weight-class column.
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
@@ -286,7 +286,7 @@ export default async function MatchPage({
                   color: team1Won ? 'var(--tbl-accent-bright)' : 'rgba(244,237,224,0.5)',
                 }}
               >
-                {team1Won ? 'Winner' : team2Won ? 'Fell' : ' '}
+                {team1Won ? 'Winner' : team2Won ? 'Loser' : ' '}
               </div>
             </Link>
             {team1Logo && (
@@ -361,7 +361,7 @@ export default async function MatchPage({
                   color: team2Won ? 'var(--tbl-accent-bright)' : 'rgba(244,237,224,0.5)',
                 }}
               >
-                {team2Won ? 'Winner' : team1Won ? 'Fell' : ' '}
+                {team2Won ? 'Winner' : team1Won ? 'Loser' : ' '}
               </div>
             </Link>
           </div>

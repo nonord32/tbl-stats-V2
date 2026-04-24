@@ -9,9 +9,12 @@ import type { ScheduleEntry } from '@/types';
 import { PageHeader } from '@/components/chrome/PageHeader';
 import { getTeamLogoPathByName, getCityName } from '@/lib/teams';
 
+type ScoreInfo = { score1: number; score2: number; result: 'W' | 'L' | 'D' };
+
 interface Props {
   schedule: ScheduleEntry[];
   currentWeek: number | null;
+  scores: Record<number, ScoreInfo>;
 }
 
 function short(team: string): string {
@@ -20,9 +23,9 @@ function short(team: string): string {
   const map: Record<string, string> = {
     'NEW YORK': 'NYC',
     NYC: 'NYC',
-    'LOS ANGELES': 'LAX',
+    'LOS ANGELES': 'LA',
     'LAS VEGAS': 'LV',
-    'SAN ANTONIO': 'SAS',
+    'SAN ANTONIO': 'SA',
     ATLANTA: 'ATL',
     BOSTON: 'BOS',
     DALLAS: 'DAL',
@@ -48,8 +51,9 @@ function formatWhen(e: ScheduleEntry): string {
 
 interface GameCardProps {
   entry: ScheduleEntry;
+  score?: ScoreInfo;
 }
-function GameCard({ entry }: GameCardProps) {
+function GameCard({ entry, score }: GameCardProps) {
   const isCompleted = entry.status.toLowerCase() === 'completed';
   const isCancelled = entry.status.toLowerCase() === 'cancelled';
   const live = false; // Supabase/schedule doesn't expose live state; preview treats all non-final as upcoming.
@@ -62,6 +66,9 @@ function GameCard({ entry }: GameCardProps) {
   const statusLabel = isCompleted ? 'Final' : isCancelled ? 'Cancelled' : 'Preview';
   const logo1 = getTeamLogoPathByName(entry.team1);
   const logo2 = getTeamLogoPathByName(entry.team2);
+  const showScore = isCompleted && score;
+  const team1Won = score?.result === 'W';
+  const team2Won = score?.result === 'L';
 
   const body = (
     <div
@@ -91,14 +98,26 @@ function GameCard({ entry }: GameCardProps) {
         )}
       </div>
 
-      {/* center: VS + status */}
+      {/* center: VS / score + status */}
       <div style={{ textAlign: 'center', minWidth: 90, fontFamily: 'var(--tbl-font-mono)' }}>
-        <div
-          className="tbl-display"
-          style={{ fontSize: 20, fontStyle: 'italic', fontWeight: 700, opacity: 0.6 }}
-        >
-          vs
-        </div>
+        {showScore ? (
+          <div className="tbl-display" style={{ fontSize: 22, fontWeight: 900, whiteSpace: 'nowrap' }}>
+            <span style={{ color: team1Won ? 'var(--tbl-accent)' : 'var(--tbl-ink)' }}>
+              {score!.score1.toFixed(0)}
+            </span>
+            <span style={{ color: 'var(--tbl-ink-mute)', margin: '0 6px', fontStyle: 'italic', fontWeight: 400 }}>—</span>
+            <span style={{ color: team2Won ? 'var(--tbl-accent)' : 'var(--tbl-ink)' }}>
+              {score!.score2.toFixed(0)}
+            </span>
+          </div>
+        ) : (
+          <div
+            className="tbl-display"
+            style={{ fontSize: 20, fontStyle: 'italic', fontWeight: 700, opacity: 0.6 }}
+          >
+            vs
+          </div>
+        )}
         <div
           style={{
             fontSize: 9,
@@ -152,7 +171,7 @@ function GameCard({ entry }: GameCardProps) {
   return body;
 }
 
-export function ScheduleClient({ schedule, currentWeek }: Props) {
+export function ScheduleClient({ schedule, currentWeek, scores }: Props) {
   // Default: show current week + last week only. Flip to "All" via the filter.
   const defaultWeek = currentWeek != null ? String(currentWeek) : 'All';
   const [weekFilter, setWeekFilter] = useState<string>(defaultWeek);
@@ -320,7 +339,11 @@ export function ScheduleClient({ schedule, currentWeek }: Props) {
                   style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}
                 >
                   {entries.map((e, i) => (
-                    <GameCard key={`${wk}-${i}-${e.team1}-${e.team2}`} entry={e} />
+                    <GameCard
+                      key={`${wk}-${i}-${e.team1}-${e.team2}`}
+                      entry={e}
+                      score={e.matchIndex != null ? scores[e.matchIndex] : undefined}
+                    />
                   ))}
                 </div>
               </div>

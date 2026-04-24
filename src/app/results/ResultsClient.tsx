@@ -189,6 +189,105 @@ function MatchCard({ match, hasHighlights }: { match: MatchResult; hasHighlights
             score1={match.score1}
             score2={match.score2}
           />
+          <RoundByRound boxScore={match.boxScore} team1={team1Name} team2={team2Name} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RoundByRound({
+  boxScore,
+  team1,
+  team2,
+}: {
+  boxScore: BoxScoreRound[];
+  team1: string;
+  team2: string;
+}) {
+  const phases = Array.from(new Set(boxScore.map((r) => r.phase).filter(Boolean)));
+
+  const renderRow = (row: BoxScoreRound, i: number) => {
+    const home = row.score1 > row.score2;
+    const away = row.score2 > row.score1;
+    return (
+      <tr key={i}>
+        <td className="mono" style={{ fontSize: 12, color: 'var(--text-muted)', width: 36 }}>{row.round}</td>
+        <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{row.weightClass || ''}</td>
+        <td style={{ fontWeight: home ? 700 : 400, fontSize: 13 }}>
+          <Link href={`/fighters/${toSlug(row.fighter1)}`} style={{ color: home ? 'var(--accent)' : 'var(--text)' }}>
+            {row.fighter1}
+          </Link>
+        </td>
+        <td style={{ fontWeight: away ? 700 : 400, fontSize: 13 }}>
+          <Link href={`/fighters/${toSlug(row.fighter2)}`} style={{ color: away ? 'var(--accent)' : 'var(--text)' }}>
+            {row.fighter2}
+          </Link>
+        </td>
+        <td className="num-cell mono" style={{ fontSize: 12 }}>
+          <span style={{ color: home ? 'var(--result-w)' : 'var(--text-muted)' }}>{row.score1.toFixed(1)}</span>
+          {' – '}
+          <span style={{ color: away ? 'var(--result-w)' : 'var(--text-muted)' }}>{row.score2.toFixed(1)}</span>
+        </td>
+      </tr>
+    );
+  };
+
+  return (
+    <div className="results-phases" style={{ marginTop: 16 }}>
+      {phases.length > 0 ? (
+        phases.map((phase) => {
+          const rows = boxScore.filter((r) => r.phase === phase);
+          const sub1 = rows.reduce((s, r) => s + r.score1, 0);
+          const sub2 = rows.reduce((s, r) => s + r.score2, 0);
+          return (
+            <div key={phase} className="results-phase-section">
+              <div className="results-phase-header">{phase || 'Rounds'}</div>
+              <div className="results-boxscore">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Rnd</th>
+                      <th>Weight</th>
+                      <th>{team1}</th>
+                      <th>{team2}</th>
+                      <th className="num-cell">Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map(renderRow)}
+                    <tr className="results-phase-subtotal">
+                      <td className="mono" style={{ fontSize: 11, color: 'var(--text-muted)' }}>SUB</td>
+                      <td />
+                      <td /><td />
+                      <td className="num-cell mono" style={{ fontSize: 12 }}>
+                        <span style={{ color: sub1 > sub2 ? 'var(--result-w)' : sub1 < sub2 ? 'var(--result-l)' : 'var(--text-muted)' }}>{sub1.toFixed(1)}</span>
+                        {' – '}
+                        <span style={{ color: sub2 > sub1 ? 'var(--result-w)' : sub2 < sub1 ? 'var(--result-l)' : 'var(--text-muted)' }}>{sub2.toFixed(1)}</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          );
+        })
+      ) : (
+        <div className="results-boxscore">
+          <table>
+            <thead>
+              <tr>
+                <th>Rnd</th>
+                <th>Weight</th>
+                <th>{team1}</th>
+                <th>{team2}</th>
+                <th className="num-cell">Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              {boxScore.map(renderRow)}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

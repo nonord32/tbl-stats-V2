@@ -59,9 +59,6 @@ function MatchCard({ match, teamName: _teamName }: MatchCardProps) {
   const oppSlug = toSlug(match.opponent);
   const oppFull = getFullTeamName(oppSlug) || match.opponent;
   const oppLogo = `/logos/${oppSlug}.png`;
-  // Surface the first KO scored by the team (matches the handoff's "KO: name" chip).
-  const koRound = match.boxScore.find((r) => r.winner && r.winner !== '' && r.score2 === 0);
-  const koName = koRound ? koRound.fighter1 : null;
 
   const formattedDate = (() => {
     try {
@@ -125,7 +122,6 @@ function MatchCard({ match, teamName: _teamName }: MatchCardProps) {
           }}
         >
           {formattedDate}
-          {koName && ` · KO: ${koName.split(' ').slice(-1)[0]}`}
         </div>
       </div>
       <div

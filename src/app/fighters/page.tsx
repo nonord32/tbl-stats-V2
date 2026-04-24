@@ -48,6 +48,7 @@ export default async function FightersPage() {
         <FightersClient
           fighters={data.fighters}
           fighterHistory={data.fighterHistory}
+          schedule={data.schedule}
           lastUpdated={data.lastUpdated}
           seoText="Individual fighter statistics for the 2026 TBL season. Rankings by WAR, NPPR, Net Points, and Win%. Filter by weight class, team, or gender."
         />

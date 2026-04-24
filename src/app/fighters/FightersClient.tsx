@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import type { FighterStat, FightHistory } from '@/types';
+import type { FighterStat, FightHistory, ScheduleEntry } from '@/types';
 import { calcFighterStreak } from '@/lib/data';
 import { getFighterWeightClasses } from '@/lib/fighters';
 import { getTeamColorByName, getTeamLogoPathByName } from '@/lib/teams';
@@ -13,6 +13,7 @@ type SortKey = 'war' | 'nppr' | 'netPts' | 'winPct' | 'rounds' | 'record' | 'nam
 interface Props {
   fighters: FighterStat[];
   fighterHistory: Record<string, FightHistory[]>;
+  schedule: ScheduleEntry[];
   seoText?: string;
   lastUpdated?: string;
 }
@@ -150,7 +151,7 @@ function FighterModal({
   );
 }
 
-export function FightersClient({ fighters, fighterHistory, seoText, lastUpdated }: Props) {
+export function FightersClient({ fighters, fighterHistory, schedule, seoText, lastUpdated }: Props) {
   const formattedUpdate = lastUpdated || null;
   const [sortKey, setSortKey] = useState<SortKey>('netPts');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -158,7 +159,29 @@ export function FightersClient({ fighters, fighterHistory, seoText, lastUpdated 
   const [weightFilter, setWeightFilter] = useState('');
   const [teamFilter, setTeamFilter] = useState('');
   const [genderFilter, setGenderFilter] = useState('');
+  const [weekFilter, setWeekFilter] = useState('');
   const [modalFighter, setModalFighter] = useState<FighterStat | null>(null);
+
+  const matchIndexToWeek = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const s of schedule) {
+      if (s.matchIndex && s.week > 0) map.set(s.matchIndex, s.week);
+    }
+    return map;
+  }, [schedule]);
+
+  const weeks = useMemo(() => {
+    const foughtMatchIndexes = new Set<number>();
+    for (const history of Object.values(fighterHistory)) {
+      for (const h of history) foughtMatchIndexes.add(h.matchIndex);
+    }
+    const set = new Set<number>();
+    for (const mi of foughtMatchIndexes) {
+      const w = matchIndexToWeek.get(mi);
+      if (w) set.add(w);
+    }
+    return Array.from(set).sort((a, b) => a - b);
+  }, [fighterHistory, matchIndexToWeek]);
 
   // Every weight class the fighter has competed in — listed class plus any
   // classes from their bout history. Fighters who've gone up/down a class
@@ -196,14 +219,19 @@ export function FightersClient({ fighters, fighterHistory, seoText, lastUpdated 
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const weekNum = weekFilter ? Number(weekFilter) : null;
     return fighters.filter((f) => {
       if (q && !f.name.toLowerCase().includes(q)) return false;
       if (weightFilter && !fighterWeightClasses(f).has(weightFilter)) return false;
       if (teamFilter && f.team !== teamFilter) return false;
       if (genderFilter && f.gender !== genderFilter) return false;
+      if (weekNum !== null) {
+        const history = fighterHistory[f.slug] || [];
+        if (!history.some((h) => matchIndexToWeek.get(h.matchIndex) === weekNum)) return false;
+      }
       return true;
     });
-  }, [fighters, search, weightFilter, teamFilter, genderFilter, fighterWeightClasses]);
+  }, [fighters, search, weightFilter, teamFilter, genderFilter, weekFilter, fighterWeightClasses, fighterHistory, matchIndexToWeek]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -275,6 +303,10 @@ export function FightersClient({ fighters, fighterHistory, seoText, lastUpdated 
                 <option value="">All genders</option>
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
+              </select>
+              <select className="filter-select" value={weekFilter} onChange={(e) => setWeekFilter(e.target.value)}>
+                <option value="">All weeks</option>
+                {weeks.map((w) => <option key={w} value={w}>Week {w}</option>)}
               </select>
             </div>
           </div>

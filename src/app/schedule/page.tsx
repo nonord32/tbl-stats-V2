@@ -1,6 +1,6 @@
 // src/app/schedule/page.tsx
 import type { Metadata } from 'next';
-import { getAllData } from '@/lib/data';
+import { getAllData, extractUniqueMatches } from '@/lib/data';
 import { getDisplayedCurrentWeek } from '@/lib/week';
 import { ScheduleClient } from './ScheduleClient';
 
@@ -18,8 +18,14 @@ export const metadata: Metadata = {
 };
 
 export default async function SchedulePage() {
-  const { schedule } = await getAllData();
+  const data = await getAllData();
+  const { schedule } = data;
   const currentWeek = getDisplayedCurrentWeek(schedule);
+
+  const scores: Record<number, { score1: number; score2: number; result: 'W' | 'L' | 'D' }> = {};
+  for (const m of extractUniqueMatches(data.teamMatches)) {
+    scores[m.matchIndex] = { score1: m.score1, score2: m.score2, result: m.result };
+  }
 
   const BASE = 'https://tblstats.com';
   const jsonLd = {
@@ -41,7 +47,7 @@ export default async function SchedulePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <ScheduleClient schedule={schedule} currentWeek={currentWeek} />
+      <ScheduleClient schedule={schedule} currentWeek={currentWeek} scores={scores} />
     </>
   );
 }
