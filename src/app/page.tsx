@@ -115,11 +115,12 @@ function FightCardHero({
           {featured ? (
             <>
               <div
-                className="tbl-display"
+                className="tbl-display gz-hero-team"
                 style={{ fontSize: 96, lineHeight: 0.9, marginTop: 16 }}
               >
                 {teamAbbr(featured.team1)}
                 <span
+                  className="gz-hero-vs"
                   style={{
                     display: 'inline-block',
                     transform: 'rotate(-2deg)',
@@ -134,7 +135,7 @@ function FightCardHero({
                 </span>
               </div>
               <div
-                className="tbl-display"
+                className="tbl-display gz-hero-team"
                 style={{ fontSize: 96, lineHeight: 0.9, marginTop: -4 }}
               >
                 {teamAbbr(featured.team2)}
@@ -156,7 +157,7 @@ function FightCardHero({
               )}
             </>
           ) : (
-            <div className="tbl-display" style={{ fontSize: 84, lineHeight: 0.9, marginTop: 16 }}>
+            <div className="tbl-display gz-hero-team" style={{ fontSize: 84, lineHeight: 0.9, marginTop: 16 }}>
               TBL
             </div>
           )}
@@ -164,6 +165,7 @@ function FightCardHero({
 
         {featured && (
           <div
+            className="gz-hero-logos"
             style={{
               position: 'absolute',
               bottom: 28,
@@ -182,6 +184,7 @@ function FightCardHero({
               />
             )}
             <div
+              className="gz-hero-x"
               style={{
                 color: 'var(--tbl-accent-bright)',
                 fontFamily: 'var(--tbl-font-serif)',
@@ -219,7 +222,7 @@ function FightCardHero({
                 <div className="tbl-eyebrow">Fighter in Focus · #1 Net Pts</div>
                 <Link
                   href={`/fighters/${focus.slug}`}
-                  className="tbl-display"
+                  className="tbl-display gz-hero-focus-name"
                   style={{
                     fontSize: 60,
                     lineHeight: 0.95,
@@ -248,7 +251,7 @@ function FightCardHero({
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div
-                  className="tbl-display"
+                  className="tbl-display gz-hero-net"
                   style={{ fontSize: 80, lineHeight: 0.9, color: 'var(--tbl-accent)' }}
                 >
                   {focus.netPts >= 0 ? '+' : ''}
@@ -828,7 +831,7 @@ function WeekendResults({ results }: { results: ResultCard[] }) {
                 )}
               </div>
               <div
-                className="tbl-display"
+                className="tbl-display gz-result-score"
                 style={{
                   fontSize: 30,
                   lineHeight: 1,

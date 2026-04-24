@@ -2659,3 +2659,49 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
   }
   .gz-pickem-card .tbl-display { font-size: 22px !important; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Auth pages — login / signup / forgot / reset
+   Use natural flow with top padding instead of 100vh centering, so the
+   Sign In button never gets hidden behind the fixed mobile tab bar.
+   =========================================================================== */
+.auth-page {
+  display: flex;
+  justify-content: center;
+  padding: 48px 16px;
+}
+@media (max-width: 1023px) {
+  .auth-page { padding: 24px 16px 16px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Gazette home — mobile scaling for FightCard hero and Result cards so
+   big team names (BOSTON, MIAMI ASSASSINS…) don't overflow narrow phones.
+   =========================================================================== */
+@media (max-width: 640px) {
+  /* Hero poster team abbreviations shrink so BOSTON / NYC fit on one line. */
+  .gz-fight-card > div:first-child { padding: 22px 20px !important; min-height: 0 !important; }
+  .gz-fight-card > div:nth-child(2) { padding: 22px 20px !important; }
+  .gz-hero-team { font-size: 56px !important; line-height: 0.9 !important; }
+  .gz-hero-focus-name { font-size: 42px !important; line-height: 0.95 !important; }
+  .gz-hero-vs { font-size: 34px !important; margin: 0 10px !important; }
+  .gz-hero-net { font-size: 52px !important; }
+  .gz-hero-logos { bottom: 16px !important; right: 16px !important; gap: 10px !important; }
+  .gz-hero-logos img { width: 40px !important; height: 40px !important; }
+  .gz-hero-logos .gz-hero-x { font-size: 22px !important; }
+}
+@media (max-width: 380px) {
+  /* Even tighter scaling for very narrow phones (small iPhone, etc.) */
+  .gz-hero-team { font-size: 46px !important; }
+  .gz-hero-focus-name { font-size: 36px !important; }
+  .gz-hero-net { font-size: 44px !important; }
+}
+
+/* Home result cards: tighten layout + shrink team names so full names fit. */
+@media (max-width: 640px) {
+  .gz-result-card { padding: 12px 10px !important; gap: 8px !important; }
+  .gz-result-card .tbl-display { font-size: 13px !important; line-height: 1.1 !important; }
+  .gz-result-card .gz-result-score { font-size: 22px !important; padding: 0 6px !important; }
+  .gz-result-card .gz-result-score span[style*="italic"] { font-size: 16px !important; margin: 0 3px !important; }
+  .gz-result-card img { width: 26px !important; height: 26px !important; }
+}

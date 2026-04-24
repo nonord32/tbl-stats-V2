@@ -44,7 +44,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px' }}>
+    <main className="auth-page">
       <div className="auth-form card" style={{ textAlign: 'center' }}>
         <div style={{ marginBottom: 24 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
