@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getAllData, getFighterBySlug, calcFighterStreak } from '@/lib/data';
 import { getTeamLogoPath, getTeamColor, getFullTeamName } from '@/lib/teams';
-import { LogoImage } from '@/components/LogoImage';
+import { FighterPortrait } from '@/components/FighterPortrait';
 import type { FightHistory } from '@/types';
 
 export const revalidate = 300;
@@ -106,9 +106,10 @@ export default async function FighterPage({ params }: { params: { slug: string }
           className="card fighter-hero"
           style={{ marginBottom: 24, borderTop: teamColor ? `4px solid ${teamColor}` : undefined }}
         >
-          <LogoImage
-            src={getTeamLogoPath(teamSlug)}
-            alt={fighter.team}
+          <FighterPortrait
+            slug={fighter.slug}
+            teamLogoSrc={getTeamLogoPath(teamSlug)}
+            alt={fighter.name}
             className="fighter-hero-logo"
           />
           <div className="fighter-hero-info">

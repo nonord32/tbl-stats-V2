@@ -19,6 +19,10 @@ import type {
 const SHEETS = {
   fighters:
     'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=1927967888&single=true&output=csv',
+  // Secondary source for data only maintained on the Fighter Stats tab (Instagram URLs in col AJ).
+  // Merged into the primary fighters result by slug.
+  fighterSocials:
+    'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=1273687161&single=true&output=csv',
   teams:
     'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=1404001793&single=true&output=csv',
   matches:
@@ -155,8 +159,11 @@ function findHeaderRow(rows: string[][], keywords: string[], scanDepth = 20): nu
 //   Row 1: Title ("Team Boxing League – Fighter Rankings")
 //   Row 2: "Last Updated: 4/13/2026"
 //   Rows 3-6: Description text
-//   Row 7: Headers → Rank | Fighter | Team | Gender | Weight | Fighter WAR | NPPR | Total Net Points | Record | Win % | Rounds | Instagram
+//   Row 7: Headers → Rank | Fighter | Team | Gender | Weight | Fighter WAR | NPPR | Total Net Points | Record | Win % | Rounds
 //   Row 8+: Data
+//
+// Instagram URLs are maintained only on the Fighter Stats tab and merged in
+// separately via parseFighterSocials() / the fighterSocials CSV.
 
 function cleanInstagramUrl(raw: string): string {
   const trimmed = raw.trim();
@@ -236,6 +243,23 @@ function parseFighters(rows: string[][]): { fighters: FighterStat[]; lastUpdated
     .filter((f): f is FighterStat => f !== null && f.name !== '');
 
   return { fighters, lastUpdated };
+}
+
+// ─── Fighter Socials Parser (Fighter Stats tab) ────────────────────────────────
+// The Fighter Stats tab has headers on row 1 with "Fighter Name" and "Instagram"
+// (col AJ in the sheet, but we find it by header name). Returns a slug -> URL map.
+function parseFighterSocials(rows: string[][]): Map<string, string> {
+  const out = new Map<string, string>();
+  const headerRowIndex = Math.max(0, findHeaderRow(rows, ['Fighter', 'Fighter Name']));
+  const objects = toObjects(rows, headerRowIndex);
+  for (const r of objects) {
+    const name = pick(r, 'Fighter', 'Fighter Name').trim();
+    if (!name || name === 'Fighter') continue;
+    const igRaw = pick(r, 'Instagram', 'Instagram URL', 'IG', 'Instagram Handle');
+    const ig = cleanInstagramUrl(igRaw);
+    if (ig) out.set(toSlug(name), ig);
+  }
+  return out;
 }
 
 // ─── Team Standings Parser ─────────────────────────────────────────────────────
@@ -641,9 +665,13 @@ export async function getAllData(): Promise<ParsedSheetData> {
   // Each CSV fetch has its own fallback so one bad source (rename, network,
   // rate limit) can't take down every page that uses getAllData.
   const emptyRows: string[][] = [];
-  const [fighterRawRows, teamRawRows, matchRawRows, scheduleRawRows, highlightsRawRows, awardsRawRows] = await Promise.all([
+  const [fighterRawRows, socialsRawRows, teamRawRows, matchRawRows, scheduleRawRows, highlightsRawRows, awardsRawRows] = await Promise.all([
     fetchRawCSV(SHEETS.fighters).catch((err) => {
       console.error('[getAllData] fighters CSV fetch failed:', err);
+      return emptyRows;
+    }),
+    fetchRawCSV(SHEETS.fighterSocials).catch((err) => {
+      console.error('[getAllData] fighterSocials CSV fetch failed:', err);
       return emptyRows;
     }),
     fetchRawCSV(SHEETS.teams).catch((err) => {
@@ -678,6 +706,17 @@ export async function getAllData(): Promise<ParsedSheetData> {
     lastUpdated = parsed.lastUpdated;
   } catch (err) {
     console.error('[getAllData] parseFighters threw:', err);
+  }
+
+  // Merge Instagram URLs from the Fighter Stats tab (col AJ). Done as a
+  // separate pass so a socials-sheet failure never blocks the core stats.
+  try {
+    const socials = parseFighterSocials(socialsRawRows);
+    if (socials.size > 0) {
+      fighters = fighters.map((f) => (socials.has(f.slug) ? { ...f, instagram: socials.get(f.slug) } : f));
+    }
+  } catch (err) {
+    console.error('[getAllData] parseFighterSocials threw:', err);
   }
 
   let teams: TeamStanding[] = [];
