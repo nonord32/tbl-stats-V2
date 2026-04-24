@@ -2,7 +2,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getAllData } from '@/lib/data';
-import { isPickOpen } from '@/lib/gameTime';
+import { getGameStartUTC, isPickOpen } from '@/lib/gameTime';
 import { getCurrentWeek } from '@/lib/week';
 import { safeGetUser, safeQuery } from '@/lib/supabase/safe';
 import { PicksClient } from './PicksClient';
@@ -45,6 +45,18 @@ export default async function PicksPage() {
       )
     : [];
 
+  // Lock time per upcoming match = game start + 40-min grace (mirrors isPickOpen).
+  // Sent to the client as ISO strings so the countdown works across timezones.
+  const PICK_GRACE_MS = 40 * 60 * 1000;
+  const lockTimes: Record<number, string> = {};
+  upcoming.forEach((s) => {
+    if (!s.matchIndex) return;
+    const start = getGameStartUTC(s.date, s.time, s.venueCity);
+    if (start && !isNaN(start.getTime())) {
+      lockTimes[s.matchIndex] = new Date(start.getTime() + PICK_GRACE_MS).toISOString();
+    }
+  });
+
   // Pending picks = submitted but not yet resolved (may be for locked/started matches)
   const pendingPicks = picks.filter((p) => !p.resolved_at);
 
@@ -62,6 +74,7 @@ export default async function PicksPage() {
       scheduleMap={scheduleMap}
       userId={user.id}
       currentWeek={currentWeek}
+      lockTimes={lockTimes}
     />
   );
 }

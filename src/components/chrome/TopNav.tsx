@@ -10,6 +10,7 @@ const LINKS: { label: string; href: string }[] = [
   { label: 'Teams', href: '/teams' },
   { label: 'Schedule', href: '/schedule' },
   { label: "Pick'em", href: '/picks' },
+  { label: 'Leaderboard', href: '/leaderboard' },
 ];
 
 // Matches a nav link if the current path equals or starts with the link's href.
