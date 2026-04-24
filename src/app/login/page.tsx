@@ -3,7 +3,6 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
 
 const linkStyle: React.CSSProperties = {
   fontFamily: 'var(--font-mono)',
@@ -35,24 +34,17 @@ export default function LoginPage() {
     const code = params.get('error');
     if (code === 'auth_callback_failed') {
       setError('Sign-in failed. Try again.');
+    } else if (code === 'oauth_init_failed') {
+      setError('Could not start Google sign-in. Try again.');
     } else if (code) {
       setError(decodeURIComponent(code));
     }
   }, []);
 
-  async function handleGoogleSignIn() {
-    setRedirectingGoogle(true);
-    setError(null);
-    const supabase = createClient();
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    });
-  }
-
-  // Form is a normal POST to /api/auth/login. The route handler responds
-  // with a 303 redirect (success → /picks, failure → /login?error=…) and
-  // the browser follows it with the freshly-set auth cookies attached.
+  // Both auth flows are server-driven so the freshly-issued cookies survive
+  // iOS Safari's tracking prevention:
+  //   • Google → GET /api/auth/google → 302 to Google with PKCE cookie set
+  //   • Email  → POST /api/auth/login → 303 to /picks with session cookie set
   return (
     <main className="auth-page">
       <div className="auth-form card" style={{ textAlign: 'center' }}>
@@ -67,12 +59,20 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleGoogleSignIn}
-          disabled={redirectingGoogle || submitting}
+        <a
+          href="/api/auth/google"
+          onClick={() => setRedirectingGoogle(true)}
+          aria-disabled={redirectingGoogle || submitting}
           className="btn"
-          style={{ ...buttonStyle, opacity: redirectingGoogle ? 0.7 : 1, marginBottom: 20 }}
+          style={{
+            ...buttonStyle,
+            display: 'inline-flex',
+            alignItems: 'center',
+            opacity: redirectingGoogle ? 0.7 : 1,
+            marginBottom: 20,
+            textDecoration: 'none',
+            pointerEvents: redirectingGoogle || submitting ? 'none' : 'auto',
+          }}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -81,7 +81,7 @@ export default function LoginPage() {
             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
           </svg>
           {redirectingGoogle ? 'Redirecting…' : 'Sign in with Google'}
-        </button>
+        </a>
 
         <div style={{
           display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16,
