@@ -37,7 +37,7 @@ export default function SignupPage() {
     setSubmitting(true);
     setError(null);
     const supabase = createClient();
-    const { error: signUpError } = await supabase.auth.signUp({
+    const { data, error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
       options: {
@@ -46,6 +46,13 @@ export default function SignupPage() {
     });
     if (signUpError) {
       setError(signUpError.message);
+      setSubmitting(false);
+      return;
+    }
+    // Supabase returns a fake user with identities: [] when the email is
+    // already registered (anti-enumeration). No email is sent in that case.
+    if (data.user && data.user.identities && data.user.identities.length === 0) {
+      setError('An account with this email already exists. Try signing in instead.');
       setSubmitting(false);
       return;
     }
