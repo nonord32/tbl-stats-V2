@@ -217,10 +217,38 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
     [sortKey]
   );
 
+  // When a week is selected, replace per-fighter stats (record / net pts /
+  // nppr / win% / rounds) with just that week's performance derived from
+  // their fight history. WAR is season-level and can't be recomputed here,
+  // so it stays as-is.
+  const displayedFighters = useMemo(() => {
+    if (!weekFilter) return fighters;
+    const w = Number(weekFilter);
+    return fighters.map((f) => {
+      const history = fighterHistory[f.slug] || [];
+      const weekOnly = history.filter((h) => matchIndexToWeek.get(h.matchIndex) === w);
+      if (weekOnly.length === 0) return f;
+      const wins = weekOnly.filter((h) => h.result === 'W').length;
+      const losses = weekOnly.filter((h) => h.result === 'L').length;
+      const netPts = weekOnly.reduce((s, h) => s + h.netPts, 0);
+      const rounds = weekOnly.length;
+      return {
+        ...f,
+        wins,
+        losses,
+        record: `${wins}-${losses}`,
+        netPts,
+        rounds,
+        nppr: rounds > 0 ? netPts / rounds : 0,
+        winPct: rounds > 0 ? wins / rounds : 0,
+      };
+    });
+  }, [fighters, fighterHistory, matchIndexToWeek, weekFilter]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const weekNum = weekFilter ? Number(weekFilter) : null;
-    return fighters.filter((f) => {
+    return displayedFighters.filter((f) => {
       if (q && !f.name.toLowerCase().includes(q)) return false;
       if (weightFilter && !fighterWeightClasses(f).has(weightFilter)) return false;
       if (teamFilter && f.team !== teamFilter) return false;
@@ -231,7 +259,7 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
       }
       return true;
     });
-  }, [fighters, search, weightFilter, teamFilter, genderFilter, weekFilter, fighterWeightClasses, fighterHistory, matchIndexToWeek]);
+  }, [displayedFighters, search, weightFilter, teamFilter, genderFilter, weekFilter, fighterWeightClasses, fighterHistory, matchIndexToWeek]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {

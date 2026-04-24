@@ -127,6 +127,17 @@ export default async function MatchPage({
   const totalA = match.score1;
   const totalB = match.score2;
 
+  // Phase breakdown for the Box Score strip (Qualifying / Rounds / Final / etc.)
+  const phases = Array.from(new Set(match.boxScore.map((r) => r.phase).filter(Boolean)));
+  const phaseTotals = phases.map((phase) => {
+    const rows = match.boxScore.filter((r) => r.phase === phase);
+    return {
+      phase,
+      s1: rows.reduce((s, r) => s + r.score1, 0),
+      s2: rows.reduce((s, r) => s + r.score2, 0),
+    };
+  });
+
   const formattedDate = (() => {
     try {
       return new Date(match.date).toLocaleDateString('en-US', {
@@ -368,9 +379,137 @@ export default async function MatchPage({
         </div>
       </div>
 
-      {/* Box score */}
-      <div style={{ padding: '26px 32px 36px' }}>
-        <SectionRule left="Bout-by-Bout · Round Points" right="A·B format per round" />
+      {/* Box Score — phase scorecard strip */}
+      {phases.length > 0 && (
+        <div style={{ padding: '26px 32px 14px' }}>
+          <SectionRule
+            left="Box Score"
+            right={phases.join(' · ')}
+          />
+          <div style={{ overflowX: 'auto' }}>
+            <table
+              style={{
+                width: '100%',
+                borderCollapse: 'collapse',
+                fontFamily: 'var(--tbl-font-mono)',
+                fontSize: 13,
+              }}
+            >
+              <thead>
+                <tr style={{ borderBottom: '2px solid var(--tbl-ink)' }}>
+                  <th
+                    style={{
+                      padding: '8px',
+                      textAlign: 'left',
+                      fontSize: 10,
+                      letterSpacing: '0.18em',
+                      textTransform: 'uppercase',
+                      color: 'var(--tbl-ink-soft)',
+                      fontWeight: 700,
+                    }}
+                  >
+                    Team
+                  </th>
+                  {phases.map((p) => (
+                    <th
+                      key={p}
+                      style={{
+                        padding: '8px',
+                        textAlign: 'center',
+                        fontSize: 10,
+                        letterSpacing: '0.18em',
+                        textTransform: 'uppercase',
+                        color: 'var(--tbl-ink-soft)',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {p}
+                    </th>
+                  ))}
+                  <th
+                    style={{
+                      padding: '8px',
+                      textAlign: 'center',
+                      fontSize: 10,
+                      letterSpacing: '0.18em',
+                      textTransform: 'uppercase',
+                      color: 'var(--tbl-ink)',
+                      fontWeight: 700,
+                    }}
+                  >
+                    Total
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  {
+                    label: team1Full,
+                    scores: phaseTotals.map((pt) => pt.s1),
+                    opp: phaseTotals.map((pt) => pt.s2),
+                    total: totalA,
+                    oppTotal: totalB,
+                  },
+                  {
+                    label: team2Full,
+                    scores: phaseTotals.map((pt) => pt.s2),
+                    opp: phaseTotals.map((pt) => pt.s1),
+                    total: totalB,
+                    oppTotal: totalA,
+                  },
+                ].map(({ label, scores, opp, total, oppTotal }) => (
+                  <tr key={label} style={{ borderBottom: '1px dotted rgba(20,17,11,0.3)' }}>
+                    <td
+                      style={{
+                        padding: '12px 8px',
+                        fontFamily: 'var(--tbl-font-serif)',
+                        fontSize: 15,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {label}
+                    </td>
+                    {scores.map((s, i) => {
+                      const win = s > opp[i];
+                      return (
+                        <td
+                          key={i}
+                          style={{
+                            padding: '12px 8px',
+                            textAlign: 'center',
+                            fontFamily: 'var(--tbl-font-serif)',
+                            fontSize: 16,
+                            fontWeight: win ? 900 : 500,
+                            color: win ? 'var(--tbl-green)' : 'var(--tbl-ink-soft)',
+                          }}
+                        >
+                          {s.toFixed(0)}
+                        </td>
+                      );
+                    })}
+                    <td
+                      style={{
+                        padding: '12px 8px',
+                        textAlign: 'center',
+                        fontFamily: 'var(--tbl-font-serif)',
+                        fontSize: 20,
+                        fontWeight: 900,
+                        color: total > oppTotal ? 'var(--tbl-accent)' : 'var(--tbl-ink)',
+                      }}
+                    >
+                      {total.toFixed(0)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Round-by-Round breakdown, grouped by phase, with Weight column */}
+      <div style={{ padding: '18px 32px 36px' }}>
+        <SectionRule left="Round-by-Round" right="A·B format per round" />
         <div style={{ overflowX: 'auto' }}>
           <table
             style={{
