@@ -5,8 +5,9 @@ import Script from 'next/script';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { ThemeProvider } from '@/components/ThemeProvider';
-import { Nav } from '@/components/Nav';
-import { Footer } from '@/components/Footer';
+import { TopStrip } from '@/components/chrome/TopStrip';
+import { TopNav } from '@/components/chrome/TopNav';
+import { GazetteFooter } from '@/components/chrome/GazetteFooter';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -48,16 +49,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
-          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&display=swap"
           rel="stylesheet"
         />
       </head>
       <body>
         <ThemeProvider>
-          <Nav />
+          <TopStrip />
+          <TopNav />
           <main>{children}</main>
-          <Footer />
+          <GazetteFooter />
         </ThemeProvider>
         <Analytics />
         <SpeedInsights />

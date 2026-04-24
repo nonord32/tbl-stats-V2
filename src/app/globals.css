@@ -1,73 +1,76 @@
 /* src/app/globals.css */
 
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&display=swap');
 
 /* ─── Design Tokens ──────────────────────────────────────────────────────── */
+/* "Gazette" newspaper direction: cream paper, Playfair serif, IBM Plex Mono, burnt-orange accent. */
 :root {
-  /* Light mode (default) */
-  --bg: #f5f3f0;
-  --bg-card: #ffffff;
-  --bg-table-alt: #f0eee9;
-  --bg-input: #ffffff;
-  --border: #d8d4cd;
-  --text: #1a1720;
-  --text-muted: #6b6578;
-  --text-heading: #0f0d14;
-  --accent: #e63500;
-  --accent-hover: #c42d00;
-  --accent-text: #ffffff;
-  --nav-bg: #13111a;
-  --nav-text: #ffffff;
-  --nav-text-muted: rgba(255,255,255,0.65);
-  --badge-bg: #f0eee9;
-  --badge-text: #4a4458;
-  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
-  --shadow-card: 0 2px 12px rgba(0,0,0,0.08);
-  --modal-overlay: rgba(0,0,0,0.5);
-  --result-w: #15803d;
-  --result-l: #dc2626;
-  --result-d: #6b6578;
-  --streak-bg-w: #dcfce7;
-  --streak-text-w: #15803d;
-  --streak-bg-l: #fee2e2;
-  --streak-text-l: #dc2626;
+  /* Paper palette */
+  --tbl-bg: #f4ede0;            /* page background (warm cream) */
+  --tbl-paper: #faf4e6;         /* card / input background (lighter cream) */
+  --tbl-ink: #14110b;           /* primary text (near-black, warm) */
+  --tbl-ink-soft: #5a503f;      /* secondary text */
+  --tbl-ink-mute: #9b9080;      /* tertiary text */
+
+  /* Accent */
+  --tbl-accent: #c43a00;        /* primary accent (burnt orange) */
+  --tbl-accent-bright: #ff3c00; /* secondary accent (on dark) */
+
+  /* Result colors */
+  --tbl-green: #0b5b2e;
+  --tbl-red: #9b2c15;
+  --tbl-green-bg: #dcfce7;
+  --tbl-red-bg: #fee2e2;
 
   /* Typography */
-  --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
-  --font-body: Verdana, Geneva, Tahoma, sans-serif;
+  --tbl-font-serif: 'Playfair Display', Georgia, serif;
+  --tbl-font-body: Georgia, 'Times New Roman', serif;
+  --tbl-font-mono: 'IBM Plex Mono', monospace;
 
   /* Spacing */
-  --radius: 6px;
-  --radius-lg: 10px;
-  --nav-h: 64px;
+  --tbl-pad-x: 32px;
+  --tbl-pad-y: 26px;
+
+  /* ── Legacy tokens (bridged to Gazette palette so existing classes inherit) ── */
+  --bg: var(--tbl-bg);
+  --bg-card: var(--tbl-paper);
+  --bg-table-alt: rgba(20, 17, 11, 0.025);
+  --bg-input: var(--tbl-paper);
+  --border: var(--tbl-ink);
+  --text: var(--tbl-ink);
+  --text-muted: var(--tbl-ink-soft);
+  --text-heading: var(--tbl-ink);
+  --accent: var(--tbl-accent);
+  --accent-hover: #a02f00;
+  --accent-text: #ffffff;
+  --nav-bg: var(--tbl-ink);
+  --nav-text: var(--tbl-bg);
+  --nav-text-muted: rgba(244, 237, 224, 0.6);
+  --badge-bg: rgba(20, 17, 11, 0.08);
+  --badge-text: var(--tbl-ink-soft);
+  --shadow: none;
+  --shadow-card: none;
+  --modal-overlay: rgba(20, 17, 11, 0.5);
+  --result-w: var(--tbl-green);
+  --result-l: var(--tbl-red);
+  --result-d: var(--tbl-ink-soft);
+  --streak-bg-w: var(--tbl-green-bg);
+  --streak-text-w: var(--tbl-green);
+  --streak-bg-l: var(--tbl-red-bg);
+  --streak-text-l: var(--tbl-red);
+
+  --font-mono: var(--tbl-font-mono);
+  --font-body: var(--tbl-font-body);
+
+  --radius: 0;         /* Gazette is flat + square: zero radius everywhere */
+  --radius-lg: 0;
+  --nav-h: 104px;      /* TopStrip (~37px) + TopNav (~67px) */
   --bottom-nav-h: 56px;
 }
 
+/* Dark-mode theme removed — Gazette is a single light direction. */
 [data-theme='dark'] {
-  --bg: #13111a;
-  --bg-card: #1e1b2e;
-  --bg-table-alt: #191624;
-  --bg-input: #1e1b2e;
-  --border: #2e2a3d;
-  --text: #e8e4f0;
-  --text-muted: #9991a8;
-  --text-heading: #f0ecf8;
-  --accent: #ff3c00;
-  --accent-hover: #e63500;
-  --accent-text: #ffffff;
-  --nav-bg: #0d0b12;
-  --badge-bg: #2e2a3d;
-  --badge-text: #c4bdd8;
-  --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 2px 8px rgba(0,0,0,0.2);
-  --shadow-card: 0 2px 12px rgba(0,0,0,0.3);
-  --modal-overlay: rgba(0,0,0,0.75);
-  --result-w: #4ade80;
-  --result-l: #f87171;
-  --result-d: #9991a8;
-  --streak-bg-w: rgba(74,222,128,0.15);
-  --streak-text-w: #4ade80;
-  --streak-bg-l: rgba(248,113,113,0.15);
-  --streak-text-l: #f87171;
+  /* Intentionally empty: honor dark toggle without breaking, but render the same palette. */
 }
 
 /* ─── Reset & Base ────────────────────────────────────────────────────────── */
@@ -76,12 +79,16 @@
 html { scroll-behavior: smooth; }
 
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-body);
+  background: var(--tbl-bg);
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(139,108,66,0.05) 0 1px, transparent 1px),
+    radial-gradient(circle at 70% 80%, rgba(139,108,66,0.04) 0 1px, transparent 1px),
+    radial-gradient(circle at 50% 10%, rgba(139,108,66,0.03) 0 1px, transparent 1px);
+  background-size: 3px 3px, 5px 5px, 7px 7px;
+  color: var(--tbl-ink);
+  font-family: var(--tbl-font-body);
   font-size: 14px;
   line-height: 1.6;
-  transition: background 0.2s, color 0.2s;
   min-height: 100vh;
   min-height: 100dvh;
   overflow-x: hidden;
@@ -1990,4 +1997,270 @@ a:hover .schedule-row,
   .rank-card { padding: 10px 14px; gap: 10px; }
   .rank-card-record { display: none; }
   .rank-section-title { font-size: 18px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Gazette Redesign — shared chrome + layout primitives
+   =========================================================================== */
+
+/* Top strip (dark band with season / live score) */
+.tbl-top-strip {
+  background: var(--tbl-ink);
+  color: var(--tbl-bg);
+  padding: 9px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--tbl-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.tbl-top-strip__left {
+  display: flex;
+  gap: 14px;
+  color: rgba(244, 237, 224, 0.6);
+  flex-wrap: wrap;
+}
+.tbl-top-strip__right {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.tbl-top-strip__live {
+  color: var(--tbl-accent-bright);
+  font-weight: 700;
+}
+.tbl-top-strip__timestamp { color: rgba(244, 237, 224, 0.55); }
+
+/* Top nav (logo + nav links, with double border) */
+.tbl-top-nav {
+  padding: 22px 32px 18px;
+  border-bottom: 3px double var(--tbl-ink);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.tbl-top-nav__brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-decoration: none;
+  color: var(--tbl-ink);
+}
+.tbl-top-nav__brand:hover { text-decoration: none; color: var(--tbl-ink); }
+.tbl-top-nav__logo { height: 48px; width: auto; object-fit: contain; }
+.tbl-top-nav__wordmark {
+  font-family: var(--tbl-font-serif);
+  font-weight: 900;
+  font-size: 36px;
+  line-height: 0.9;
+  letter-spacing: -0.01em;
+  color: var(--tbl-ink);
+}
+.tbl-top-nav__tagline {
+  font-family: var(--tbl-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  color: var(--tbl-ink-soft);
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+.tbl-top-nav__links {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.tbl-top-nav__link {
+  padding: 10px 18px;
+  font-family: var(--tbl-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--tbl-ink);
+  background: transparent;
+  border: 1px solid transparent;
+  text-decoration: none;
+  transition: background 0.12s, color 0.12s;
+}
+.tbl-top-nav__link:hover {
+  background: rgba(20, 17, 11, 0.06);
+  text-decoration: none;
+  color: var(--tbl-ink);
+}
+.tbl-top-nav__link.is-active {
+  font-weight: 700;
+  color: var(--tbl-bg);
+  background: var(--tbl-ink);
+  border-color: var(--tbl-ink);
+}
+.tbl-top-nav__link.is-active:hover {
+  background: var(--tbl-ink);
+  color: var(--tbl-bg);
+}
+
+/* Page header (eyebrow + big serif title + subtitle, with double border) */
+.tbl-page-header {
+  padding: 28px 32px 22px;
+  border-bottom: 3px double var(--tbl-ink);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.tbl-eyebrow {
+  font-family: var(--tbl-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.26em;
+  color: var(--tbl-accent);
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.tbl-page-header__title {
+  font-family: var(--tbl-font-serif);
+  font-weight: 900;
+  font-size: clamp(36px, 6vw, 64px);
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  color: var(--tbl-ink);
+  margin: 0;
+}
+.tbl-page-header__subtitle {
+  font-family: var(--tbl-font-mono);
+  font-size: 12px;
+  color: var(--tbl-ink-soft);
+  margin-top: 8px;
+  letter-spacing: 0.08em;
+}
+
+/* Footer (dark band) */
+.tbl-footer {
+  background: var(--tbl-ink);
+  color: rgba(244, 237, 224, 0.5);
+  padding: 20px 32px;
+  font-family: var(--tbl-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Section rule (single-line heading band) */
+.tbl-section-rule {
+  font-family: var(--tbl-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: var(--tbl-ink-soft);
+  text-transform: uppercase;
+  font-weight: 700;
+  border-top: 1px solid var(--tbl-ink);
+  border-bottom: 1px solid var(--tbl-ink);
+  padding: 6px 0;
+  display: flex;
+  justify-content: space-between;
+  margin: 0 0 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Utility: display / mono / soft text tokens */
+.tbl-display { font-family: var(--tbl-font-serif); font-weight: 900; letter-spacing: -0.02em; }
+.tbl-mono { font-family: var(--tbl-font-mono); }
+.tbl-soft { color: var(--tbl-ink-soft); }
+.tbl-accent-fg { color: var(--tbl-accent); }
+
+/* StreakBadge (shared across pages) */
+.tbl-streak {
+  font-family: var(--tbl-font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  display: inline-block;
+  min-width: 28px;
+  text-align: center;
+  border-radius: 0;
+}
+.tbl-streak--win { background: var(--tbl-green-bg); color: var(--tbl-green); }
+.tbl-streak--loss { background: var(--tbl-red-bg); color: var(--tbl-red); }
+
+/* CTA button */
+.tbl-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 26px;
+  font-family: var(--tbl-font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  border: 1.5px solid var(--tbl-ink);
+  background: transparent;
+  color: var(--tbl-ink);
+  text-decoration: none;
+  cursor: pointer;
+  border-radius: 0;
+  transition: background 0.12s, color 0.12s;
+}
+.tbl-btn:hover { background: var(--tbl-ink); color: var(--tbl-bg); text-decoration: none; }
+.tbl-btn--primary {
+  background: var(--tbl-accent);
+  border-color: var(--tbl-accent);
+  color: #fff;
+}
+.tbl-btn--primary:hover { background: #a02f00; border-color: #a02f00; color: #fff; }
+
+/* Page frame — each page wraps its body in this for consistent padding */
+.tbl-page-body { padding: 28px 32px 40px; }
+
+/* Mobile tightening of chrome */
+@media (max-width: 720px) {
+  .tbl-top-strip { padding: 9px 16px; font-size: 10px; letter-spacing: 0.12em; }
+  .tbl-top-nav { padding: 18px 16px 14px; gap: 14px; }
+  .tbl-top-nav__wordmark { font-size: 26px; }
+  .tbl-top-nav__logo { height: 36px; }
+  .tbl-top-nav__links { gap: 2px; }
+  .tbl-top-nav__link { padding: 8px 12px; font-size: 10px; letter-spacing: 0.15em; }
+  .tbl-page-header { padding: 22px 16px 18px; }
+  .tbl-footer { padding: 16px 16px; font-size: 9px; letter-spacing: 0.08em; }
+  .tbl-page-body { padding: 22px 16px 32px; }
+}
+
+/* Override legacy `main` padding — our chrome is no longer fixed-position */
+main { padding-top: 0 !important; }
+
+/* Hide legacy nav if it slips in */
+.nav { display: none !important; }
+.bottom-nav { display: none !important; }
+
+/* Legacy .card: keep block but replace chrome to match Gazette */
+.card {
+  background: var(--tbl-paper);
+  border: 1.5px solid var(--tbl-ink);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Gazette home-page responsive tweaks */
+@media (max-width: 900px) {
+  .gz-fight-card { grid-template-columns: 1fr !important; }
+  .gz-fight-card > div:nth-child(2) { border-left: none !important; border-top: 3px solid var(--tbl-ink); }
+  .gz-topsix-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .gz-standings-cols { grid-template-columns: 1fr !important; gap: 24px !important; }
+  .gz-results-grid { grid-template-columns: 1fr !important; }
+}
+@media (max-width: 520px) {
+  .gz-topsix-grid { grid-template-columns: 1fr !important; }
 }
