@@ -908,6 +908,244 @@ function WeekendResults({ results }: { results: ResultCard[] }) {
   );
 }
 
+// ─── Mobile compact layout ──────────────────────────────────────────────────
+// Hidden on desktop via CSS (see globals.css ".home-mobile-only").
+function MobileMatchBanner({
+  featured,
+  lastCompleted,
+  teamRecords,
+}: {
+  featured: ScheduleEntry | null;
+  lastCompleted: ResultCard | null;
+  teamRecords: Map<string, string>;
+}) {
+  // Prefer upcoming match; fall back to the most recent completed match.
+  const team1 = featured ? featured.team1 : lastCompleted?.team1;
+  const team2 = featured ? featured.team2 : lastCompleted?.team2;
+  if (!team1 || !team2) return null;
+
+  const logo1 = getTeamLogoPathByName(team1);
+  const logo2 = getTeamLogoPathByName(team2);
+  const abbr1 = teamAbbr(team1);
+  const abbr2 = teamAbbr(team2);
+  const rec1 = teamRecords.get(team1) ?? '';
+  const rec2 = teamRecords.get(team2) ?? '';
+
+  const score1 = lastCompleted?.s1;
+  const score2 = lastCompleted?.s2;
+  const showScore = !featured && score1 != null && score2 != null;
+  const team1Won = showScore && (score1 as number) > (score2 as number);
+  const team2Won = showScore && (score2 as number) > (score1 as number);
+  const href =
+    featured && featured.matchIndex
+      ? `/matches/${featured.matchIndex}`
+      : lastCompleted
+      ? `/matches/${lastCompleted.matchIndex}`
+      : '/schedule';
+
+  return (
+    <div className="home-mobile-only" style={{ padding: '16px 16px 8px' }}>
+      <div className="tbl-eyebrow" style={{ color: 'var(--tbl-accent)' }}>
+        {featured ? 'Fight of the Week' : 'Latest Result'}
+      </div>
+      <div className="tbl-display" style={{ fontSize: 44, lineHeight: 0.95, marginTop: 4 }}>
+        {abbr1}{' '}
+        <span style={{ color: 'var(--tbl-accent)', fontStyle: 'italic', fontWeight: 900 }}>vs</span>{' '}
+        {abbr2}
+      </div>
+      <Link
+        href={href}
+        className="home-mobile-banner"
+        style={{
+          marginTop: 12,
+          background: 'var(--tbl-ink)',
+          color: 'var(--tbl-bg)',
+          border: '1.5px solid var(--tbl-ink)',
+          padding: '16px 14px',
+          display: 'grid',
+          gridTemplateColumns: '1fr auto 1fr',
+          alignItems: 'center',
+          gap: 10,
+          textDecoration: 'none',
+        }}
+      >
+        {/* Team 1 */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+          {logo1 && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logo1} alt="" style={{ width: 44, height: 44, objectFit: 'contain' }} />
+          )}
+          <div className="tbl-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}>
+            {abbr1}
+          </div>
+          {rec1 && (
+            <div
+              style={{
+                fontFamily: 'var(--tbl-font-mono)',
+                fontSize: 10,
+                letterSpacing: '0.12em',
+                color: 'rgba(244,237,224,0.55)',
+              }}
+            >
+              {rec1}
+            </div>
+          )}
+        </div>
+
+        {/* Center: score or vs */}
+        <div style={{ textAlign: 'center', minWidth: 64 }}>
+          {showScore ? (
+            <div
+              className="tbl-display"
+              style={{
+                fontSize: 30,
+                lineHeight: 1,
+                color: 'var(--tbl-accent-bright)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <span style={{ color: team1Won ? 'var(--tbl-accent-bright)' : 'var(--tbl-bg)' }}>
+                {(score1 as number).toFixed(0)}
+              </span>
+              <span style={{ color: 'rgba(244,237,224,0.5)', margin: '0 4px' }}>—</span>
+              <span style={{ color: team2Won ? 'var(--tbl-accent-bright)' : 'var(--tbl-bg)' }}>
+                {(score2 as number).toFixed(0)}
+              </span>
+            </div>
+          ) : (
+            <div
+              className="tbl-display"
+              style={{
+                fontSize: 22,
+                fontStyle: 'italic',
+                color: 'var(--tbl-accent-bright)',
+                fontWeight: 900,
+              }}
+            >
+              vs
+            </div>
+          )}
+          <div
+            style={{
+              fontFamily: 'var(--tbl-font-mono)',
+              fontSize: 9,
+              letterSpacing: '0.2em',
+              textTransform: 'uppercase',
+              marginTop: 6,
+              color: 'var(--tbl-accent-bright)',
+              fontWeight: 700,
+            }}
+          >
+            {featured ? (featured.time ? featured.time.replace(/\s*local/i, '').trim() : 'Upcoming') : 'Final'}
+          </div>
+        </div>
+
+        {/* Team 2 */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+          {logo2 && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logo2} alt="" style={{ width: 44, height: 44, objectFit: 'contain' }} />
+          )}
+          <div className="tbl-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}>
+            {abbr2}
+          </div>
+          {rec2 && (
+            <div
+              style={{
+                fontFamily: 'var(--tbl-font-mono)',
+                fontSize: 10,
+                letterSpacing: '0.12em',
+                color: 'rgba(244,237,224,0.55)',
+              }}
+            >
+              {rec2}
+            </div>
+          )}
+        </div>
+      </Link>
+    </div>
+  );
+}
+
+function MobileTopFighters({ fighters }: { fighters: FighterStat[] }) {
+  if (fighters.length === 0) return null;
+  const top4 = fighters.slice(0, 4);
+  return (
+    <div className="home-mobile-only home-mobile-section">
+      <div className="home-mobile-section__head">
+        <span>Top Fighters · Net Pts</span>
+        <Link href="/fighters">See all →</Link>
+      </div>
+      <div className="home-mobile-list">
+        {top4.map((f, i) => {
+          const logo = getTeamLogoPathByName(f.team);
+          return (
+            <Link key={f.slug} href={`/fighters/${f.slug}`} className="home-mobile-list__row">
+              <div className="home-mobile-list__rank">{i + 1}</div>
+              {logo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={logo} alt="" className="home-mobile-list__logo" />
+              ) : (
+                <span className="home-mobile-list__logo" />
+              )}
+              <div className="home-mobile-list__body">
+                <div className="home-mobile-list__name">{f.name}</div>
+                <div className="home-mobile-list__meta">
+                  {f.weightClass} · {f.record}
+                </div>
+              </div>
+              <div className="home-mobile-list__value">
+                {f.netPts >= 0 ? '+' : ''}
+                {f.netPts.toFixed(0)}
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function MobileStandings({ teams }: { teams: TeamStanding[] }) {
+  if (teams.length === 0) return null;
+  const top6 = teams.slice(0, 6);
+  return (
+    <div className="home-mobile-only home-mobile-section">
+      <div className="home-mobile-section__head">
+        <span>Standings · Top 6</span>
+        <Link href="/teams">Teams →</Link>
+      </div>
+      <div className="home-mobile-list">
+        {top6.map((t, i) => {
+          const logo = getTeamLogoPathByName(t.team);
+          return (
+            <Link key={t.slug} href={`/teams/${t.slug}`} className="home-mobile-list__row is-team">
+              <div className="home-mobile-list__rank">{i + 1}</div>
+              {logo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={logo} alt="" className="home-mobile-list__logo" />
+              ) : (
+                <span className="home-mobile-list__logo" />
+              )}
+              <div className="home-mobile-list__body">
+                <div className="home-mobile-list__name">{getFullTeamName(t.slug)}</div>
+              </div>
+              <div className="home-mobile-list__record">{t.record}</div>
+              <div
+                className="home-mobile-list__diff"
+                style={{ color: t.diff >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)' }}
+              >
+                {t.diff >= 0 ? '+' : ''}
+                {t.diff.toFixed(0)}
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 export default async function HomePage() {
   const { fighters, teams, schedule, teamMatches, awards } = await getAllData();
@@ -1000,21 +1238,44 @@ export default async function HomePage() {
     ],
   };
 
+  // Quick team→record lookup for the mobile hero banner.
+  const teamRecords = new Map<string, string>();
+  teams.forEach((t) => {
+    teamRecords.set(t.team, t.record);
+    teamRecords.set(getFullTeamName(t.slug), t.record);
+    teamRecords.set(getCityName(t.team), t.record);
+  });
+  const lastCompleted = completed[0] ?? null;
+
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <FightCardHero featured={featured} focus={focus} alsoThisWeek={alsoThisWeek} />
-      <TopSix fighters={topSix} />
-      <StandingsTwoCol teams={topTeams} />
+
+      {/* Mobile compact layout (hidden on desktop via CSS) */}
+      <MobileMatchBanner
+        featured={featured}
+        lastCompleted={lastCompleted}
+        teamRecords={teamRecords}
+      />
+      <MobileTopFighters fighters={fightersByNetPts} />
+      <MobileStandings teams={topTeams} />
+
+      {/* Desktop layout (hidden on mobile via CSS) */}
+      <div className="home-desktop-only">
+        <FightCardHero featured={featured} focus={focus} alsoThisWeek={alsoThisWeek} />
+        <TopSix fighters={topSix} />
+        <StandingsTwoCol teams={topTeams} />
+      </div>
+
       {pickemWeek !== null && pickemMatches.length > 0 && (
         <PickemPromo week={pickemWeek} matches={pickemMatches} />
       )}
       <WeekendResults results={completed} />
       {awards.length > 0 && (
-        <div style={{ padding: '0 32px 40px' }}>
+        <div className="home-awards-section" style={{ padding: '0 32px 40px' }}>
           <div style={{ marginBottom: 16 }}>
             <div className="tbl-eyebrow">Past MVPs & Trophies</div>
             <div

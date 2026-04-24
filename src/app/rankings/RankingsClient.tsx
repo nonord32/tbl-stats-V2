@@ -104,8 +104,15 @@ export function RankingsClient({ fighters, lastUpdated }: Props) {
     <>
       <PageHeader
         eyebrow="Pound for Pound"
-        title="Fighter Rankings"
-        subtitle={`Four Categories · Top Five in Each${lastUpdated ? ` · Updated ${lastUpdated}` : ''}`}
+        title="Rankings"
+        subtitle={
+          <>
+            Four Categories
+            <span className="rankings-desktop-only"> · Top Five in Each</span>
+            <span className="rankings-mobile-only"> · Top Three Each</span>
+            {lastUpdated ? ` · Updated ${lastUpdated}` : ''}
+          </>
+        }
         right={filterSlot}
       />
 

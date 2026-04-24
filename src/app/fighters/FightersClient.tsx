@@ -7,6 +7,7 @@ import type { FighterStat, FightHistory, ScheduleEntry } from '@/types';
 import { calcFighterStreak } from '@/lib/data';
 import { getFighterWeightClasses } from '@/lib/fighters';
 import { getTeamColorByName, getTeamLogoPathByName } from '@/lib/teams';
+import { PageHeader } from '@/components/chrome/PageHeader';
 
 type SortKey = 'war' | 'nppr' | 'netPts' | 'winPct' | 'rounds' | 'record' | 'name';
 
@@ -293,8 +294,81 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
   );
 
   return (
-    <div className="page">
-      <div className="container">
+    <div className="page fighters-page">
+      {/* Mobile-only Gazette-style header */}
+      <div className="fighters-mobile-header">
+        <PageHeader
+          eyebrow="The Roster"
+          title="Fighters"
+          subtitle={`${fighters.length} Fighters · Sorted by Net Points`}
+        />
+        <div className="fighters-mobile-filters">
+          <input
+            type="search"
+            className="fighters-mobile-search"
+            placeholder="Search fighter…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Search fighters by name"
+          />
+          <select
+            className="fighters-mobile-select"
+            value={weightFilter}
+            onChange={(e) => setWeightFilter(e.target.value)}
+            aria-label="Filter by weight class"
+          >
+            <option value="">All weights</option>
+            {weightClasses.map((w) => (
+              <option key={w} value={w}>
+                {w}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Mobile list view */}
+      <div className="fighters-mobile-list">
+        {sorted.slice(0, 50).map((f, i) => {
+          const logo = getTeamLogoPathByName(f.team);
+          return (
+            <Link
+              key={f.slug}
+              href={`/fighters/${f.slug}`}
+              className="fighters-mobile-row"
+            >
+              <div className="fighters-mobile-row__rank">{i + 1}</div>
+              {logo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={logo} alt="" className="fighters-mobile-row__logo" />
+              ) : (
+                <span className="fighters-mobile-row__logo" />
+              )}
+              <div className="fighters-mobile-row__body">
+                <div className="fighters-mobile-row__name">{f.name}</div>
+                <div className="fighters-mobile-row__meta">
+                  {f.weightClass} · {f.record} · {(f.winPct * 100).toFixed(0)}%
+                </div>
+              </div>
+              <div className="fighters-mobile-row__value">
+                <span
+                  className="fighters-mobile-row__num"
+                  style={{ color: f.netPts >= 0 ? 'var(--tbl-accent)' : 'var(--tbl-red)' }}
+                >
+                  {f.netPts >= 0 ? '+' : ''}
+                  {f.netPts.toFixed(0)}
+                </span>
+                <span className="fighters-mobile-row__unit">Net</span>
+              </div>
+            </Link>
+          );
+        })}
+        {sorted.length === 0 && (
+          <div className="fighters-mobile-empty">No fighters match your filters.</div>
+        )}
+      </div>
+
+      <div className="container fighters-desktop-only">
         <div className="page-header">
           <h1>Fighter Stats</h1>
           <div className="subtitle">

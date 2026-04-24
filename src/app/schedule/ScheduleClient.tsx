@@ -72,6 +72,7 @@ function GameCard({ entry, score }: GameCardProps) {
 
   const body = (
     <div
+      className="gz-game-card"
       style={{
         background: bg,
         color: fg,
@@ -85,23 +86,23 @@ function GameCard({ entry, score }: GameCardProps) {
       }}
     >
       {/* team A */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end' }}>
+      <div className="gz-game-card__team" style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end' }}>
         <div
-          className="tbl-display"
+          className="tbl-display gz-game-card__abbr"
           style={{ fontSize: 22, textAlign: 'right' }}
         >
           {short(entry.team1)}
         </div>
         {logo1 && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={logo1} alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+          <img src={logo1} alt="" className="gz-game-card__logo" style={{ width: 36, height: 36, objectFit: 'contain' }} />
         )}
       </div>
 
       {/* center: VS / score + status */}
-      <div style={{ textAlign: 'center', minWidth: 90, fontFamily: 'var(--tbl-font-mono)' }}>
+      <div className="gz-game-card__center" style={{ textAlign: 'center', minWidth: 90, fontFamily: 'var(--tbl-font-mono)' }}>
         {showScore ? (
-          <div className="tbl-display" style={{ fontSize: 22, fontWeight: 900, whiteSpace: 'nowrap' }}>
+          <div className="tbl-display gz-game-card__score" style={{ fontSize: 22, fontWeight: 900, whiteSpace: 'nowrap' }}>
             <span style={{ color: team1Won ? 'var(--tbl-accent)' : 'var(--tbl-ink)' }}>
               {score!.score1.toFixed(0)}
             </span>
@@ -146,12 +147,12 @@ function GameCard({ entry, score }: GameCardProps) {
       </div>
 
       {/* team B */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div className="gz-game-card__team" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         {logo2 && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={logo2} alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+          <img src={logo2} alt="" className="gz-game-card__logo" style={{ width: 36, height: 36, objectFit: 'contain' }} />
         )}
-        <div className="tbl-display" style={{ fontSize: 22 }}>
+        <div className="tbl-display gz-game-card__abbr" style={{ fontSize: 22 }}>
           {short(entry.team2)}
         </div>
       </div>
@@ -270,9 +271,9 @@ export function ScheduleClient({ schedule, currentWeek, scores }: Props) {
   return (
     <>
       <PageHeader
-        eyebrow="The Fight Card"
-        title="Season Schedule"
-        subtitle="Pick any completed match for the full box score"
+        eyebrow="Fight Card"
+        title="Schedule"
+        subtitle={`${weekFilter === 'All' ? 'All Weeks' : `Week ${weekFilter}`} · ${clubFilter === 'All' ? 'All Clubs' : clubFilter}`}
         right={filterSlot}
       />
       <div className="tbl-page-body">

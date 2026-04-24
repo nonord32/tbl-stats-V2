@@ -5,7 +5,8 @@ import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import type { TeamStanding, TeamMatch, BoxScoreRound } from '@/types';
 import { calcTeamStreak, toSlug } from '@/lib/data';
-import { getTeamColor, getTeamLogoPath, getFullTeamName } from '@/lib/teams';
+import { getTeamColor, getTeamLogoPath, getFullTeamName, getCityName } from '@/lib/teams';
+import { PageHeader } from '@/components/chrome/PageHeader';
 
 type SortKey = 'record' | 'pf' | 'pa' | 'diff' | 'streak';
 
@@ -252,9 +253,71 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
     return map;
   }, [teams, teamMatches]);
 
+  // Sort by wins (natural order) for the mobile card list — the mobile layout
+  // does not expose column sorting, so always show the league table as "Sorted
+  // by Wins" to match the Gazette treatment on the home page.
+  const sortedByWins = useMemo(() => {
+    return [...teams].sort(
+      (a, b) =>
+        b.wins - a.wins ||
+        a.losses - b.losses ||
+        b.diff - a.diff ||
+        b.pf - a.pf ||
+        a.team.localeCompare(b.team)
+    );
+  }, [teams]);
+
   return (
-    <div className="page">
-      <div className="container">
+    <div className="page teams-page">
+      {/* Mobile-only Gazette header + card list */}
+      <div className="teams-mobile-header">
+        <PageHeader
+          eyebrow="The League"
+          title="Standings"
+          subtitle={`${teams.length} Clubs · Sorted by Wins`}
+        />
+      </div>
+      <div className="teams-mobile-list">
+        <div className="teams-mobile-list__head">
+          <span className="teams-mobile-list__head-col teams-mobile-list__head-col--club">Club</span>
+          <span className="teams-mobile-list__head-col teams-mobile-list__head-col--record">W-L</span>
+          <span className="teams-mobile-list__head-col teams-mobile-list__head-col--diff">Diff</span>
+        </div>
+        {sortedByWins.map((t, i) => {
+          const streak = t.streak || calcTeamStreak(teamMatches[t.team] || []);
+          return (
+            <Link key={t.slug} href={`/teams/${t.slug}`} className="teams-mobile-row">
+              <div className="teams-mobile-row__rank">{i + 1}</div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={getTeamLogoPath(t.slug)}
+                alt=""
+                className="teams-mobile-row__logo"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+              <div className="teams-mobile-row__body">
+                <div className="teams-mobile-row__name">{getFullTeamName(t.slug)}</div>
+                <div className="teams-mobile-row__meta">
+                  {getCityName(t.team)}
+                  {streak && <> · <span className={streak.startsWith('W') ? 'teams-mobile-row__streak is-win' : 'teams-mobile-row__streak is-loss'}>{streak}</span></>}
+                </div>
+              </div>
+              <div className="teams-mobile-row__record">{t.record}</div>
+              <div
+                className="teams-mobile-row__diff"
+                style={{ color: t.diff >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)' }}
+              >
+                {t.diff >= 0 ? '+' : ''}
+                {t.diff.toFixed(0)}
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+
+      <div className="container teams-desktop-only">
         <div className="page-header">
           <h1>Team Standings</h1>
           <div className="subtitle">
