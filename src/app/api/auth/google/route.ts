@@ -1,23 +1,18 @@
 // src/app/api/auth/google/route.ts
 // Server-initiated Google OAuth.
 //
-// We previously called supabase.auth.signInWithOAuth on the browser client,
-// which stores the PKCE code_verifier via document.cookie. iOS Safari's
-// tracking prevention can drop that JS-set cookie before the OAuth round
-// trip completes, so the /auth/callback exchange fails and the user lands
-// back on /login (which on a phone reads as "home"). Doing the kickoff
-// here lets us set the code_verifier as a real Set-Cookie header on a 302
-// the browser must follow.
+// supabase.auth.signInWithOAuth on the browser stores the PKCE code_verifier
+// via document.cookie, which iOS Safari's tracking prevention can drop
+// before the OAuth round trip completes. We capture every cookie supabase
+// asks us to set (including the verifier) and replay them onto the final
+// 302 redirect to Google as real Set-Cookie headers — those Safari has
+// to honor on a top-level navigation.
 import { NextResponse, type NextRequest } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 
 export async function GET(request: NextRequest) {
   const { origin } = new URL(request.url);
-
-  // Placeholder response we will overwrite once Supabase tells us the URL.
-  // Cookies set by the supabase client during signInWithOAuth (PKCE
-  // code_verifier) are written directly onto this response.
-  const carrier = NextResponse.redirect(`${origin}/login?error=oauth_init_failed`);
+  const captured: { name: string; value: string; options?: CookieOptions }[] = [];
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -28,9 +23,7 @@ export async function GET(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            carrier.cookies.set(name, value, options);
-          });
+          cookiesToSet.forEach((c) => captured.push(c));
         },
       },
     }
@@ -45,11 +38,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/login?error=oauth_init_failed`);
   }
 
-  // Build the real redirect to Google's auth URL, carrying the cookies that
-  // the supabase library asked us to set (notably the PKCE verifier).
   const response = NextResponse.redirect(data.url);
-  carrier.cookies.getAll().forEach((c) => {
-    response.cookies.set(c.name, c.value, c);
+  captured.forEach(({ name, value, options }) => {
+    response.cookies.set(name, value, options);
   });
   return response;
 }

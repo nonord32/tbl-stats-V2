@@ -3,6 +3,17 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
+  // Skip middleware entirely on auth routes. The route handlers there
+  // (/auth/callback, /api/auth/*, /auth/signout) own the full cookie
+  // lifecycle for that request — having the middleware also call
+  // supabase.auth.getUser() and potentially write cookies on the same
+  // response was racing with the route handler's Set-Cookie headers and
+  // leaving Safari without a usable session after Google OAuth.
+  const { pathname } = request.nextUrl;
+  if (pathname.startsWith('/auth/') || pathname.startsWith('/api/auth/')) {
+    return NextResponse.next();
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   });
