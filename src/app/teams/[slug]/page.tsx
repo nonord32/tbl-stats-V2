@@ -1,12 +1,18 @@
 // src/app/teams/[slug]/page.tsx
+// Gazette team profile: dark hero (logo + team name + 2x2 stats) over
+// a 2-col body of Roster (left) and Recent Matches (right).
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getTeamBySlug, calcTeamStreak, toSlug } from '@/lib/data';
-import { getTeamColor, getTeamLogoPath, getFullTeamName } from '@/lib/teams';
-import { LogoImage } from '@/components/LogoImage';
+import {
+  getTeamLogoPath,
+  getFullTeamName,
+  getCityName,
+} from '@/lib/teams';
+import { SectionRule } from '@/components/chrome/SectionRule';
 import { HighlightsSection } from '@/components/HighlightsSection';
-import type { TeamMatch, BoxScoreRound, FighterStat, ScheduleEntry } from '@/types';
+import type { TeamMatch, FighterStat, ScheduleEntry } from '@/types';
 
 export const revalidate = 300;
 export const dynamic = 'force-dynamic';
@@ -37,200 +43,294 @@ export async function generateMetadata({
   };
 }
 
-function MatchSummaryCard({ match, teamName }: { match: TeamMatch; teamName: string }) {
-  const phases = Array.from(new Set(match.boxScore.map((r: BoxScoreRound) => r.phase).filter(Boolean)));
-  const phaseTotals = phases.map((phase) => {
-    const rows = match.boxScore.filter((r: BoxScoreRound) => r.phase === phase);
-    return {
-      phase,
-      score1: rows.reduce((s: number, r: BoxScoreRound) => s + r.score1, 0),
-      score2: rows.reduce((s: number, r: BoxScoreRound) => s + r.score2, 0),
-    };
-  });
+// Split a full team name "NYC Attitude" → ["NYC", "Attitude"] for the hero.
+function splitName(full: string): [string, string] {
+  const parts = full.split(' ');
+  if (parts.length < 2) return [full, ''];
+  return [parts.slice(0, -1).join(' '), parts[parts.length - 1]];
+}
 
-  const total1 = match.pf;
-  const total2 = match.pa;
-  const opponentSlug = toSlug(match.opponent);
-  const opponentFullName = getFullTeamName(opponentSlug);
+interface MatchCardProps {
+  match: TeamMatch;
+  teamName: string;
+}
+function MatchCard({ match, teamName: _teamName }: MatchCardProps) {
+  const winSquare = match.result === 'W' ? 'var(--tbl-green)' : 'var(--tbl-red)';
+  const oppSlug = toSlug(match.opponent);
+  const oppFull = getFullTeamName(oppSlug) || match.opponent;
+  const oppLogo = `/logos/${oppSlug}.png`;
+  // Surface the first KO scored by the team (matches the handoff's "KO: name" chip).
+  const koRound = match.boxScore.find((r) => r.winner && r.winner !== '' && r.score2 === 0);
+  const koName = koRound ? koRound.fighter1 : null;
 
   const formattedDate = (() => {
     try {
       return new Date(match.date).toLocaleDateString('en-US', {
-        month: 'short', day: 'numeric', year: 'numeric',
+        month: 'short',
+        day: 'numeric',
       });
-    } catch { return match.date; }
+    } catch {
+      return match.date;
+    }
   })();
 
   return (
-    <div className="match-card" style={{ marginBottom: 20 }}>
-      <div className="match-card-header">
-        <div>
-          <span className="matchup">
-            {teamName} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>vs</span>{' '}
-            <Link href={`/teams/${opponentSlug}`} style={{ color: 'var(--accent)' }}>
-              {opponentFullName}
-            </Link>
-          </span>
+    <Link
+      href={`/matches/${match.matchIndex}`}
+      style={{
+        background: 'var(--tbl-paper)',
+        border: '1.5px solid var(--tbl-ink)',
+        padding: '10px 14px',
+        display: 'grid',
+        gridTemplateColumns: 'auto auto 1fr auto',
+        alignItems: 'center',
+        gap: 14,
+        color: 'var(--tbl-ink)',
+        textDecoration: 'none',
+      }}
+    >
+      <div
+        style={{
+          width: 30,
+          height: 30,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: winSquare,
+          color: '#fff',
+          fontFamily: 'var(--tbl-font-serif)',
+          fontSize: 18,
+          fontWeight: 900,
+        }}
+      >
+        {match.result}
+      </div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={oppLogo} alt="" style={{ width: 30, height: 30, objectFit: 'contain' }} />
+      <div style={{ minWidth: 0 }}>
+        <div
+          className="tbl-display"
+          style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.2 }}
+        >
+          vs {oppFull}
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span
-            className={`result-${match.result.toLowerCase()}`}
-            style={{ fontSize: 15, fontWeight: 700, fontFamily: 'IBM Plex Mono, monospace' }}
-          >
-            {match.result === 'W' ? 'WIN' : match.result === 'L' ? 'LOSS' : 'DRAW'}
-          </span>
-          <span className="badge">
-            {match.pf.toFixed(1)} – {match.pa.toFixed(1)}
-          </span>
-          <span className="match-date">{formattedDate}</span>
+        <div
+          style={{
+            fontFamily: 'var(--tbl-font-mono)',
+            fontSize: 10,
+            color: 'var(--tbl-ink-soft)',
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+            marginTop: 2,
+          }}
+        >
+          {formattedDate}
+          {koName && ` · KO: ${koName.split(' ').slice(-1)[0]}`}
         </div>
       </div>
-
-      {/* Phase scorecard strip */}
-      <div style={{ border: '1px solid var(--border)', borderTop: 'none', borderRadius: '0 0 var(--radius) var(--radius)', overflow: 'hidden' }}>
-        <div className="results-scorecard-wrap">
-          <table className="results-scorecard">
-            <thead>
-              <tr>
-                <th className="results-scorecard-team-col">Team</th>
-                {phaseTotals.map((pt) => (
-                  <th key={pt.phase} className="results-scorecard-phase-col">{pt.phase || 'Rounds'}</th>
-                ))}
-                <th className="results-scorecard-total-col">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                { label: teamName, scores: phaseTotals.map((pt) => pt.score1), oppScores: phaseTotals.map((pt) => pt.score2), total: total1, oppTotal: total2 },
-                { label: opponentFullName, scores: phaseTotals.map((pt) => pt.score2), oppScores: phaseTotals.map((pt) => pt.score1), total: total2, oppTotal: total1 },
-              ].map(({ label, scores, oppScores, total, oppTotal }) => (
-                <tr key={label}>
-                  <td className="results-scorecard-team-name">{label}</td>
-                  {scores.map((score, i) => {
-                    const opp = oppScores[i];
-                    const color = score > opp ? 'var(--result-w)' : score < opp ? 'var(--result-l)' : 'var(--text)';
-                    return (
-                      <td key={i} className="results-scorecard-cell" style={{ color, fontWeight: score > opp ? 700 : 400 }}>
-                        {score.toFixed(1)}
-                      </td>
-                    );
-                  })}
-                  <td
-                    className="results-scorecard-cell results-scorecard-total"
-                    style={{
-                      color: total > oppTotal ? 'var(--result-w)' : total < oppTotal ? 'var(--result-l)' : 'var(--text)',
-                      fontWeight: 700,
-                    }}
-                  >
-                    {total.toFixed(1)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {/* Link to full match detail */}
-        <div style={{ padding: '8px 16px', borderTop: '1px solid var(--border)', textAlign: 'right' }}>
-          <Link
-            href={`/matches/${match.matchIndex}`}
-            style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--accent)' }}
-          >
-            Full match breakdown →
-          </Link>
-        </div>
+      <div
+        className="tbl-display"
+        style={{ fontSize: 22, fontWeight: 900, whiteSpace: 'nowrap' }}
+      >
+        <span style={{ color: match.result === 'W' ? 'var(--tbl-accent)' : 'var(--tbl-ink)' }}>
+          {match.pf.toFixed(0)}
+        </span>
+        <span style={{ color: 'var(--tbl-ink-mute)', margin: '0 4px', fontStyle: 'italic' }}>
+          —
+        </span>
+        <span style={{ color: match.result === 'L' ? 'var(--tbl-accent)' : 'var(--tbl-ink)' }}>
+          {match.pa.toFixed(0)}
+        </span>
       </div>
-    </div>
+    </Link>
   );
 }
 
-function NextMatchCard({ entry, teamName }: { entry: ScheduleEntry; teamName: string }) {
+interface NextMatchInlineProps {
+  entry: ScheduleEntry;
+  teamName: string;
+}
+function NextMatchInline({ entry, teamName }: NextMatchInlineProps) {
+  const opp = entry.team1.toLowerCase().includes(teamName.split(' ')[0].toLowerCase())
+    ? entry.team2
+    : entry.team1;
+  const oppSlug = toSlug(opp);
+  const oppFull = getFullTeamName(oppSlug) || opp;
   const formattedDate = (() => {
     try {
       return new Date(entry.date).toLocaleDateString('en-US', {
-        weekday: 'short', month: 'short', day: 'numeric',
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
       });
-    } catch { return entry.date; }
+    } catch {
+      return entry.date;
+    }
   })();
-
-  const opponent = entry.team1.toLowerCase().includes(teamName.split(' ')[0].toLowerCase())
-    ? entry.team2
-    : entry.team1;
-  const opponentSlug = toSlug(opponent);
-  const opponentFullName = getFullTeamName(opponentSlug);
-
   return (
-    <div className="card" style={{ marginBottom: 24, borderLeft: '4px solid var(--accent)', padding: '14px 20px' }}>
-      <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 8 }}>
+    <div
+      style={{
+        background: 'var(--tbl-paper)',
+        border: '1.5px solid var(--tbl-ink)',
+        padding: '10px 14px',
+        display: 'flex',
+        gap: 14,
+        alignItems: 'center',
+        flexWrap: 'wrap',
+      }}
+    >
+      <span
+        style={{
+          fontFamily: 'var(--tbl-font-mono)',
+          fontSize: 10,
+          letterSpacing: '0.22em',
+          textTransform: 'uppercase',
+          color: 'var(--tbl-accent)',
+          fontWeight: 700,
+        }}
+      >
         Next Match
+      </span>
+      <div className="tbl-display" style={{ fontSize: 15, fontWeight: 700 }}>
+        vs{' '}
+        <Link
+          href={`/teams/${oppSlug}`}
+          style={{ color: 'var(--tbl-accent)', textDecoration: 'none' }}
+        >
+          {oppFull}
+        </Link>
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 20px', alignItems: 'baseline' }}>
-        <span style={{ fontWeight: 700, fontSize: 15 }}>
-          vs{' '}
-          <Link href={`/teams/${opponentSlug}`} style={{ color: 'var(--accent)' }}>
-            {opponentFullName}
-          </Link>
-        </span>
-        <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 12, color: 'var(--text-muted)' }}>{formattedDate}</span>
-        {entry.time && <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 12, color: 'var(--text-muted)' }}>{entry.time}</span>}
-        {entry.venueName && (
-          <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 12, color: 'var(--text-muted)' }}>
-            {entry.venueName}{entry.venueCity ? `, ${entry.venueCity}` : ''}
-          </span>
-        )}
-      </div>
+      <span
+        style={{
+          fontFamily: 'var(--tbl-font-mono)',
+          fontSize: 11,
+          color: 'var(--tbl-ink-soft)',
+        }}
+      >
+        {formattedDate}
+        {entry.time ? ` · ${entry.time}` : ''}
+        {entry.venueName ? ` · ${entry.venueName}` : ''}
+      </span>
     </div>
   );
 }
 
-function RosterSection({ fighters }: { fighters: FighterStat[] }) {
+interface RosterTableProps {
+  fighters: FighterStat[];
+}
+function RosterTable({ fighters }: RosterTableProps) {
   if (fighters.length === 0) return null;
   const sorted = [...fighters].sort((a, b) => b.war - a.war);
   return (
-    <div style={{ marginBottom: 32 }}>
-      <div className="page-header" style={{ marginBottom: 16 }}>
-        <h2 style={{ fontSize: 18 }}>Roster</h2>
-        <div className="subtitle">{sorted.length} fighter{sorted.length !== 1 ? 's' : ''}</div>
-      </div>
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid var(--border)' }}>
-              <th style={{ textAlign: 'left', padding: '10px 16px', fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Fighter</th>
-              <th style={{ textAlign: 'left', padding: '10px 8px', fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Weight</th>
-              <th style={{ textAlign: 'center', padding: '10px 8px', fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Record</th>
-              <th style={{ textAlign: 'right', padding: '10px 16px', fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>WAR</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((f, i) => (
-              <tr key={f.slug} style={{ borderBottom: i < sorted.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                <td style={{ padding: '10px 16px' }}>
-                  <Link href={`/fighters/${f.slug}`} style={{ fontWeight: 600, color: 'var(--text)' }}>
-                    {f.name}
-                  </Link>
-                </td>
-                <td style={{ padding: '10px 8px', fontSize: 13, color: 'var(--text-muted)' }}>{f.weightClass}</td>
-                <td style={{ padding: '10px 8px', textAlign: 'center', fontFamily: 'IBM Plex Mono, monospace', fontSize: 13 }}>{f.record}</td>
-                <td style={{ padding: '10px 16px', textAlign: 'right', fontFamily: 'IBM Plex Mono, monospace', fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>{f.war.toFixed(2)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <table
+      style={{
+        width: '100%',
+        borderCollapse: 'collapse',
+        fontFamily: 'var(--tbl-font-mono)',
+        fontSize: 12,
+      }}
+    >
+      <thead>
+        <tr style={{ borderBottom: '1.5px solid var(--tbl-ink)' }}>
+          {[
+            { label: 'Fighter', align: 'left' as const },
+            { label: 'Weight', align: 'left' as const },
+            { label: 'Rec', align: 'right' as const },
+            { label: 'WAR', align: 'right' as const },
+            { label: 'NPPR', align: 'right' as const },
+            { label: 'Net', align: 'right' as const },
+          ].map((h) => (
+            <th
+              key={h.label}
+              style={{
+                textAlign: h.align,
+                padding: '6px 6px',
+                fontWeight: 700,
+                letterSpacing: '0.12em',
+                fontSize: 10,
+                textTransform: 'uppercase',
+                color: 'var(--tbl-ink-soft)',
+              }}
+            >
+              {h.label}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {sorted.map((f) => (
+          <tr key={f.slug} style={{ borderBottom: '1px dotted rgba(20,17,11,0.3)' }}>
+            <td
+              style={{
+                padding: '9px 6px',
+                fontFamily: 'var(--tbl-font-serif)',
+                fontSize: 14,
+                fontWeight: 700,
+              }}
+            >
+              <Link
+                href={`/fighters/${f.slug}`}
+                style={{ color: 'var(--tbl-accent)', textDecoration: 'none' }}
+              >
+                {f.name}
+              </Link>
+            </td>
+            <td style={{ padding: '9px 6px', color: 'var(--tbl-ink-soft)' }}>
+              {f.weightClass}
+            </td>
+            <td style={{ padding: '9px 6px', textAlign: 'right', fontWeight: 600 }}>
+              {f.record}
+            </td>
+            <td
+              style={{
+                padding: '9px 6px',
+                textAlign: 'right',
+                fontWeight: 700,
+                color: 'var(--tbl-accent)',
+              }}
+            >
+              {f.war.toFixed(2)}
+            </td>
+            <td style={{ padding: '9px 6px', textAlign: 'right' }}>{f.nppr.toFixed(2)}</td>
+            <td
+              style={{
+                padding: '9px 6px',
+                textAlign: 'right',
+                color: f.netPts >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)',
+              }}
+            >
+              {f.netPts >= 0 ? '+' : ''}
+              {f.netPts.toFixed(0)}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 
-export default async function TeamPage({ params }: { params: { slug: string } }) {
+export default async function TeamPage({
+  params,
+}: {
+  params: { slug: string };
+}) {
   const result = await getTeamBySlug(params.slug);
   if (!result) notFound();
 
   const { team, matches, roster, nextMatch, highlights } = result;
   const streak = team.streak || calcTeamStreak(matches);
   const isWStreak = streak.startsWith('W');
-
-  const teamColor = getTeamColor(team.slug);
   const teamLogoPath = getTeamLogoPath(team.slug);
+  const city = getCityName(team.team) || team.team;
+  const fullName = getFullTeamName(team.slug) || team.team;
+  const [front, back] = splitName(fullName);
+
+  // Rank in standings — 1 is the leader; fallback to null if not found.
+  // Sort the same way the home standings do so the rank lines up.
+  // We need data.teams, but getTeamBySlug returns team only; pass through data.
+  // Quick local recompute using the one team we have.
+  // NOTE: We could fetch getAllData again, but that's an extra Google Sheets round-trip;
+  // the rank string on the hero is a nice-to-have and is omitted here.
 
   const BASE = 'https://tblstats.com';
   const jsonLd = {
@@ -239,9 +339,9 @@ export default async function TeamPage({ params }: { params: { slug: string } })
       {
         '@type': 'BreadcrumbList',
         itemListElement: [
-          { '@type': 'ListItem', position: 1, name: 'TBL Stats',       item: BASE },
-          { '@type': 'ListItem', position: 2, name: 'Team Standings',  item: `${BASE}/teams` },
-          { '@type': 'ListItem', position: 3, name: team.team,         item: `${BASE}/teams/${team.slug}` },
+          { '@type': 'ListItem', position: 1, name: 'TBL Stats', item: BASE },
+          { '@type': 'ListItem', position: 2, name: 'Team Standings', item: `${BASE}/teams` },
+          { '@type': 'ListItem', position: 3, name: team.team, item: `${BASE}/teams/${team.slug}` },
         ],
       },
       {
@@ -249,138 +349,207 @@ export default async function TeamPage({ params }: { params: { slug: string } })
         name: team.team,
         sport: 'Boxing',
         url: `${BASE}/teams/${team.slug}`,
-        memberOf: { '@type': 'SportsOrganization', name: 'Team Boxing League', url: 'https://teamboxingleague.com' },
+        memberOf: {
+          '@type': 'SportsOrganization',
+          name: 'Team Boxing League',
+          url: 'https://teamboxingleague.com',
+        },
       },
     ],
   };
 
   return (
     <>
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-    />
-    <div className="page">
-      <div className="container-wide">
-        {/* Breadcrumb */}
-        <div
-          style={{
-            marginBottom: 16,
-            fontFamily: 'IBM Plex Mono, monospace',
-            fontSize: 12,
-            color: 'var(--text-muted)',
-          }}
-        >
-          <Link href="/" style={{ color: 'var(--text-muted)' }}>Home</Link>
-          {' / '}
-          <Link href="/teams" style={{ color: 'var(--text-muted)' }}>Teams</Link>
-          {' / '}
-          <span style={{ color: 'var(--text)' }}>{team.team}</span>
-        </div>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
 
-        {/* SEO intro */}
-        <p className="page-intro">
-          The {team.team} are a Team Boxing League team with a {team.record} record this season.
-          View their recent match results and overall performance throughout the season.
-        </p>
-
-        {/* Hero */}
-        <div
-          className="card team-hero"
-          style={{
-            marginBottom: 24,
-            borderTop: teamColor ? `4px solid ${teamColor}` : undefined,
-          }}
-        >
-          <LogoImage
+      {/* Dark team hero */}
+      <div
+        className="gz-team-hero"
+        style={{
+          background: 'var(--tbl-ink)',
+          color: 'var(--tbl-bg)',
+          padding: '40px 40px 36px',
+          display: 'grid',
+          gridTemplateColumns: 'auto 1fr auto',
+          alignItems: 'center',
+          gap: 32,
+          borderBottom: '3px double var(--tbl-ink)',
+        }}
+      >
+        {teamLogoPath && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
             src={teamLogoPath}
-            alt={team.team}
-            className="team-hero-logo"
+            alt=""
+            style={{ width: 140, height: 140, objectFit: 'contain' }}
           />
-          <div>
-            <h1>{team.team}</h1>
-            <div className="team-stat-row">
-              <div className="team-stat">
-                <span className="label">Record</span>
-                <span className="value">{team.record}</span>
-              </div>
-              <div className="team-stat">
-                <span className="label">PF</span>
-                <span className="value">{team.pf.toFixed(1)}</span>
-              </div>
-              <div className="team-stat">
-                <span className="label">PA</span>
-                <span className="value">{team.pa.toFixed(1)}</span>
-              </div>
-              <div className="team-stat">
-                <span className="label">Diff</span>
-                <span
-                  className="value"
-                  style={{ color: team.diff >= 0 ? 'var(--result-w)' : 'var(--result-l)' }}
-                >
-                  {team.diff >= 0 ? '+' : ''}{team.diff.toFixed(1)}
-                </span>
-              </div>
-              {streak && (
-                <div className="team-stat">
-                  <span className="label">Streak</span>
-                  <span
-                    className="value"
-                    style={{
-                      color: isWStreak ? 'var(--result-w)' : 'var(--result-l)',
-                      fontSize: 18,
-                    }}
-                  >
-                    {streak}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Next match callout */}
-        {nextMatch && <NextMatchCard entry={nextMatch} teamName={team.team} />}
-
-        {/* Match history */}
-        <div className="page-header" style={{ marginBottom: 16 }}>
-          <h1 style={{ fontSize: 18 }}>Match Box Scores</h1>
-          <div className="subtitle">
-            {matches.length} match{matches.length !== 1 ? 'es' : ''} · 2026 TBL Season
-          </div>
-        </div>
-
-        {matches.length === 0 ? (
-          <div className="card">
-            <div className="loading">No match data available</div>
-          </div>
-        ) : (
-          matches.map((match: TeamMatch, i: number) => (
-            <MatchSummaryCard key={i} match={match} teamName={team.team} />
-          ))
         )}
-
-        {/* Highlights */}
-        <HighlightsSection highlights={highlights} />
-
-        {/* Roster */}
-        <RosterSection fighters={roster} />
-
-        {/* Back link */}
-        <div style={{ marginTop: 20 }}>
-          <Link
-            href="/teams"
+        <div style={{ minWidth: 0 }}>
+          <div
             style={{
-              fontFamily: 'IBM Plex Mono, monospace',
-              fontSize: 12,
-              color: 'var(--text-muted)',
+              fontFamily: 'var(--tbl-font-mono)',
+              fontSize: 11,
+              letterSpacing: '0.28em',
+              color: 'var(--tbl-accent-bright)',
+              textTransform: 'uppercase',
+              fontWeight: 700,
             }}
           >
-            ← Back to Team Standings
-          </Link>
+            Team Profile
+            {streak && (
+              <>
+                {' · '}
+                <span
+                  style={{
+                    color: isWStreak ? 'var(--tbl-accent-bright)' : 'rgba(244,237,224,0.6)',
+                  }}
+                >
+                  Streak {streak}
+                </span>
+              </>
+            )}
+          </div>
+          <div
+            className="tbl-display"
+            style={{ fontSize: 72, lineHeight: 0.9, marginTop: 10 }}
+          >
+            {front}
+            {back && (
+              <>
+                {' '}
+                <span style={{ opacity: 0.7 }}>{back}</span>
+              </>
+            )}
+          </div>
+          <div
+            style={{
+              fontFamily: 'var(--tbl-font-mono)',
+              fontSize: 12,
+              letterSpacing: '0.18em',
+              color: 'rgba(244,237,224,0.65)',
+              textTransform: 'uppercase',
+              marginTop: 8,
+            }}
+          >
+            {city} · {roster.length} {roster.length === 1 ? 'Fighter' : 'Fighters'}
+          </div>
+        </div>
+        <div
+          className="gz-team-hero__stats"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, auto)',
+            gap: 22,
+            borderLeft: '1px solid rgba(244,237,224,0.25)',
+            paddingLeft: 28,
+          }}
+        >
+          {[
+            { l: 'Record', v: team.record },
+            { l: 'PF', v: team.pf.toFixed(1) },
+            { l: 'PA', v: team.pa.toFixed(1) },
+            {
+              l: 'Diff',
+              v: `${team.diff >= 0 ? '+' : ''}${team.diff.toFixed(1)}`,
+              accent: true,
+            },
+          ].map((s) => (
+            <div key={s.l}>
+              <div
+                style={{
+                  fontFamily: 'var(--tbl-font-mono)',
+                  fontSize: 9,
+                  letterSpacing: '0.24em',
+                  color: 'rgba(244,237,224,0.55)',
+                  textTransform: 'uppercase',
+                  fontWeight: 700,
+                }}
+              >
+                {s.l}
+              </div>
+              <div
+                className="tbl-display"
+                style={{
+                  fontSize: 36,
+                  lineHeight: 1,
+                  marginTop: 2,
+                  color: s.accent ? 'var(--tbl-accent-bright)' : 'var(--tbl-bg)',
+                }}
+              >
+                {s.v}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
-    </div>
+
+      {/* Body: roster + recent matches */}
+      <div
+        className="gz-team-body"
+        style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 0 }}
+      >
+        <div
+          className="gz-team-body__left"
+          style={{
+            padding: '26px 32px',
+            borderRight: '1px solid rgba(20,17,11,0.2)',
+          }}
+        >
+          <SectionRule left="Roster · 2026 Season" right="Sorted by WAR" />
+          {roster.length > 0 ? (
+            <RosterTable fighters={roster} />
+          ) : (
+            <p style={{ fontFamily: 'var(--tbl-font-mono)', fontSize: 12, color: 'var(--tbl-ink-soft)' }}>
+              No roster data yet.
+            </p>
+          )}
+        </div>
+
+        <div style={{ padding: '26px 32px' }}>
+          {nextMatch && (
+            <>
+              <SectionRule left="Next Match" />
+              <NextMatchInline entry={nextMatch} teamName={team.team} />
+              <div style={{ height: 20 }} />
+            </>
+          )}
+          <SectionRule left="Recent Matches" right="Click for box score" />
+          {matches.length === 0 ? (
+            <p style={{ fontFamily: 'var(--tbl-font-mono)', fontSize: 12, color: 'var(--tbl-ink-soft)' }}>
+              No match data available.
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {matches.slice(0, 6).map((m, i) => (
+                <MatchCard key={i} match={m} teamName={team.team} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Highlights */}
+      {highlights.length > 0 && (
+        <div style={{ padding: '26px 32px' }}>
+          <HighlightsSection highlights={highlights} />
+        </div>
+      )}
+
+      {/* Footer nav */}
+      <div
+        style={{
+          padding: '0 32px 48px',
+          fontFamily: 'var(--tbl-font-mono)',
+          fontSize: 12,
+        }}
+      >
+        <Link href="/teams" style={{ color: 'var(--tbl-ink-soft)', textDecoration: 'none' }}>
+          ← Back to Team Standings
+        </Link>
+      </div>
     </>
   );
 }

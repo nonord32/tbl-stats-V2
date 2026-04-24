@@ -2504,3 +2504,48 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
   .gz-fighter-hero .tbl-display { font-size: 56px !important; }
   .gz-fighter-hero .gz-hero-stats { grid-template-columns: repeat(2, 1fr) !important; }
 }
+
+/* Schedule 2-col grid collapses to single column on narrow screens */
+@media (max-width: 720px) {
+  .gz-schedule-grid { grid-template-columns: 1fr !important; }
+}
+
+/* Match hero: stack on narrow screens */
+@media (max-width: 820px) {
+  .gz-match-hero {
+    grid-template-columns: 1fr !important;
+    gap: 18px !important;
+    text-align: center;
+  }
+  .gz-match-hero > div:first-child { justify-content: center !important; }
+  .gz-match-hero > div:last-child { justify-content: center !important; }
+  .gz-match-hero .tbl-display { font-size: 56px !important; }
+}
+
+/* Team profile responsive */
+@media (max-width: 900px) {
+  .gz-team-hero {
+    grid-template-columns: 1fr !important;
+    text-align: center;
+    padding: 28px 20px !important;
+    gap: 18px !important;
+  }
+  .gz-team-hero img { margin: 0 auto; }
+  .gz-team-hero__stats {
+    border-left: none !important;
+    padding-left: 0 !important;
+    border-top: 1px solid rgba(244,237,224,0.25);
+    padding-top: 18px !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    width: 100%;
+  }
+  .gz-team-hero .tbl-display { font-size: 48px !important; }
+  .gz-team-body { grid-template-columns: 1fr !important; }
+  .gz-team-body__left {
+    border-right: none !important;
+    border-bottom: 1px solid rgba(20,17,11,0.2);
+  }
+}
+@media (max-width: 540px) {
+  .gz-team-hero__stats { grid-template-columns: repeat(2, 1fr) !important; }
+}

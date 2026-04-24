@@ -1,11 +1,14 @@
 // src/app/matches/[matchIndex]/page.tsx
+// Gazette match page: dark hero with Winner / Fell + big serif team names,
+// followed by a bout-by-bout box score with a weight-class column.
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getMatchByIndex, toSlug } from '@/lib/data';
-import { getFullTeamName, getTeamColor } from '@/lib/teams';
-import { LogoImage } from '@/components/LogoImage';
+import { getFullTeamName, getTeamLogoPathByName } from '@/lib/teams';
+import { SectionRule } from '@/components/chrome/SectionRule';
 import { HighlightsSection } from '@/components/HighlightsSection';
+import type { BoxScoreRound } from '@/types';
 
 export const revalidate = 300;
 export const dynamic = 'force-dynamic';
@@ -40,6 +43,41 @@ export async function generateMetadata({
   };
 }
 
+// Collapse a flat list of BoxScoreRound rows into bouts (one bout = one
+// fighter pairing at one weight class). Each bout keeps its rounds sorted.
+function groupBouts(rows: BoxScoreRound[]) {
+  const byKey = new Map<string, BoxScoreRound[]>();
+  for (const r of rows) {
+    const key = `${r.weightClass ?? r.phase ?? ''}|${r.fighter1}|${r.fighter2}`;
+    if (!byKey.has(key)) byKey.set(key, []);
+    byKey.get(key)!.push(r);
+  }
+  return Array.from(byKey.values()).map((rounds) =>
+    rounds.slice().sort((a, b) => a.round - b.round)
+  );
+}
+
+// Short team label used in the Dec (decision) box.
+function teamShort(team: string): string {
+  const map: Record<string, string> = {
+    nyc: 'NYC',
+    'new york': 'NYC',
+    'los angeles': 'LAX',
+    'las vegas': 'LV',
+    'san antonio': 'SAS',
+    atlanta: 'ATL',
+    boston: 'BOS',
+    dallas: 'DAL',
+    houston: 'HOU',
+    miami: 'MIA',
+    nashville: 'NSH',
+    philadelphia: 'PHI',
+    phoenix: 'PHX',
+  };
+  const key = team.toLowerCase().trim();
+  return map[key] ?? team.slice(0, 3).toUpperCase();
+}
+
 export default async function MatchPage({
   params,
 }: {
@@ -55,35 +93,73 @@ export default async function MatchPage({
 
   const team1Slug = toSlug(match.team1);
   const team2Slug = toSlug(match.team2);
-  const team1Name = getFullTeamName(team1Slug);
-  const team2Name = getFullTeamName(team2Slug);
-  const team1Color = getTeamColor(team1Slug);
-  const team2Color = getTeamColor(team2Slug);
+  const team1Full = getFullTeamName(team1Slug);
+  const team2Full = getFullTeamName(team2Slug);
+  const team1Logo = getTeamLogoPathByName(match.team1);
+  const team2Logo = getTeamLogoPathByName(match.team2);
+  const team1Abbr = teamShort(match.team1);
+  const team2Abbr = teamShort(match.team2);
+
+  // Split "Boston Butchers" → name "Boston" / mascot "Butchers" so the hero
+  // echoes the handoff look (two-tone big serif). Falls back to the whole
+  // string when we only have one word.
+  const splitName = (full: string): [string, string] => {
+    const parts = full.split(' ');
+    if (parts.length < 2) return [full, ''];
+    return [parts.slice(0, -1).join(' '), parts[parts.length - 1]];
+  };
+  const [team1Front, team1Back] = splitName(team1Full);
+  const [team2Front, team2Back] = splitName(team2Full);
 
   const team1Won = match.result === 'W';
   const team2Won = match.result === 'L';
-  const isDraw = match.result === 'D';
 
-  const phases = Array.from(new Set(match.boxScore.map((r) => r.phase).filter(Boolean)));
-  const phaseTotals = phases.map((phase) => {
-    const rows = match.boxScore.filter((r) => r.phase === phase);
-    return {
-      phase,
-      score1: rows.reduce((s, r) => s + r.score1, 0),
-      score2: rows.reduce((s, r) => s + r.score2, 0),
-    };
+  const bouts = groupBouts(match.boxScore);
+
+  // Pad rounds so every bout row renders the same column count.
+  const maxRounds = bouts.reduce((m, b) => Math.max(m, b.length), 3);
+
+  const boutTotals = bouts.map((rounds) => {
+    const a = rounds.reduce((s, r) => s + r.score1, 0);
+    const b = rounds.reduce((s, r) => s + r.score2, 0);
+    return { a, b };
   });
-
-  const total1 = match.score1;
-  const total2 = match.score2;
+  const totalA = match.score1;
+  const totalB = match.score2;
 
   const formattedDate = (() => {
     try {
       return new Date(match.date).toLocaleDateString('en-US', {
-        weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+        month: 'short',
+        day: 'numeric',
       });
-    } catch { return match.date; }
+    } catch {
+      return match.date;
+    }
   })();
+  const longDate = (() => {
+    try {
+      return new Date(match.date).toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    } catch {
+      return match.date;
+    }
+  })();
+
+  const heroStatus = [
+    team1Won || team2Won ? 'Final' : 'Scheduled',
+    scheduleEntry?.week ? `Week ${scheduleEntry.week}` : null,
+    formattedDate,
+    scheduleEntry?.venueName
+      ? `${scheduleEntry.venueName}${scheduleEntry.venueCity ? ` · ${scheduleEntry.venueCity}` : ''}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   const BASE = 'https://tblstats.com';
   const jsonLd = {
@@ -94,12 +170,17 @@ export default async function MatchPage({
         itemListElement: [
           { '@type': 'ListItem', position: 1, name: 'TBL Stats', item: BASE },
           { '@type': 'ListItem', position: 2, name: 'Results', item: `${BASE}/results` },
-          { '@type': 'ListItem', position: 3, name: `${team1Name} vs ${team2Name}`, item: `${BASE}/matches/${mi}` },
+          {
+            '@type': 'ListItem',
+            position: 3,
+            name: `${team1Full} vs ${team2Full}`,
+            item: `${BASE}/matches/${mi}`,
+          },
         ],
       },
       {
         '@type': 'SportsEvent',
-        name: `${team1Name} vs ${team2Name}`,
+        name: `${team1Full} vs ${team2Full}`,
         startDate: match.date,
         endDate: match.date,
         eventStatus: 'https://schema.org/EventCompleted',
@@ -107,16 +188,20 @@ export default async function MatchPage({
         sport: 'Boxing',
         url: `${BASE}/matches/${mi}`,
         image: `${BASE}/og-image.png`,
-        description: `${team1Name} ${total1.toFixed(1)} – ${total2.toFixed(1)} ${team2Name}${team1Won ? `. ${team1Name} wins.` : team2Won ? `. ${team2Name} wins.` : ' · Draw.'}`,
-        organizer: { '@type': 'SportsOrganization', name: 'Team Boxing League', url: 'https://teamboxingleague.com' },
+        description: `${team1Full} ${totalA.toFixed(1)} – ${totalB.toFixed(1)} ${team2Full}${team1Won ? `. ${team1Full} wins.` : team2Won ? `. ${team2Full} wins.` : ' · Draw.'}`,
+        organizer: {
+          '@type': 'SportsOrganization',
+          name: 'Team Boxing League',
+          url: 'https://teamboxingleague.com',
+        },
         competitor: [
-          { '@type': 'SportsTeam', name: team1Name },
-          { '@type': 'SportsTeam', name: team2Name },
+          { '@type': 'SportsTeam', name: team1Full },
+          { '@type': 'SportsTeam', name: team2Full },
         ],
         ...(team1Won
-          ? { winner: { '@type': 'SportsTeam', name: team1Name } }
+          ? { winner: { '@type': 'SportsTeam', name: team1Full } }
           : team2Won
-          ? { winner: { '@type': 'SportsTeam', name: team2Name } }
+          ? { winner: { '@type': 'SportsTeam', name: team2Full } }
           : {}),
       },
     ],
@@ -128,274 +213,394 @@ export default async function MatchPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <div className="page">
-        <div className="container">
-          {/* Breadcrumb */}
-          <div style={{ marginBottom: 16, fontFamily: 'IBM Plex Mono, monospace', fontSize: 12, color: 'var(--text-muted)' }}>
-            <Link href="/" style={{ color: 'var(--text-muted)' }}>Home</Link>
-            {' / '}
-            <Link href="/results" style={{ color: 'var(--text-muted)' }}>Results</Link>
-            {' / '}
-            <span style={{ color: 'var(--text)' }}>{team1Name} vs {team2Name}</span>
-          </div>
 
-          {/* Hero matchup card */}
-          <div className="card" style={{ marginBottom: 24 }}>
-            <div style={{ padding: '8px 0 20px', textAlign: 'center' }}>
-              <div style={{
-                fontFamily: 'IBM Plex Mono, monospace',
-                fontSize: 11,
-                color: 'var(--text-muted)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                marginBottom: 20,
-                display: 'flex',
-                flexWrap: 'wrap',
-                justifyContent: 'center',
-                gap: '0 10px',
-              }}>
-                {scheduleEntry?.week ? <span>Week {scheduleEntry.week}</span> : null}
-                <span>{formattedDate}</span>
-                {scheduleEntry?.time ? <span>{scheduleEntry.time}</span> : null}
-                {scheduleEntry?.venueName ? <span>{scheduleEntry.venueName}{scheduleEntry.venueCity ? `, ${scheduleEntry.venueCity}` : ''}</span> : null}
-                {!scheduleEntry?.venueName && <span>2026 TBL Season</span>}
+      {/* Dark hero */}
+      <div
+        style={{
+          background: 'var(--tbl-ink)',
+          color: 'var(--tbl-bg)',
+          padding: '34px 40px 30px',
+          borderBottom: '3px double var(--tbl-ink)',
+        }}
+      >
+        <div
+          style={{
+            fontFamily: 'var(--tbl-font-mono)',
+            fontSize: 11,
+            letterSpacing: '0.28em',
+            color: 'var(--tbl-accent-bright)',
+            textTransform: 'uppercase',
+            fontWeight: 700,
+            textAlign: 'center',
+          }}
+        >
+          {heroStatus || longDate}
+        </div>
+        <div
+          className="gz-match-hero"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr auto 1fr',
+            alignItems: 'center',
+            gap: 40,
+            marginTop: 18,
+          }}
+        >
+          {/* Team 1 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20, justifyContent: 'flex-end' }}>
+            <Link
+              href={`/teams/${team1Slug}`}
+              style={{ textDecoration: 'none', color: 'inherit', textAlign: 'right' }}
+            >
+              <div
+                style={{
+                  fontFamily: 'var(--tbl-font-mono)',
+                  fontSize: 10,
+                  letterSpacing: '0.24em',
+                  color: 'rgba(244,237,224,0.6)',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {team1Abbr}
               </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24, flexWrap: 'wrap' }}>
-                {/* Team 1 */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, minWidth: 120 }}>
-                  <LogoImage
-                    src={`/logos/${team1Slug}.png`}
-                    alt={team1Name}
-                    style={{ width: 64, height: 64, objectFit: 'contain' }}
-                  />
-                  <Link
-                    href={`/teams/${team1Slug}`}
-                    style={{ fontWeight: 700, fontSize: 15, color: team1Color || 'var(--accent)', textAlign: 'center' }}
-                  >
-                    {team1Name}
-                  </Link>
-                  {team1Won && <span className="badge badge-win" style={{ fontSize: 11 }}>WIN</span>}
-                  {isDraw && !team1Won && <span className="badge" style={{ fontSize: 11 }}>DRAW</span>}
-                </div>
-
-                {/* Score */}
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{
-                    fontFamily: 'IBM Plex Mono, monospace',
-                    fontSize: 'clamp(28px, 6vw, 44px)',
-                    fontWeight: 700,
-                    lineHeight: 1,
-                    letterSpacing: '-0.02em',
-                  }}>
-                    <span style={{ color: team1Won ? 'var(--result-w)' : team2Won ? 'var(--result-l)' : 'var(--text)' }}>
-                      {total1.toFixed(1)}
-                    </span>
-                    <span style={{ color: 'var(--text-muted)', margin: '0 10px', fontWeight: 400 }}>–</span>
-                    <span style={{ color: team2Won ? 'var(--result-w)' : team1Won ? 'var(--result-l)' : 'var(--text)' }}>
-                      {total2.toFixed(1)}
-                    </span>
-                  </div>
-                  <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>
-                    {isDraw ? 'Draw' : `Rounds ${match.wins1}–${match.wins2}`}
-                  </div>
-                </div>
-
-                {/* Team 2 */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, minWidth: 120 }}>
-                  <LogoImage
-                    src={`/logos/${team2Slug}.png`}
-                    alt={team2Name}
-                    style={{ width: 64, height: 64, objectFit: 'contain' }}
-                  />
-                  <Link
-                    href={`/teams/${team2Slug}`}
-                    style={{ fontWeight: 700, fontSize: 15, color: team2Color || 'var(--accent)', textAlign: 'center' }}
-                  >
-                    {team2Name}
-                  </Link>
-                  {team2Won && <span className="badge badge-win" style={{ fontSize: 11 }}>WIN</span>}
-                  {isDraw && !team2Won && <span className="badge" style={{ fontSize: 11 }}>DRAW</span>}
-                </div>
+              <div
+                className="tbl-display"
+                style={{ fontSize: 44, lineHeight: 1, marginTop: 2 }}
+              >
+                {team1Front}
+                {team1Back && (
+                  <>
+                    {' '}
+                    <span style={{ opacity: 0.7 }}>{team1Back}</span>
+                  </>
+                )}
               </div>
-            </div>
-          </div>
-
-          {/* Phase scorecard strip */}
-          <div className="card" style={{ marginBottom: 24 }}>
-            <div className="card-header">
-              <span className="card-title">Box Score</span>
-            </div>
-            <div className="results-scorecard-wrap">
-              <table className="results-scorecard">
-                <thead>
-                  <tr>
-                    <th className="results-scorecard-team-col">Team</th>
-                    {phaseTotals.map((pt) => (
-                      <th key={pt.phase} className="results-scorecard-phase-col">{pt.phase || 'Rounds'}</th>
-                    ))}
-                    <th className="results-scorecard-total-col">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    { label: team1Name, scores: phaseTotals.map((pt) => pt.score1), oppScores: phaseTotals.map((pt) => pt.score2), total: total1, oppTotal: total2 },
-                    { label: team2Name, scores: phaseTotals.map((pt) => pt.score2), oppScores: phaseTotals.map((pt) => pt.score1), total: total2, oppTotal: total1 },
-                  ].map(({ label, scores, oppScores, total, oppTotal }) => (
-                    <tr key={label}>
-                      <td className="results-scorecard-team-name">{label}</td>
-                      {scores.map((score, i) => {
-                        const opp = oppScores[i];
-                        const color = score > opp ? 'var(--result-w)' : score < opp ? 'var(--result-l)' : 'var(--text)';
-                        return (
-                          <td key={i} className="results-scorecard-cell" style={{ color, fontWeight: score > opp ? 700 : 400 }}>
-                            {score.toFixed(1)}
-                          </td>
-                        );
-                      })}
-                      <td
-                        className="results-scorecard-cell results-scorecard-total"
-                        style={{
-                          color: total > oppTotal ? 'var(--result-w)' : total < oppTotal ? 'var(--result-l)' : 'var(--text)',
-                          fontWeight: 700,
-                        }}
-                      >
-                        {total.toFixed(1)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Round-by-round breakdown */}
-          <div className="card" style={{ marginBottom: 24 }}>
-            <div className="card-header">
-              <span className="card-title">Round-by-Round</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>
-                {match.boxScore.length} bout{match.boxScore.length !== 1 ? 's' : ''}
-              </span>
-            </div>
-            <div className="results-phases">
-              {phases.length > 0 ? (
-                phases.map((phase) => {
-                  const rows = match.boxScore.filter((r) => r.phase === phase);
-                  const sub1 = rows.reduce((s, r) => s + r.score1, 0);
-                  const sub2 = rows.reduce((s, r) => s + r.score2, 0);
-                  return (
-                    <div key={phase} className="results-phase-section">
-                      <div className="results-phase-header">{phase || 'Rounds'}</div>
-                      <div className="results-boxscore">
-                        <table>
-                          <thead>
-                            <tr>
-                              <th>Rnd</th>
-                              <th>{team1Name}</th>
-                              <th>{team2Name}</th>
-                              <th className="num-cell">Score</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {rows.map((row, i) => {
-                              const home = row.score1 > row.score2;
-                              const away = row.score2 > row.score1;
-                              return (
-                                <tr key={i}>
-                                  <td className="mono" style={{ fontSize: 12, color: 'var(--text-muted)', width: 36 }}>{row.round}</td>
-                                  <td style={{ fontWeight: home ? 700 : 400, fontSize: 13 }}>
-                                    <Link href={`/fighters/${toSlug(row.fighter1)}`} style={{ color: home ? 'var(--accent)' : 'var(--text)' }}>
-                                      {row.fighter1}
-                                    </Link>
-                                  </td>
-                                  <td style={{ fontWeight: away ? 700 : 400, fontSize: 13 }}>
-                                    <Link href={`/fighters/${toSlug(row.fighter2)}`} style={{ color: away ? 'var(--accent)' : 'var(--text)' }}>
-                                      {row.fighter2}
-                                    </Link>
-                                  </td>
-                                  <td className="num-cell mono" style={{ fontSize: 12 }}>
-                                    <span style={{ color: home ? 'var(--result-w)' : 'var(--text-muted)' }}>{row.score1.toFixed(1)}</span>
-                                    {' – '}
-                                    <span style={{ color: away ? 'var(--result-w)' : 'var(--text-muted)' }}>{row.score2.toFixed(1)}</span>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                            <tr className="results-phase-subtotal">
-                              <td className="mono" style={{ fontSize: 11, color: 'var(--text-muted)' }}>SUB</td>
-                              <td /><td />
-                              <td className="num-cell mono" style={{ fontSize: 12 }}>
-                                <span style={{ color: sub1 > sub2 ? 'var(--result-w)' : sub1 < sub2 ? 'var(--result-l)' : 'var(--text-muted)' }}>{sub1.toFixed(1)}</span>
-                                {' – '}
-                                <span style={{ color: sub2 > sub1 ? 'var(--result-w)' : sub2 < sub1 ? 'var(--result-l)' : 'var(--text-muted)' }}>{sub2.toFixed(1)}</span>
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                // Fallback: no phase data
-                <div className="results-boxscore">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Rnd</th>
-                        <th>{team1Name}</th>
-                        <th>{team2Name}</th>
-                        <th className="num-cell">Score</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {match.boxScore.map((row, i) => {
-                        const home = row.score1 > row.score2;
-                        const away = row.score2 > row.score1;
-                        return (
-                          <tr key={i}>
-                            <td className="mono" style={{ fontSize: 12, color: 'var(--text-muted)' }}>{row.round}</td>
-                            <td style={{ fontWeight: home ? 700 : 400 }}>
-                              <Link href={`/fighters/${toSlug(row.fighter1)}`} style={{ color: home ? 'var(--accent)' : 'var(--text)' }}>{row.fighter1}</Link>
-                            </td>
-                            <td style={{ fontWeight: away ? 700 : 400 }}>
-                              <Link href={`/fighters/${toSlug(row.fighter2)}`} style={{ color: away ? 'var(--accent)' : 'var(--text)' }}>{row.fighter2}</Link>
-                            </td>
-                            <td className="num-cell mono" style={{ fontSize: 12 }}>
-                              <span style={{ color: home ? 'var(--result-w)' : 'var(--text-muted)' }}>{row.score1.toFixed(1)}</span>
-                              {' – '}
-                              <span style={{ color: away ? 'var(--result-w)' : 'var(--text-muted)' }}>{row.score2.toFixed(1)}</span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Highlights */}
-          {highlights.length > 0 && (
-            <div className="card" style={{ marginBottom: 24, padding: '20px 20px 8px' }}>
-              <HighlightsSection highlights={highlights} title="Match Highlights" />
-            </div>
-          )}
-
-          {/* Navigation */}
-          <div style={{ marginTop: 20, display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-            <Link href="/results" style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 12, color: 'var(--text-muted)' }}>
-              ← Back to Results
+              <div
+                style={{
+                  fontFamily: 'var(--tbl-font-mono)',
+                  fontSize: 11,
+                  letterSpacing: '0.22em',
+                  textTransform: 'uppercase',
+                  fontWeight: 700,
+                  marginTop: 6,
+                  color: team1Won ? 'var(--tbl-accent-bright)' : 'rgba(244,237,224,0.5)',
+                }}
+              >
+                {team1Won ? 'Winner' : team2Won ? 'Fell' : ' '}
+              </div>
             </Link>
-            <Link href={`/teams/${team1Slug}`} style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 12, color: 'var(--accent)' }}>
-              {team1Name} →
-            </Link>
-            <Link href={`/teams/${team2Slug}`} style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 12, color: 'var(--accent)' }}>
-              {team2Name} →
+            {team1Logo && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={team1Logo}
+                alt=""
+                style={{ width: 84, height: 84, objectFit: 'contain', flexShrink: 0 }}
+              />
+            )}
+          </div>
+
+          {/* Score */}
+          <div
+            className="tbl-display"
+            style={{ fontSize: 84, lineHeight: 1, textAlign: 'center', whiteSpace: 'nowrap' }}
+          >
+            <span style={{ color: team1Won ? 'var(--tbl-accent-bright)' : 'inherit' }}>
+              {totalA.toFixed(0)}
+            </span>
+            <span style={{ margin: '0 14px', fontStyle: 'italic', opacity: 0.35 }}>—</span>
+            <span style={{ color: team2Won ? 'var(--tbl-accent-bright)' : 'inherit' }}>
+              {totalB.toFixed(0)}
+            </span>
+          </div>
+
+          {/* Team 2 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+            {team2Logo && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={team2Logo}
+                alt=""
+                style={{ width: 84, height: 84, objectFit: 'contain', flexShrink: 0 }}
+              />
+            )}
+            <Link
+              href={`/teams/${team2Slug}`}
+              style={{ textDecoration: 'none', color: 'inherit' }}
+            >
+              <div
+                style={{
+                  fontFamily: 'var(--tbl-font-mono)',
+                  fontSize: 10,
+                  letterSpacing: '0.24em',
+                  color: 'rgba(244,237,224,0.6)',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {team2Abbr}
+              </div>
+              <div
+                className="tbl-display"
+                style={{ fontSize: 44, lineHeight: 1, marginTop: 2 }}
+              >
+                {team2Front}
+                {team2Back && (
+                  <>
+                    {' '}
+                    <span style={{ opacity: 0.7 }}>{team2Back}</span>
+                  </>
+                )}
+              </div>
+              <div
+                style={{
+                  fontFamily: 'var(--tbl-font-mono)',
+                  fontSize: 11,
+                  letterSpacing: '0.22em',
+                  textTransform: 'uppercase',
+                  fontWeight: 700,
+                  marginTop: 6,
+                  color: team2Won ? 'var(--tbl-accent-bright)' : 'rgba(244,237,224,0.5)',
+                }}
+              >
+                {team2Won ? 'Winner' : team1Won ? 'Fell' : ' '}
+              </div>
             </Link>
           </div>
         </div>
+      </div>
+
+      {/* Box score */}
+      <div style={{ padding: '26px 32px 36px' }}>
+        <SectionRule left="Bout-by-Bout · Round Points" right="A·B format per round" />
+        <div style={{ overflowX: 'auto' }}>
+          <table
+            style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              fontFamily: 'var(--tbl-font-mono)',
+              fontSize: 13,
+            }}
+          >
+            <thead>
+              <tr style={{ borderBottom: '2px solid var(--tbl-ink)' }}>
+                {[
+                  { label: 'Weight', align: 'left' as const },
+                  { label: `${team1Abbr} Fighter`, align: 'left' as const },
+                  ...Array.from({ length: maxRounds }).map((_, i) => ({
+                    label: `R${i + 1}`,
+                    align: 'center' as const,
+                  })),
+                  { label: 'Tot', align: 'center' as const },
+                  { label: `${team2Abbr} Fighter`, align: 'right' as const },
+                  { label: 'Dec', align: 'center' as const },
+                ].map((h, i) => (
+                  <th
+                    key={`${h.label}-${i}`}
+                    style={{
+                      padding: '8px',
+                      textAlign: h.align,
+                      fontSize: 10,
+                      letterSpacing: '0.14em',
+                      textTransform: 'uppercase',
+                      color: 'var(--tbl-ink-soft)',
+                      fontWeight: 700,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {h.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {bouts.map((rounds, i) => {
+                const first = rounds[0];
+                if (!first) return null;
+                const wc = first.weightClass || first.phase || '—';
+                const a = boutTotals[i].a;
+                const b = boutTotals[i].b;
+                const winnerA = a > b;
+                const winnerB = b > a;
+                const stripe = i % 2 === 0 ? 'transparent' : 'rgba(20,17,11,0.025)';
+                return (
+                  <tr
+                    key={i}
+                    style={{
+                      borderBottom: '1px dotted rgba(20,17,11,0.3)',
+                      background: stripe,
+                    }}
+                  >
+                    <td style={{ padding: '12px 8px', color: 'var(--tbl-ink-soft)', fontWeight: 700 }}>
+                      {wc}
+                    </td>
+                    <td
+                      style={{
+                        padding: '12px 8px',
+                        fontFamily: 'var(--tbl-font-serif)',
+                        fontSize: 15,
+                        fontWeight: 700,
+                        color: winnerA ? 'var(--tbl-accent)' : 'var(--tbl-ink)',
+                      }}
+                    >
+                      <Link
+                        href={`/fighters/${toSlug(first.fighter1)}`}
+                        style={{ color: 'inherit', textDecoration: 'none' }}
+                      >
+                        {first.fighter1}
+                      </Link>
+                    </td>
+                    {Array.from({ length: maxRounds }).map((_, j) => {
+                      const r = rounds[j];
+                      if (!r) {
+                        return (
+                          <td
+                            key={j}
+                            style={{ padding: '12px 8px', textAlign: 'center', color: 'var(--tbl-ink-mute)' }}
+                          >
+                            —
+                          </td>
+                        );
+                      }
+                      const ra = r.score1;
+                      const rb = r.score2;
+                      return (
+                        <td key={j} style={{ padding: '12px 8px', textAlign: 'center' }}>
+                          <span
+                            style={{
+                              fontWeight: ra > rb ? 900 : 500,
+                              color: ra > rb ? 'var(--tbl-green)' : 'var(--tbl-ink-soft)',
+                            }}
+                          >
+                            {ra}
+                          </span>
+                          <span style={{ opacity: 0.4, margin: '0 3px' }}>·</span>
+                          <span
+                            style={{
+                              fontWeight: rb > ra ? 900 : 500,
+                              color: rb > ra ? 'var(--tbl-green)' : 'var(--tbl-ink-soft)',
+                            }}
+                          >
+                            {rb}
+                          </span>
+                        </td>
+                      );
+                    })}
+                    <td
+                      style={{
+                        padding: '12px 8px',
+                        textAlign: 'center',
+                        fontFamily: 'var(--tbl-font-serif)',
+                        fontSize: 18,
+                        fontWeight: 900,
+                      }}
+                    >
+                      <span style={{ color: winnerA ? 'var(--tbl-accent)' : 'var(--tbl-ink)' }}>{a}</span>
+                      <span style={{ opacity: 0.4, margin: '0 4px' }}>—</span>
+                      <span style={{ color: winnerB ? 'var(--tbl-accent)' : 'var(--tbl-ink)' }}>{b}</span>
+                    </td>
+                    <td
+                      style={{
+                        padding: '12px 8px',
+                        textAlign: 'right',
+                        fontFamily: 'var(--tbl-font-serif)',
+                        fontSize: 15,
+                        fontWeight: 700,
+                        color: winnerB ? 'var(--tbl-accent)' : 'var(--tbl-ink)',
+                      }}
+                    >
+                      <Link
+                        href={`/fighters/${toSlug(first.fighter2)}`}
+                        style={{ color: 'inherit', textDecoration: 'none' }}
+                      >
+                        {first.fighter2}
+                      </Link>
+                    </td>
+                    <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                      {a !== b && (
+                        <span
+                          style={{
+                            display: 'inline-block',
+                            padding: '2px 10px',
+                            background: winnerA ? 'var(--tbl-green)' : 'var(--tbl-red)',
+                            color: '#fff',
+                            fontFamily: 'var(--tbl-font-serif)',
+                            fontWeight: 900,
+                            fontSize: 13,
+                          }}
+                        >
+                          {winnerA ? team1Abbr : team2Abbr}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+              <tr style={{ background: 'var(--tbl-ink)', color: 'var(--tbl-bg)' }}>
+                <td
+                  colSpan={2 + maxRounds}
+                  style={{
+                    padding: '14px 8px',
+                    fontFamily: 'var(--tbl-font-mono)',
+                    fontSize: 10,
+                    letterSpacing: '0.22em',
+                    textTransform: 'uppercase',
+                    fontWeight: 700,
+                  }}
+                >
+                  Match Total
+                </td>
+                <td
+                  style={{
+                    padding: '14px 8px',
+                    textAlign: 'center',
+                    fontFamily: 'var(--tbl-font-serif)',
+                    fontWeight: 900,
+                    fontSize: 22,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <span style={{ color: team1Won ? 'var(--tbl-accent-bright)' : 'inherit' }}>
+                    {totalA.toFixed(0)}
+                  </span>
+                  <span style={{ opacity: 0.4, margin: '0 6px' }}>—</span>
+                  <span style={{ color: team2Won ? 'var(--tbl-accent-bright)' : 'inherit' }}>
+                    {totalB.toFixed(0)}
+                  </span>
+                </td>
+                <td colSpan={2} />
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Highlights */}
+      {highlights.length > 0 && (
+        <div style={{ padding: '0 32px 36px' }}>
+          <HighlightsSection highlights={highlights} title="Match Highlights" />
+        </div>
+      )}
+
+      {/* Footer nav */}
+      <div
+        style={{
+          padding: '0 32px 48px',
+          display: 'flex',
+          gap: 16,
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          fontFamily: 'var(--tbl-font-mono)',
+          fontSize: 12,
+        }}
+      >
+        <Link href="/results" style={{ color: 'var(--tbl-ink-soft)', textDecoration: 'none' }}>
+          ← Back to Results
+        </Link>
+        <Link href={`/teams/${team1Slug}`} style={{ color: 'var(--tbl-accent)', textDecoration: 'none' }}>
+          {team1Full} →
+        </Link>
+        <Link href={`/teams/${team2Slug}`} style={{ color: 'var(--tbl-accent)', textDecoration: 'none' }}>
+          {team2Full} →
+        </Link>
       </div>
     </>
   );
