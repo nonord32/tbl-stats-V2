@@ -714,15 +714,18 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
   font-size: 13px;
   table-layout: fixed;
 }
-/* Fixed column widths — same across every phase section */
+/* Fixed column widths — same across every phase section.
+   5 columns now: Rnd | Weight | Team1 Fighter | Team2 Fighter | Score */
 .results-boxscore table th:nth-child(1),
 .results-boxscore table td:nth-child(1) { width: 44px; }
 .results-boxscore table th:nth-child(2),
-.results-boxscore table td:nth-child(2) { width: 38%; }
+.results-boxscore table td:nth-child(2) { width: 140px; }
 .results-boxscore table th:nth-child(3),
-.results-boxscore table td:nth-child(3) { width: 38%; }
+.results-boxscore table td:nth-child(3) { width: auto; text-align: left; }
 .results-boxscore table th:nth-child(4),
-.results-boxscore table td:nth-child(4) { width: 110px; text-align: left; }
+.results-boxscore table td:nth-child(4) { width: auto; text-align: left; }
+.results-boxscore table th:nth-child(5),
+.results-boxscore table td:nth-child(5) { width: 110px; text-align: left; }
 
 .results-boxscore thead th {
   background: var(--bg-table-alt);
@@ -748,7 +751,7 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
 .results-boxscore tbody tr:last-child td { border-bottom: none; }
 /* Score cell — override num-cell right-align, keep left */
 .results-boxscore .num-cell { text-align: left; }
-.results-boxscore tbody td:nth-child(4) {
+.results-boxscore tbody td:nth-child(5) {
   font-family: var(--font-mono);
   font-size: 12px;
   white-space: nowrap;

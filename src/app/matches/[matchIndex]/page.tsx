@@ -47,9 +47,9 @@ function teamShort(team: string): string {
   const map: Record<string, string> = {
     nyc: 'NYC',
     'new york': 'NYC',
-    'los angeles': 'LAX',
+    'los angeles': 'LA',
     'las vegas': 'LV',
-    'san antonio': 'SAS',
+    'san antonio': 'SA',
     atlanta: 'ATL',
     boston: 'BOS',
     dallas: 'DAL',
