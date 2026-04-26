@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getAllData, extractUniqueMatches } from '@/lib/data';
 import { getCurrentWeek, getDisplayedCurrentWeek, scheduleForWeek } from '@/lib/week';
+import { getGameStartUTC } from '@/lib/gameTime';
 import { getFullTeamName, getTeamLogoPathByName, getCityName } from '@/lib/teams';
 import { HallOfChampions } from '@/components/home/HallOfChampions';
 import { PickemPromo } from '@/components/home/PickemPromo';
@@ -1176,11 +1177,33 @@ export default async function HomePage() {
   const fighterSlugs = new Set(fighters.map((f) => f.slug));
 
   const currentWeek = getDisplayedCurrentWeek(schedule);
-  const weekMatches =
-    currentWeek !== null ? scheduleForWeek(schedule, currentWeek) : [];
-  const upcoming = weekMatches.filter((s) => s.status === 'Upcoming');
-  const featured = upcoming[0] ?? null;
-  const alsoThisWeek = upcoming.slice(1);
+  // "Upcoming" stays on the schedule entry until results are entered, so a
+  // game in progress (or one that started a few hours ago and just hasn't
+  // been finalized yet) would otherwise still be the featured match. Pick
+  // the next genuinely-future match across the entire schedule, not just
+  // the current week, so the hero advances the moment kickoff passes —
+  // even if it has to roll forward into next week.
+  const now = Date.now();
+  const isStillFuture = (s: ScheduleEntry) => {
+    if (s.status !== 'Upcoming') return false;
+    const start = getGameStartUTC(s.date, s.time, s.venueCity);
+    if (!start || isNaN(start.getTime())) return true; // fail open
+    return start.getTime() > now;
+  };
+  const allFuture = [...schedule]
+    .filter(isStillFuture)
+    .sort((a, b) => {
+      const aStart = getGameStartUTC(a.date, a.time, a.venueCity)?.getTime() ?? 0;
+      const bStart = getGameStartUTC(b.date, b.time, b.venueCity)?.getTime() ?? 0;
+      return aStart - bStart;
+    });
+  const featured = allFuture[0] ?? null;
+  // "Also this week" only lists matches in the same week as the featured
+  // game (or the displayed current week if none is featured).
+  const referenceWeek = featured ? Number(featured.week) : currentWeek;
+  const alsoThisWeek = allFuture
+    .slice(1)
+    .filter((s) => referenceWeek != null && Number(s.week) === referenceWeek);
 
   // Pick'em promo — only surfaced when there's actually an open pick window.
   const pickemWeek = getCurrentWeek(schedule);
