@@ -353,9 +353,9 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
         </div>
       </div>
 
-      {/* Mobile list view */}
+      {/* Mobile list view — render the full filtered roster, no slice. */}
       <div className="fighters-mobile-list">
-        {sorted.slice(0, 50).map((f, i) => {
+        {sorted.map((f, i) => {
           const logo = getTeamLogoPathByName(f.team);
           return (
             <Link
