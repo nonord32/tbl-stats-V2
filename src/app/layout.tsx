@@ -56,6 +56,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&display=swap"
           rel="stylesheet"
         />
+        {/* Set the theme before the page paints to avoid a flash of the
+            wrong palette. Reads the same key (tbl-theme) the
+            ThemeProvider client component writes. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){try{var t=localStorage.getItem('tbl-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');}}catch(e){}})();",
+          }}
+        />
       </head>
       <body>
         <ThemeProvider>

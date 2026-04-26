@@ -4009,3 +4009,109 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
 .fantasy-draft-board__cell[style*="border-width: 2"] {
   position: relative;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Dark theme — applied via <html data-theme="dark"> by ThemeProvider.
+   The token names keep their roles: --tbl-bg = page background,
+   --tbl-ink = primary text, --tbl-paper = card surface. We swap the
+   actual colors so the entire site flips. The "dark hero" sections in
+   light mode (background: var(--tbl-ink)) intentionally invert to
+   become bright accent panels in dark mode — that's the equivalent
+   contrast move.
+   =========================================================================== */
+[data-theme="dark"] {
+  /* Paper palette inverted */
+  --tbl-bg: #0e0c08;            /* page background */
+  --tbl-paper: #1a1610;         /* card / input background */
+  --tbl-ink: #f0e6d4;           /* primary text (warm cream) */
+  --tbl-ink-soft: #a89d85;      /* secondary text */
+  --tbl-ink-mute: #6a604f;      /* tertiary text */
+
+  /* Accent — slightly brighter for readability on dark */
+  --tbl-accent: #ff5e22;
+  --tbl-accent-bright: #ff7a3c;
+
+  /* Result colors — push lightness so they read on dark */
+  --tbl-green: #34c265;
+  --tbl-red:   #ec5b3e;
+  --tbl-green-bg: rgba(52, 194, 101, 0.16);
+  --tbl-red-bg:   rgba(236, 91, 62, 0.16);
+
+  /* Legacy bridges follow the new values automatically */
+  --bg-table-alt: rgba(240, 230, 212, 0.04);
+  --modal-overlay: rgba(0, 0, 0, 0.7);
+  --accent-hover: #ff7a3c;
+}
+
+/* A few elements baked in dark literals — make them respect the theme. */
+[data-theme="dark"] body { background: var(--tbl-bg); color: var(--tbl-ink); }
+
+/* "Dark hero" sections (team profile, match profile, fantasy hero, fight
+   card hero, picks header, the gazette wrapper). In light mode they're
+   dark panels on a cream body. In dark mode the body is dark already, so
+   we swap them to a slightly-lighter dark surface with the SAME cream
+   text — keeps the contrast hierarchy without a jarring cream block. */
+[data-theme="dark"] .gz-team-hero,
+[data-theme="dark"] .gz-match-hero-band,
+[data-theme="dark"] .fantasy-hero,
+[data-theme="dark"] .fantasy-banner,
+[data-theme="dark"] .gz-picks-header,
+[data-theme="dark"] .home-mobile-banner,
+[data-theme="dark"] .gz-fight-card > div:first-child,
+[data-theme="dark"] .tbl-top-nav,
+[data-theme="dark"] .tbl-top-strip,
+[data-theme="dark"] .tbl-mobile-tab-bar,
+[data-theme="dark"] .fantasy-table thead th,
+[data-theme="dark"] .fantasy-draft-board__cell.is-now {
+  background: #1f1a12 !important;
+  color: var(--tbl-ink) !important;
+  border-color: rgba(240, 230, 212, 0.16) !important;
+}
+
+/* The "ink-as-bg, bg-as-text" team panels in Top Six / Pick'em on dark:
+   pinned to the same lighter-dark surface so cream text stays readable. */
+[data-theme="dark"] .gz-pick-team.is-picked,
+[data-theme="dark"] .gz-topsix-grid > a[style*="var(--tbl-ink)"] {
+  background: #2a221a !important;
+  color: var(--tbl-ink) !important;
+}
+
+/* Result-card hover and dotted dividers reference rgba(20,17,11,…) which
+   doesn't flip with the tokens — replace with cream variants on dark. */
+[data-theme="dark"] .gz-result-card:hover { background: rgba(240, 230, 212, 0.05); }
+[data-theme="dark"] tr,
+[data-theme="dark"] .home-mobile-list__row,
+[data-theme="dark"] .fighters-mobile-row,
+[data-theme="dark"] .teams-mobile-row,
+[data-theme="dark"] .fantasy-table tbody td,
+[data-theme="dark"] .fantasy-pick-log__row,
+[data-theme="dark"] .gz-fighter-history-row {
+  border-color: rgba(240, 230, 212, 0.14) !important;
+}
+
+/* Mid-grey scrolled / hover backgrounds */
+[data-theme="dark"] .fantasy-quick-card:hover,
+[data-theme="dark"] .gz-cat-row:hover { background: rgba(240, 230, 212, 0.05); }
+
+/* Toggle button styling (works in both themes — defined here for clarity) */
+.tbl-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--tbl-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 700;
+  padding: 6px 10px;
+  border: 1px solid rgba(244, 237, 224, 0.25);
+  background: transparent;
+  color: rgba(244, 237, 224, 0.85);
+  cursor: pointer;
+}
+.tbl-theme-toggle:hover { color: #fff; border-color: rgba(244, 237, 224, 0.5); }
+.tbl-theme-toggle__icon { font-size: 13px; }
+
+/* Render the toggle inside the dark TopStrip with always-cream colors so
+   it's readable in both themes (the strip stays dark in both modes). */
+.tbl-top-strip .tbl-theme-toggle { color: rgba(244, 237, 224, 0.85); }
