@@ -202,6 +202,7 @@ export default async function MatchPage({
 
       {/* Dark hero */}
       <div
+        className="gz-match-hero-band"
         style={{
           background: 'var(--tbl-ink)',
           color: 'var(--tbl-bg)',
@@ -239,6 +240,7 @@ export default async function MatchPage({
               style={{ textDecoration: 'none', color: 'inherit', textAlign: 'right' }}
             >
               <div
+                className="gz-match-hero__abbr"
                 style={{
                   fontFamily: 'var(--tbl-font-mono)',
                   fontSize: 10,
@@ -250,7 +252,7 @@ export default async function MatchPage({
                 {team1Abbr}
               </div>
               <div
-                className="tbl-display"
+                className="tbl-display gz-match-hero__name"
                 style={{ fontSize: 44, lineHeight: 1, marginTop: 2 }}
               >
                 {team1Front}
@@ -262,6 +264,7 @@ export default async function MatchPage({
                 )}
               </div>
               <div
+                className="gz-match-hero__result"
                 style={{
                   fontFamily: 'var(--tbl-font-mono)',
                   fontSize: 11,
@@ -280,6 +283,7 @@ export default async function MatchPage({
               <img
                 src={team1Logo}
                 alt=""
+                className="gz-match-hero__logo"
                 style={{ width: 84, height: 84, objectFit: 'contain', flexShrink: 0 }}
               />
             )}
@@ -287,7 +291,7 @@ export default async function MatchPage({
 
           {/* Score */}
           <div
-            className="tbl-display"
+            className="tbl-display gz-match-hero__score"
             style={{ fontSize: 84, lineHeight: 1, textAlign: 'center', whiteSpace: 'nowrap' }}
           >
             <span style={{ color: team1Won ? 'var(--tbl-accent-bright)' : 'inherit' }}>
@@ -306,6 +310,7 @@ export default async function MatchPage({
               <img
                 src={team2Logo}
                 alt=""
+                className="gz-match-hero__logo"
                 style={{ width: 84, height: 84, objectFit: 'contain', flexShrink: 0 }}
               />
             )}
@@ -314,6 +319,7 @@ export default async function MatchPage({
               style={{ textDecoration: 'none', color: 'inherit' }}
             >
               <div
+                className="gz-match-hero__abbr"
                 style={{
                   fontFamily: 'var(--tbl-font-mono)',
                   fontSize: 10,
@@ -325,7 +331,7 @@ export default async function MatchPage({
                 {team2Abbr}
               </div>
               <div
-                className="tbl-display"
+                className="tbl-display gz-match-hero__name"
                 style={{ fontSize: 44, lineHeight: 1, marginTop: 2 }}
               >
                 {team2Front}
