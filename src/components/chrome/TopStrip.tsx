@@ -1,6 +1,5 @@
-// Dark strip above the main nav: season/week label + theme toggle.
-
-import { ThemeToggle } from '@/components/ThemeToggle';
+// Dark strip above the main nav: season/week label + live score + timestamp.
+// Live score + timestamp are placeholders for now — data hookup is future work.
 
 export function TopStrip() {
   return (
@@ -12,7 +11,6 @@ export function TopStrip() {
       </div>
       <div className="tbl-top-strip__right">
         <span className="tbl-top-strip__timestamp">The Official Record</span>
-        <ThemeToggle />
       </div>
     </div>
   );
