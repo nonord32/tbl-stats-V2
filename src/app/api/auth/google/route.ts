@@ -1,19 +1,33 @@
 // src/app/api/auth/google/route.ts
 // Server-initiated Google OAuth.
 //
-// Uses the official Supabase Next.js pattern: a route-handler-scoped
-// supabase client backed by next/headers cookies(). signInWithOAuth will
-// write the PKCE code_verifier cookie via that handle, and Next.js
-// attaches it to whatever response the handler returns. iOS Safari's
-// tracking prevention drops cookies set via document.cookie from the
-// browser-side flow, so we run signInWithOAuth on the server instead.
-import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+// Capture the cookies supabase asks us to set during signInWithOAuth (most
+// importantly the PKCE code_verifier) and replay them onto the final 302
+// to Google as real Set-Cookie headers. Mirrors the pattern in
+// /api/auth/login/route.ts so all three auth flows (email, Google,
+// callback) use the same battle-tested cookie handoff.
+import { NextResponse, type NextRequest } from 'next/server';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const { origin } = new URL(request.url);
+  const captured: { name: string; value: string; options?: CookieOptions }[] = [];
 
-  const supabase = await createClient();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach((c) => captured.push(c));
+        },
+      },
+    }
+  );
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: `${origin}/auth/callback` },
@@ -23,5 +37,9 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/login?error=oauth_init_failed`);
   }
 
-  return NextResponse.redirect(data.url);
+  const response = NextResponse.redirect(data.url);
+  captured.forEach(({ name, value, options }) => {
+    response.cookies.set(name, value, options);
+  });
+  return response;
 }
