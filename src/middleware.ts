@@ -3,21 +3,6 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
-  // ── Canonical host: force www.tblstats.com → tblstats.com ──────────────
-  // Supabase Auth's redirect URL whitelist contains https://tblstats.com/
-  // auth/callback but NOT the www variant. If a user signs in while on
-  // www.tblstats.com, Supabase rejects the redirectTo, falls back to the
-  // Site URL ("home"), and the OAuth flow never reaches /auth/callback —
-  // so the session cookies never get written. Bouncing them to the apex
-  // domain BEFORE any auth flow starts keeps the whole journey on the
-  // whitelisted host.
-  const host = request.headers.get('host') ?? '';
-  if (host.toLowerCase().startsWith('www.')) {
-    const url = request.nextUrl.clone();
-    url.host = host.slice(4);
-    return NextResponse.redirect(url, 308);
-  }
-
   // Skip middleware entirely on auth routes. The route handlers there
   // (/auth/callback, /api/auth/*, /auth/signout) own the full cookie
   // lifecycle for that request — having the middleware also call
