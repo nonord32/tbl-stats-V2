@@ -3027,6 +3027,27 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
   font-weight: 700;
   text-align: right;
 }
+.teams-mobile-cutoff {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 2px;
+  margin: 4px 0;
+  font-family: var(--tbl-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--tbl-accent);
+  font-weight: 700;
+  border-top: 1.5px solid var(--tbl-accent);
+  border-bottom: 1.5px solid var(--tbl-accent);
+}
+.teams-mobile-cutoff span {
+  background: var(--tbl-bg);
+  padding: 0 8px;
+  position: relative;
+  top: -1px;
+}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Rankings — mobile: top 3 per category, stacked vertically.

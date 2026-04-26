@@ -286,33 +286,40 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
         {sortedByWins.map((t, i) => {
           const streak = t.streak || calcTeamStreak(teamMatches[t.team] || []);
           return (
-            <Link key={t.slug} href={`/teams/${t.slug}`} className="teams-mobile-row">
-              <div className="teams-mobile-row__rank">{i + 1}</div>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={getTeamLogoPath(t.slug)}
-                alt=""
-                className="teams-mobile-row__logo"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}
-              />
-              <div className="teams-mobile-row__body">
-                <div className="teams-mobile-row__name">{getFullTeamName(t.slug)}</div>
-                <div className="teams-mobile-row__meta">
-                  {getCityName(t.team)}
-                  {streak && <> · <span className={streak.startsWith('W') ? 'teams-mobile-row__streak is-win' : 'teams-mobile-row__streak is-loss'}>{streak}</span></>}
+            <React.Fragment key={t.slug}>
+              <Link href={`/teams/${t.slug}`} className="teams-mobile-row">
+                <div className="teams-mobile-row__rank">{i + 1}</div>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={getTeamLogoPath(t.slug)}
+                  alt=""
+                  className="teams-mobile-row__logo"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+                <div className="teams-mobile-row__body">
+                  <div className="teams-mobile-row__name">{getFullTeamName(t.slug)}</div>
+                  <div className="teams-mobile-row__meta">
+                    {getCityName(t.team)}
+                    {streak && <> · <span className={streak.startsWith('W') ? 'teams-mobile-row__streak is-win' : 'teams-mobile-row__streak is-loss'}>{streak}</span></>}
+                  </div>
                 </div>
-              </div>
-              <div className="teams-mobile-row__record">{t.record}</div>
-              <div
-                className="teams-mobile-row__diff"
-                style={{ color: t.diff >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)' }}
-              >
-                {t.diff >= 0 ? '+' : ''}
-                {t.diff.toFixed(0)}
-              </div>
-            </Link>
+                <div className="teams-mobile-row__record">{t.record}</div>
+                <div
+                  className="teams-mobile-row__diff"
+                  style={{ color: t.diff >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)' }}
+                >
+                  {t.diff >= 0 ? '+' : ''}
+                  {t.diff.toFixed(0)}
+                </div>
+              </Link>
+              {i === 7 && i < sortedByWins.length - 1 && (
+                <div className="teams-mobile-cutoff" aria-hidden="true">
+                  <span>── Playoff Cutoff ──</span>
+                </div>
+              )}
+            </React.Fragment>
           );
         })}
       </div>

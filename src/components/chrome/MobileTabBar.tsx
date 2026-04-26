@@ -3,7 +3,7 @@
 // Route mapping follows the mobile handoff:
 //   Home     → /
 //   Fighters → /fighters, /fighters/[slug], /rankings
-//   Teams    → /teams, /teams/[slug]
+//   Standings → /teams, /teams/[slug]
 //   Schedule → /schedule, /matches/[id]
 //   Pick'em  → /picks, /leaderboard
 
@@ -55,7 +55,7 @@ const TABS: TabDef[] = [
     ),
   },
   {
-    label: 'Teams',
+    label: 'Standings',
     href: '/teams',
     match: (p) => p.startsWith('/teams'),
     icon: (a) => (
