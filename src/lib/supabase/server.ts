@@ -9,15 +9,6 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      // Pin cookie attributes deterministically. supabase-ssr defaults are
-      // already sensible, but being explicit avoids any platform-specific
-      // surprise (e.g. iOS Safari rejecting cookies that arrive without a
-      // SameSite attribute on a cross-site OAuth redirect).
-      cookieOptions: {
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
-        path: '/',
-      },
       cookies: {
         getAll() {
           return cookieStore.getAll();
