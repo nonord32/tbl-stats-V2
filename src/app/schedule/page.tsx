@@ -22,9 +22,23 @@ export default async function SchedulePage() {
   const { schedule } = data;
   const currentWeek = getDisplayedCurrentWeek(schedule);
 
-  const scores: Record<number, { score1: number; score2: number; result: 'W' | 'L' | 'D' }> = {};
+  // The match result's team1/team2 ordering can differ from the schedule
+  // entry's (extractUniqueMatches walks teamMatches in object-key order, not
+  // schedule order). Pass the result's team1 along so the client can swap
+  // score1/score2 when needed instead of hard-pinning them to the schedule
+  // ordering — that's what was making BOS/NYC and DAL/HOU look like the
+  // wrong team had won.
+  const scores: Record<
+    number,
+    { score1: number; score2: number; result: 'W' | 'L' | 'D'; team1: string }
+  > = {};
   for (const m of extractUniqueMatches(data.teamMatches)) {
-    scores[m.matchIndex] = { score1: m.score1, score2: m.score2, result: m.result };
+    scores[m.matchIndex] = {
+      score1: m.score1,
+      score2: m.score2,
+      result: m.result,
+      team1: m.team1,
+    };
   }
 
   const BASE = 'https://tblstats.com';

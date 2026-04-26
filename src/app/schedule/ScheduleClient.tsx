@@ -9,7 +9,13 @@ import type { ScheduleEntry } from '@/types';
 import { PageHeader } from '@/components/chrome/PageHeader';
 import { getTeamLogoPathByName, getCityName } from '@/lib/teams';
 
-type ScoreInfo = { score1: number; score2: number; result: 'W' | 'L' | 'D' };
+type ScoreInfo = {
+  score1: number;
+  score2: number;
+  result: 'W' | 'L' | 'D';
+  /** Team that the result/score1 are reported from. */
+  team1: string;
+};
 
 interface Props {
   schedule: ScheduleEntry[];
@@ -87,8 +93,25 @@ function GameCard({ entry, score }: GameCardProps) {
   const logo1 = getTeamLogoPathByName(entry.team1);
   const logo2 = getTeamLogoPathByName(entry.team2);
   const showScore = isCompleted && score;
-  const team1Won = score?.result === 'W';
-  const team2Won = score?.result === 'L';
+
+  // The score record may have its team1/team2 (and result) reported from
+  // the opposite side of the schedule entry — extractUniqueMatches walks
+  // teamMatches in object-key order. Detect that and flip so score1 is
+  // always entry.team1's points and the W/L badge tracks the correct side.
+  const scoreFlipped = !!score && getCityName(score.team1) !== getCityName(entry.team1);
+  const s1 = score ? (scoreFlipped ? score.score2 : score.score1) : 0;
+  const s2 = score ? (scoreFlipped ? score.score1 : score.score2) : 0;
+  const resultForTeam1: 'W' | 'L' | 'D' | undefined = score
+    ? scoreFlipped
+      ? score.result === 'W'
+        ? 'L'
+        : score.result === 'L'
+        ? 'W'
+        : 'D'
+      : score.result
+    : undefined;
+  const team1Won = resultForTeam1 === 'W';
+  const team2Won = resultForTeam1 === 'L';
 
   const body = (
     <div
@@ -124,11 +147,11 @@ function GameCard({ entry, score }: GameCardProps) {
         {showScore ? (
           <div className="tbl-display gz-game-card__score" style={{ fontSize: 22, fontWeight: 900, whiteSpace: 'nowrap' }}>
             <span style={{ color: team1Won ? 'var(--tbl-accent)' : 'var(--tbl-ink)' }}>
-              {score!.score1.toFixed(0)}
+              {s1.toFixed(0)}
             </span>
             <span style={{ color: 'var(--tbl-ink-mute)', margin: '0 6px', fontStyle: 'italic', fontWeight: 400 }}>—</span>
             <span style={{ color: team2Won ? 'var(--tbl-accent)' : 'var(--tbl-ink)' }}>
-              {score!.score2.toFixed(0)}
+              {s2.toFixed(0)}
             </span>
           </div>
         ) : (
