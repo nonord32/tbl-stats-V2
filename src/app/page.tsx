@@ -41,11 +41,6 @@ function lastName(name: string): string {
   const parts = name.split(' ');
   return parts.slice(1).join(' ') || '';
 }
-function teamAbbr(teamName: string): string {
-  // "NYC Attitude" → "NYC"; "Las Vegas Hustle" → "LAS VEGAS"; fall back to first word.
-  const first = teamName.split(' ')[0] ?? teamName;
-  return first.toUpperCase();
-}
 // Map a team display name (as stored in CSVs — often short like "NYC" or "Dallas")
 // to our canonical city slug. Mirrors the mapping in src/lib/teams.ts but simpler.
 function teamSlug(name: string): string {
@@ -141,7 +136,7 @@ function FightCardHero({
                 className="tbl-display gz-hero-team"
                 style={{ fontSize: 96, lineHeight: 0.9, marginTop: 16 }}
               >
-                {teamAbbr(featured.team1)}
+                {shortAbbr(featured.team1)}
                 <span
                   className="gz-hero-vs"
                   style={{
@@ -161,7 +156,7 @@ function FightCardHero({
                 className="tbl-display gz-hero-team"
                 style={{ fontSize: 96, lineHeight: 0.9, marginTop: -4 }}
               >
-                {teamAbbr(featured.team2)}
+                {shortAbbr(featured.team2)}
               </div>
               {featured.venueName && (
                 <div
@@ -242,7 +237,7 @@ function FightCardHero({
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
               <div>
-                <div className="tbl-eyebrow">Fighter in Focus · #1 Net Pts</div>
+                <div className="tbl-eyebrow">Fighter in Focus · Top Net Pts in Match</div>
                 <Link
                   href={`/fighters/${focus.slug}`}
                   className="tbl-display gz-hero-focus-name"
@@ -1212,10 +1207,24 @@ export default async function HomePage() {
       ? scheduleForWeek(schedule, pickemWeek).filter((s) => s.status === 'Upcoming')
       : [];
 
-  // Sort by Net Points for both "Fighter in Focus" and "Top Six".
+  // Sort by Net Points — drives "Top Six" and the league-wide leaderboard.
   const fightersByNetPts = [...fighters].sort((a, b) => b.netPts - a.netPts);
-  const focus = fightersByNetPts[0] ?? null;
   const topSix = fightersByNetPts.slice(0, 6);
+
+  // Fighter in Focus: top net-points fighter from either side of the
+  // featured matchup, so the right-rail spotlight matches the upcoming
+  // event on the left. Falls back to the league leader when there's no
+  // upcoming match (offseason / between weeks).
+  const focus = (() => {
+    if (!featured) return fightersByNetPts[0] ?? null;
+    const slug1 = teamSlug(featured.team1);
+    const slug2 = teamSlug(featured.team2);
+    const fromMatch = fightersByNetPts.find((f) => {
+      const fs = teamSlug(f.team);
+      return fs === slug1 || fs === slug2;
+    });
+    return fromMatch ?? fightersByNetPts[0] ?? null;
+  })();
 
   // Tiebreakers (in order): wins ↓, losses ↑, point differential ↓, points for ↓,
   // then name asc as a stable final key. Mirrors the Teams page logic so the home
