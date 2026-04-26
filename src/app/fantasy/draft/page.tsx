@@ -1,16 +1,15 @@
 // src/app/fantasy/draft/page.tsx
-// Snake draft room. Left: filterable available fighters. Right: pick log
-// + draft order. All mock — buttons are visual stubs.
-import { POOL, RECENT_PICKS, DRAFT_STATE, DRAFT_BOARD } from '@/lib/fantasyMock';
+// Snake draft room. Available pool + recent picks come from real TBL
+// fighter data via getFantasyData(); the snake order, draft state, and
+// clock are mock since we have no real draft engine yet.
+import { DRAFT_STATE, DRAFT_BOARD } from '@/lib/fantasyMock';
+import { getFantasyData } from '@/lib/fantasyData';
 
 export const dynamic = 'force-dynamic';
 
-const TAKEN = new Set(RECENT_PICKS.map((p) => p.fighter));
-const AVAILABLE = POOL.filter((f) => !TAKEN.has(f.name)).sort(
-  (a, b) => b.projected - a.projected
-);
-
-export default function FantasyDraftPage() {
+export default async function FantasyDraftPage() {
+  const { draftAvailable, recentPicks } = await getFantasyData();
+  const available = [...draftAvailable].sort((a, b) => b.projected - a.projected);
   const { round, pick, totalRounds, totalPicks, onTheClock, timer, isYourPick } =
     DRAFT_STATE;
   return (
@@ -67,7 +66,7 @@ export default function FantasyDraftPage() {
           {/* Available pool */}
           <section className="fantasy-section fantasy-draft-grid__main">
             <div className="tbl-section-rule">
-              <span>Available · {AVAILABLE.length} fighters</span>
+              <span>Available · {available.length} fighters</span>
               <span>Sorted by Projected</span>
             </div>
             <div className="fantasy-draft-filters">
@@ -107,7 +106,7 @@ export default function FantasyDraftPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {AVAILABLE.map((f) => (
+                  {available.map((f) => (
                     <tr key={f.id}>
                       <td>
                         <span className="fantasy-table__team">{f.name}</span>
@@ -138,7 +137,7 @@ export default function FantasyDraftPage() {
               <span>Recent Picks</span>
             </div>
             <div className="fantasy-pick-log">
-              {RECENT_PICKS.map((p) => (
+              {recentPicks.map((p) => (
                 <div key={`${p.round}-${p.pick}`} className="fantasy-pick-log__row">
                   <div className="fantasy-pick-log__num">
                     R{p.round}·#{p.pick}

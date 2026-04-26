@@ -1,12 +1,9 @@
 // src/app/fantasy/waiver/page.tsx
-// Free agents + waiver claim queue. Mock UI only.
-import { POOL } from '@/lib/fantasyMock';
+// Free agents come from real TBL data via getFantasyData(); pending
+// claims, priority order, and processing window are mock.
+import { getFantasyData } from '@/lib/fantasyData';
 
 export const dynamic = 'force-dynamic';
-
-const FREE_AGENTS = POOL.filter((f) => f.status === 'free').sort(
-  (a, b) => b.projected - a.projected
-);
 
 const PENDING_CLAIMS = [
   {
@@ -27,7 +24,9 @@ const PENDING_CLAIMS = [
   },
 ];
 
-export default function FantasyWaiverPage() {
+export default async function FantasyWaiverPage() {
+  const { freeAgents } = await getFantasyData();
+  const FREE_AGENTS = [...freeAgents].sort((a, b) => b.projected - a.projected);
   return (
     <>
       <div className="fantasy-hero fantasy-hero--compact">

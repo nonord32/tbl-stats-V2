@@ -1,21 +1,16 @@
 // src/app/fantasy/team/page.tsx
-// My team: 7 active lineup slots + bench of reserves. Mock data, no
-// interactivity — buttons are visual stubs.
+// My team: 7 active lineup slots + bench of reserves. Lineup + bench
+// fighters are pulled from real TBL data via getFantasyData(); slot
+// matchups, status pills, and projected/avg/owned are mock-synthesized.
 import {
   ME,
-  MY_LINEUP,
-  MY_BENCH,
   SLOT_LABELS,
   SLOT_RULES,
   type FantasyFighter,
 } from '@/lib/fantasyMock';
+import { getFantasyData } from '@/lib/fantasyData';
 
 export const dynamic = 'force-dynamic';
-
-const TOTAL_PROJECTED = MY_LINEUP.reduce(
-  (sum, slot) => sum + (slot.fighter?.projected ?? 0),
-  0
-);
 
 function StatusPill({ status }: { status: FantasyFighter['status'] }) {
   const map: Record<FantasyFighter['status'], { label: string; cls: string }> = {
@@ -28,7 +23,13 @@ function StatusPill({ status }: { status: FantasyFighter['status'] }) {
   return <span className={`fantasy-status-pill ${m.cls}`}>{m.label}</span>;
 }
 
-export default function FantasyTeamPage() {
+export default async function FantasyTeamPage() {
+  const { lineup, bench } = await getFantasyData();
+  const totalProjected = lineup.reduce(
+    (sum, slot) => sum + (slot.fighter?.projected ?? 0),
+    0
+  );
+
   return (
     <>
       <div className="fantasy-hero fantasy-hero--compact">
@@ -45,7 +46,7 @@ export default function FantasyTeamPage() {
           <div>
             <div className="fantasy-hero__stat-label">Projected</div>
             <div className="tbl-display fantasy-hero__stat-value">
-              {TOTAL_PROJECTED.toFixed(1)}
+              {totalProjected.toFixed(1)}
             </div>
           </div>
           <div>
@@ -62,7 +63,7 @@ export default function FantasyTeamPage() {
             <span>Tap a slot to swap</span>
           </div>
           <div className="fantasy-lineup">
-            {MY_LINEUP.map((row) => (
+            {lineup.map((row) => (
               <div key={row.slot} className="fantasy-lineup__row">
                 <div className="fantasy-lineup__slot">
                   <div className="fantasy-lineup__slot-label">
@@ -108,11 +109,11 @@ export default function FantasyTeamPage() {
 
         <section className="fantasy-section">
           <div className="tbl-section-rule">
-            <span>Bench · {MY_BENCH.length} Reserves</span>
+            <span>Bench · {bench.length} Reserves</span>
             <span>Drag onto a slot to start them</span>
           </div>
           <div className="fantasy-bench-grid">
-            {MY_BENCH.map((b) => (
+            {bench.map((b) => (
               <div key={b.fighter.id} className="fantasy-bench-card">
                 <div className="fantasy-bench-card__head">
                   <div>

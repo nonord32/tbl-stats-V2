@@ -1,23 +1,26 @@
 // src/app/fantasy/scoring/page.tsx
-// Last event scoring breakdown for the user's lineup, head-to-head total
-// vs their weekly opponent, and the rule chart.
+// Last event scoring breakdown derived from the real lineup the user
+// owns (fighter names + slot mapping come from getFantasyData()).
+// Per-bout result/method assignment is still mock — the +1/+2/+3/+4 and
+// 0/-1/-2/-3 point math on top of those is exactly the spec.
 import {
-  SCORING_LAST,
   SCORING_OPP_TOTAL,
   SCORING_RULES,
   SLOT_LABELS,
   ME,
 } from '@/lib/fantasyMock';
+import { getFantasyData } from '@/lib/fantasyData';
 
 export const dynamic = 'force-dynamic';
 
-const TOTAL = SCORING_LAST.reduce((sum, r) => sum + r.points, 0);
 const OPP_TEAM = 'Headgear Heroes';
 const OPP_OWNER = 'devon';
-const RESULT: 'W' | 'L' | 'T' =
-  TOTAL > SCORING_OPP_TOTAL ? 'W' : TOTAL < SCORING_OPP_TOTAL ? 'L' : 'T';
 
-export default function FantasyScoringPage() {
+export default async function FantasyScoringPage() {
+  const { scoringLast } = await getFantasyData();
+  const TOTAL = scoringLast.reduce((sum, r) => sum + r.points, 0);
+  const RESULT: 'W' | 'L' | 'T' =
+    TOTAL > SCORING_OPP_TOTAL ? 'W' : TOTAL < SCORING_OPP_TOTAL ? 'L' : 'T';
   return (
     <>
       <div className="fantasy-hero fantasy-hero--scoring">
@@ -84,7 +87,7 @@ export default function FantasyScoringPage() {
                 </tr>
               </thead>
               <tbody>
-                {SCORING_LAST.map((r) => (
+                {scoringLast.map((r) => (
                   <tr key={r.slot + r.fighter}>
                     <td className="muted" style={{ textTransform: 'uppercase' }}>
                       {SLOT_LABELS[r.slot]}

@@ -1,20 +1,24 @@
 // src/app/fantasy/trades/page.tsx
-// Inbox of incoming/outgoing trade offers + a stub composer.
-import { TRADES, MY_LINEUP, MY_BENCH, STANDINGS } from '@/lib/fantasyMock';
+// Inbox of incoming/outgoing trade offers + composer. Trade-offer
+// structure is mock, but the fighter names on each side are derived from
+// real TBL data via getFantasyData() so the offers reflect the actual
+// roster you'd own. League standings + composer team list stay mock.
+import { STANDINGS } from '@/lib/fantasyMock';
+import { getFantasyData } from '@/lib/fantasyData';
 
 export const dynamic = 'force-dynamic';
 
-const ACTIVE = TRADES.filter((t) => t.status === 'pending');
-const HISTORY = TRADES.filter((t) => t.status !== 'pending');
-
-const MY_FIGHTER_NAMES = [
-  ...MY_LINEUP.map((s) => s.fighter?.name).filter(Boolean),
-  ...MY_BENCH.map((b) => b.fighter.name),
-] as string[];
-
 const OTHER_TEAMS = STANDINGS.filter((s) => !s.isYou).map((s) => s.team);
 
-export default function FantasyTradesPage() {
+export default async function FantasyTradesPage() {
+  const { lineup, bench, trades } = await getFantasyData();
+  const ACTIVE = trades.filter((t) => t.status === 'pending');
+  const HISTORY = trades.filter((t) => t.status !== 'pending');
+
+  const MY_FIGHTER_NAMES = [
+    ...lineup.map((s) => s.fighter?.name).filter(Boolean) as string[],
+    ...bench.map((b) => b.fighter.name),
+  ];
   return (
     <>
       <div className="fantasy-hero fantasy-hero--compact">
