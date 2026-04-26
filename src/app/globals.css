@@ -2633,24 +2633,35 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
   }
   .gz-picks-header .tbl-display { font-size: 48px !important; }
 
+  /* Two-row grid on mobile: date spans the top, two team panels sit
+     side-by-side underneath so the layout matches the desktop pattern. */
   .gz-pick-row__grid {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr 1fr !important;
   }
   .gz-pick-row__grid > div:first-child {
+    grid-column: 1 / -1;
     border-right: none !important;
     border-bottom: 1px solid var(--tbl-ink);
-    padding: 14px 16px !important;
+    padding: 12px 14px !important;
     flex-direction: row !important;
     align-items: baseline !important;
     gap: 10px !important;
     flex-wrap: wrap;
   }
   .gz-pick-row__grid > button {
-    border-right: none !important;
+    /* keep the divider between team1 and team2 */
+    padding: 14px 12px !important;
   }
   .gz-pick-row__grid > button + button {
-    border-top: 1px solid var(--tbl-ink);
+    border-top: none !important;
   }
+  /* Tighten team panel internals so logo + abbr + PICK label all fit. */
+  .gz-pick-team {
+    grid-template-columns: auto 1fr auto !important;
+    gap: 10px !important;
+  }
+  .gz-pick-team img { width: 30px !important; height: 30px !important; }
+  .gz-pick-team .tbl-display { font-size: 22px !important; }
 }
 
 /* Pick'em promo card: give the CTA a full-width target on mobile */
@@ -2720,11 +2731,15 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
 .gz-result-name-full { display: inline; }
 .gz-result-name-abbr { display: none; }
 @media (max-width: 640px) {
-  .gz-result-card { padding: 12px 10px !important; gap: 8px !important; }
+  .gz-result-card {
+    padding: 14px 16px !important;
+    gap: 12px !important;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) !important;
+  }
   .gz-result-card .tbl-display { font-size: 18px !important; line-height: 1.05 !important; letter-spacing: -0.01em; }
-  .gz-result-card .gz-result-score { font-size: 22px !important; padding: 0 6px !important; }
-  .gz-result-card .gz-result-score span[style*="italic"] { font-size: 16px !important; margin: 0 3px !important; }
-  .gz-result-card img { width: 28px !important; height: 28px !important; }
+  .gz-result-card .gz-result-score { font-size: 22px !important; padding: 0 8px !important; }
+  .gz-result-card .gz-result-score span[style*="italic"] { font-size: 16px !important; margin: 0 4px !important; }
+  .gz-result-card img { width: 28px !important; height: 28px !important; flex-shrink: 0; }
   .gz-result-name-full { display: none; }
   .gz-result-name-abbr { display: inline; }
 }
@@ -3066,9 +3081,72 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
   }
 }
 
-/* Fighter profile: hide the Form · Last 10 strip on phones — desktop only. */
+/* Fighter profile mobile: keep the Form · Last 10 strip visible (it's part
+   of the spec on phones now), and swap the desktop fight-history table
+   for a card-list layout. The card list is hidden on desktop, the table
+   is hidden on mobile. */
+.gz-fighter-history-cards { display: none; }
 @media (max-width: 720px) {
-  .gz-fighter-form { display: none !important; }
+  .gz-fighter-history-cards {
+    display: flex;
+    flex-direction: column;
+  }
+  .gz-fighter-history-table { display: none !important; }
+  .gz-fighter-form { padding-left: 16px !important; padding-right: 16px !important; }
+}
+.gz-fighter-history-row {
+  display: grid;
+  grid-template-columns: 36px 22px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 2px;
+  border-bottom: 1px dotted rgba(20, 17, 11, 0.3);
+}
+.gz-fighter-history-row:last-child { border-bottom: none; }
+.gz-fighter-history-row__badge {
+  width: 32px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--tbl-font-serif);
+  font-weight: 900;
+  font-size: 15px;
+  color: #fff;
+}
+.gz-fighter-history-row__badge.is-win { background: var(--tbl-green); }
+.gz-fighter-history-row__badge.is-loss { background: var(--tbl-red); }
+.gz-fighter-history-row__logo {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  display: block;
+}
+.gz-fighter-history-row__body { min-width: 0; }
+.gz-fighter-history-row__name {
+  font-family: var(--tbl-font-serif);
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1.1;
+  color: var(--tbl-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gz-fighter-history-row__meta {
+  font-family: var(--tbl-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tbl-ink-soft);
+  margin-top: 2px;
+}
+.gz-fighter-history-row__net {
+  font-family: var(--tbl-font-serif);
+  font-weight: 900;
+  font-size: 17px;
+  text-align: right;
+  min-width: 44px;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

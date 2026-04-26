@@ -348,7 +348,57 @@ export default async function FighterPage({
               No fight data available.
             </p>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
+            <>
+              {/* Mobile: card-list view (hidden on desktop) */}
+              <div className="gz-fighter-history-cards">
+                {history.map((h, i) => {
+                  const oppLogo = getTeamLogoPathByName(h.opponentTeam);
+                  const isWin = h.result === 'W';
+                  const roundLabel = String(h.round).startsWith('R')
+                    ? String(h.round)
+                    : `R${h.round}`;
+                  return (
+                    <div key={i} className="gz-fighter-history-row">
+                      <div
+                        className={`gz-fighter-history-row__badge${
+                          isWin ? ' is-win' : ' is-loss'
+                        }`}
+                      >
+                        {h.result}
+                      </div>
+                      {oppLogo && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={oppLogo}
+                          alt=""
+                          className="gz-fighter-history-row__logo"
+                        />
+                      )}
+                      <div className="gz-fighter-history-row__body">
+                        <div className="gz-fighter-history-row__name">
+                          {h.opponent}
+                        </div>
+                        <div className="gz-fighter-history-row__meta">
+                          {h.date} · {roundLabel}
+                        </div>
+                      </div>
+                      <div
+                        className="gz-fighter-history-row__net"
+                        style={{
+                          color:
+                            h.netPts >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)',
+                        }}
+                      >
+                        {h.netPts >= 0 ? '+' : ''}
+                        {h.netPts.toFixed(0)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop: full table (hidden on mobile) */}
+              <div className="gz-fighter-history-table" style={{ overflowX: 'auto' }}>
               <table
                 style={{
                   width: '100%',
@@ -458,6 +508,7 @@ export default async function FighterPage({
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
       </div>
