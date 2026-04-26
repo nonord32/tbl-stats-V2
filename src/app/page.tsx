@@ -239,7 +239,7 @@ function FightCardHero({
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
               <div>
-                <div className="tbl-eyebrow">Fighter in Focus · Top Net Pts in Match</div>
+                <div className="tbl-eyebrow">Fighter in Focus</div>
                 <Link
                   href={`/fighters/${focus.slug}`}
                   className="tbl-display gz-hero-focus-name"

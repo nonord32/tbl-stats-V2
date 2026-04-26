@@ -7,7 +7,7 @@ const LINKS: { label: string; href: string }[] = [
   { label: 'Home', href: '/' },
   { label: 'Fighters', href: '/fighters' },
   { label: 'Rankings', href: '/rankings' },
-  { label: 'Teams', href: '/teams' },
+  { label: 'Standings', href: '/teams' },
   { label: 'Schedule', href: '/schedule' },
   { label: "Pick'em", href: '/picks' },
   { label: 'Leaderboard', href: '/leaderboard' },
