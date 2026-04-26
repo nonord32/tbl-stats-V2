@@ -9,6 +9,7 @@
 // draft-state machinery (snake order, clock, AI logic) lives here.
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import type { FantasyFighter } from '@/lib/fantasyMock';
 
 interface Pick {
@@ -75,6 +76,8 @@ export function DraftRoom({
   const [picks, setPicks] = useState<Pick[]>([]);
   const [secondsLeft, setSecondsLeft] = useState(pickClockSeconds);
   const [phase, setPhase] = useState<'pre' | 'drafting' | 'complete'>('pre');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [classFilter, setClassFilter] = useState('');
   const [genderFilter, setGenderFilter] = useState('');
@@ -191,6 +194,43 @@ export function DraftRoom({
   // ── User roster summaries ──────────────────────────────────────────────
   const myPicks = picks.filter((p) => p.teamIndex === userTeamIndex);
   const myFighters = myPicks.map((p) => p.fighter);
+
+  // ── Persist roster on draft completion ────────────────────────────────
+  // When the draft transitions to 'complete' (and we haven't already
+  // saved this draft), POST the user's picks to /api/fantasy/draft so
+  // /fantasy/team can read them back across reloads / devices.
+  useEffect(() => {
+    if (phase !== 'complete') return;
+    if (saveStatus !== 'idle') return;
+    const slugs = picks
+      .filter((p) => p.teamIndex === userTeamIndex)
+      .map((p) => p.fighter.id);
+    if (slugs.length === 0) return;
+    setSaveStatus('saving');
+    setSaveError(null);
+    fetch('/api/fantasy/draft', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fighter_slugs: slugs }),
+    })
+      .then(async (r) => {
+        if (r.ok) {
+          setSaveStatus('saved');
+          return;
+        }
+        const json = await r.json().catch(() => ({}));
+        setSaveStatus('error');
+        setSaveError(
+          r.status === 401
+            ? 'Sign in first to save your roster.'
+            : json.error ?? `Save failed (${r.status})`
+        );
+      })
+      .catch(() => {
+        setSaveStatus('error');
+        setSaveError('Network error saving roster.');
+      });
+  }, [phase, saveStatus, picks, userTeamIndex]);
 
   const slotSummary = SLOT_BUCKETS.map((b) => {
     const count = myFighters.filter((f) => b.matches(f)).length;
@@ -562,16 +602,41 @@ export function DraftRoom({
               </div>
               <p className="fantasy-cta-card__copy">
                 You drafted {myFighters.length} fighters across{' '}
-                {teamSummary.length} TBL clubs. Head to the team page to set
-                your starting lineup, or run another mock to compare boards.
+                {teamSummary.length} TBL clubs.{' '}
+                {saveStatus === 'saving' && <strong>Saving roster…</strong>}
+                {saveStatus === 'saved' && (
+                  <strong style={{ color: 'var(--tbl-green)' }}>
+                    ✓ Roster saved.
+                  </strong>
+                )}
+                {saveStatus === 'error' && (
+                  <strong style={{ color: 'var(--tbl-red)' }}>
+                    ⚠ {saveError ?? 'Save failed.'} You can still preview your
+                    team but the next reload will re-roll.
+                  </strong>
+                )}
               </p>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {saveStatus === 'saved' && (
+                  <Link
+                    href="/fantasy/team"
+                    className="fantasy-btn fantasy-btn--primary"
+                  >
+                    Open my team →
+                  </Link>
+                )}
                 <button
                   type="button"
-                  className="fantasy-btn fantasy-btn--primary"
+                  className={`fantasy-btn ${
+                    saveStatus === 'saved'
+                      ? 'fantasy-btn--ghost'
+                      : 'fantasy-btn--primary'
+                  }`}
                   onClick={() => {
                     setPicks([]);
                     setSecondsLeft(pickClockSeconds);
+                    setSaveStatus('idle');
+                    setSaveError(null);
                     setPhase('drafting');
                   }}
                 >

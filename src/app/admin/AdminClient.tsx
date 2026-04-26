@@ -59,6 +59,47 @@ export function AdminClient({ matches, picks: initialPicks, dbError, dbDebug }: 
   const [resolving, setResolving] = useState<number | null>(null);
   const [results, setResults] = useState<Record<number, ResolveResult>>({});
 
+  // Fantasy resolution state — separate from picks resolution.
+  const [fantasyWeek, setFantasyWeek] = useState<string>('');
+  const [fantasyResolving, setFantasyResolving] = useState(false);
+  const [fantasyResult, setFantasyResult] = useState<{
+    message?: string;
+    resolved?: number;
+    total?: number;
+    week?: number;
+    error?: string;
+  } | null>(null);
+
+  async function handleResolveFantasy() {
+    const weekNum = Number(fantasyWeek);
+    if (!Number.isFinite(weekNum) || weekNum <= 0) {
+      setFantasyResult({ error: 'Enter a positive week number' });
+      return;
+    }
+    setFantasyResolving(true);
+    setFantasyResult(null);
+    try {
+      const res = await fetch('/api/fantasy/score', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${secret}`,
+        },
+        body: JSON.stringify({ week: weekNum }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setFantasyResult({ error: json.error ?? `Failed (${res.status})` });
+      } else {
+        setFantasyResult(json);
+      }
+    } catch {
+      setFantasyResult({ error: 'Network error' });
+    } finally {
+      setFantasyResolving(false);
+    }
+  }
+
   // Local copy of picks so deletions update the table without a page reload.
   // Keyed by `${userId}:${matchIndex}` since that's our composite identity.
   const [picks, setPicks] = useState<PickRow[]>(initialPicks);
@@ -316,6 +357,53 @@ export function AdminClient({ matches, picks: initialPicks, dbError, dbDebug }: 
             </div>
           </section>
         )}
+
+        {/* Fantasy resolution */}
+        <section style={{ marginTop: 40 }}>
+          <h2 style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>
+            Resolve Fantasy
+          </h2>
+          <div className="card" style={{ padding: 16 }}>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+              Walks every user&apos;s lineup for the chosen week, computes
+              fantasy points from real fighter histories (Decision +1, KD +2,
+              2KD +3, KO/TKO +4 / losses 0/-1/-2/-3), and writes the totals
+              to <code>fantasy_weeks</code>. Idempotent — re-run after sheet
+              corrections.
+            </p>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <input
+                type="number"
+                min={1}
+                placeholder="Week #"
+                value={fantasyWeek}
+                onChange={(e) => setFantasyWeek(e.target.value)}
+                className="auth-input"
+                style={{ width: 120 }}
+                disabled={fantasyResolving}
+              />
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleResolveFantasy}
+                disabled={fantasyResolving || !fantasyWeek}
+                style={{ opacity: fantasyResolving ? 0.6 : 1 }}
+              >
+                {fantasyResolving ? 'Resolving…' : 'Resolve Fantasy'}
+              </button>
+              {fantasyResult && !fantasyResult.error && (
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--result-w)' }}>
+                  ✓ {fantasyResult.message ?? `Resolved week ${fantasyResult.week}`}
+                </span>
+              )}
+              {fantasyResult?.error && (
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--result-l)' }}>
+                  ⚠ {fantasyResult.error}
+                </span>
+              )}
+            </div>
+          </div>
+        </section>
 
         {/* All picks table */}
         <section style={{ marginTop: 40 }}>

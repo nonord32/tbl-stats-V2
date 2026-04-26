@@ -1,99 +1,210 @@
 // src/app/fantasy/page.tsx
-// Lobby — entry point for fantasy. Shows the user's team summary, league
-// standings, and league join/create CTAs. All mock data, no Supabase.
+// Lobby — entry point for fantasy. For signed-in users with a saved
+// roster, shows a real solo-vs-AI season record card built from
+// fantasy_weeks. League join/create + standings stay mock for now.
 import Link from 'next/link';
-import { ME, STANDINGS } from '@/lib/fantasyMock';
+import { createClient } from '@/lib/supabase/server';
+import { safeGetUser } from '@/lib/supabase/safe';
 
 export const dynamic = 'force-dynamic';
 
-export default function FantasyLobbyPage() {
+interface SeasonSummary {
+  wins: number;
+  losses: number;
+  ties: number;
+  totalPoints: number;
+  weeksPlayed: number;
+  hasRoster: boolean;
+  lastResolvedWeek: number | null;
+  lastResult: 'W' | 'L' | 'T' | null;
+  lastUserPts: number | null;
+  lastOppPts: number | null;
+}
+
+async function loadSeasonSummary(userId: string): Promise<SeasonSummary> {
+  const supabase = await createClient();
+  const [{ data: roster }, { data: weeks }] = await Promise.all([
+    supabase
+      .from('fantasy_rosters')
+      .select('user_id')
+      .eq('user_id', userId)
+      .maybeSingle(),
+    supabase
+      .from('fantasy_weeks')
+      .select('week, user_points, opponent_points, resolved_at')
+      .eq('user_id', userId)
+      .order('week', { ascending: false }),
+  ]);
+
+  let wins = 0;
+  let losses = 0;
+  let ties = 0;
+  let totalPoints = 0;
+  let lastResolvedWeek: number | null = null;
+  let lastResult: 'W' | 'L' | 'T' | null = null;
+  let lastUserPts: number | null = null;
+  let lastOppPts: number | null = null;
+
+  (weeks ?? []).forEach((w, i) => {
+    if (!w.resolved_at) return;
+    const u = Number(w.user_points ?? 0);
+    const o = Number(w.opponent_points ?? 0);
+    totalPoints += u;
+    if (u > o) wins++;
+    else if (u < o) losses++;
+    else ties++;
+    if (i === 0 || lastResolvedWeek === null) {
+      lastResolvedWeek = w.week as number;
+      lastResult = u > o ? 'W' : u < o ? 'L' : 'T';
+      lastUserPts = u;
+      lastOppPts = o;
+    }
+  });
+
+  const weeksPlayed = wins + losses + ties;
+
+  return {
+    wins,
+    losses,
+    ties,
+    totalPoints,
+    weeksPlayed,
+    hasRoster: !!roster,
+    lastResolvedWeek,
+    lastResult,
+    lastUserPts,
+    lastOppPts,
+  };
+}
+
+export default async function FantasyLobbyPage() {
+  const supabase = await createClient();
+  const user = await safeGetUser(supabase);
+  const summary = user
+    ? await loadSeasonSummary(user.id)
+    : null;
+
+  const recordLine = summary
+    ? `${summary.wins}-${summary.losses}${summary.ties ? `-${summary.ties}` : ''} · ${summary.totalPoints.toFixed(1)} pts`
+    : 'Sign in to start';
+
+  const lastWeekLabel = summary?.lastResolvedWeek
+    ? `Wk ${summary.lastResolvedWeek}: You ${summary.lastUserPts} — ${summary.lastOppPts} AI (${summary.lastResult})`
+    : summary?.hasRoster
+    ? 'No resolved week yet'
+    : 'Run the mock draft to start';
+
   return (
     <>
-      {/* Dark hero with my team's headline */}
+      {/* Dark hero */}
       <div className="fantasy-hero">
         <div>
           <div className="tbl-eyebrow" style={{ color: 'var(--tbl-accent-bright)' }}>
-            Welcome back · {ME.user.displayName}
+            Solo vs AI · 2026 Season
           </div>
-          <div className="tbl-display fantasy-hero__title">{ME.team.name}</div>
-          <div className="fantasy-hero__sub">
-            {ME.team.record} · #{ME.team.rank} of {STANDINGS.length} ·{' '}
-            {ME.team.totalPoints.toFixed(1)} PF
-          </div>
+          <div className="tbl-display fantasy-hero__title">Throwing Hands FC</div>
+          <div className="fantasy-hero__sub">{recordLine}</div>
         </div>
         <div className="fantasy-hero__actions">
-          <Link href="/fantasy/team" className="fantasy-btn fantasy-btn--primary">
-            Set lineup →
-          </Link>
+          {summary?.hasRoster ? (
+            <Link href="/fantasy/team" className="fantasy-btn fantasy-btn--primary">
+              Set lineup →
+            </Link>
+          ) : (
+            <Link href="/fantasy/draft" className="fantasy-btn fantasy-btn--primary">
+              Run mock draft →
+            </Link>
+          )}
           <Link href="/fantasy/scoring" className="fantasy-btn fantasy-btn--ghost">
-            Last week
+            Scoring
           </Link>
         </div>
       </div>
 
       <div className="fantasy-body">
-        {/* CTAs */}
+        {/* Personal record card — replaces the mock standings table */}
         <section className="fantasy-section">
           <div className="tbl-section-rule">
-            <span>Leagues</span>
-            <span>Mock data</span>
+            <span>Your Solo Season</span>
+            <span>{user ? '@' + (user.email?.split('@')[0] ?? 'you') : 'Not signed in'}</span>
           </div>
-          <div className="fantasy-cta-grid">
-            <div className="fantasy-cta-card">
-              <div className="tbl-eyebrow">Join League</div>
-              <div
-                className="tbl-display"
-                style={{ fontSize: 28, lineHeight: 1, marginTop: 4 }}
+          {!user ? (
+            <div className="fantasy-empty">
+              Fantasy needs you signed in to save your roster across reloads.{' '}
+              <Link
+                href="/login?next=/fantasy"
+                className="fantasy-btn fantasy-btn--primary fantasy-btn--small"
+                style={{ marginLeft: 8 }}
               >
-                Got an invite code?
+                Sign in
+              </Link>
+            </div>
+          ) : !summary?.hasRoster ? (
+            <div className="fantasy-empty">
+              No roster saved yet. Hit{' '}
+              <Link href="/fantasy/draft" style={{ color: 'var(--tbl-accent)' }}>
+                /fantasy/draft
+              </Link>{' '}
+              to draft your team — takes ~3 minutes against AI opponents.
+            </div>
+          ) : (
+            <div className="fantasy-summary-grid">
+              <div className="fantasy-summary-card">
+                <div className="fantasy-summary-card__label">Record</div>
+                <div className="fantasy-summary-card__value">
+                  {summary.wins}-{summary.losses}
+                  {summary.ties ? `-${summary.ties}` : ''}
+                </div>
               </div>
-              <p className="fantasy-cta-card__copy">
-                Drop the 6-char code from your league commish and you&apos;ll
-                land in their draft room.
-              </p>
-              <div className="fantasy-cta-card__row">
-                <input
-                  className="fantasy-input"
-                  placeholder="A4XK-7Z"
-                  aria-label="Invite code"
-                />
-                <button className="fantasy-btn fantasy-btn--primary" type="button">
-                  Join
-                </button>
+              <div className="fantasy-summary-card">
+                <div className="fantasy-summary-card__label">Total Pts</div>
+                <div className="fantasy-summary-card__value">
+                  {summary.totalPoints.toFixed(1)}
+                </div>
+              </div>
+              <div className="fantasy-summary-card">
+                <div className="fantasy-summary-card__label">Weeks</div>
+                <div className="fantasy-summary-card__value">
+                  {summary.weeksPlayed}
+                </div>
+              </div>
+              <div className="fantasy-summary-card">
+                <div className="fantasy-summary-card__label">Last Result</div>
+                <div
+                  className="fantasy-summary-card__value"
+                  style={{
+                    color:
+                      summary.lastResult === 'W'
+                        ? 'var(--tbl-green)'
+                        : summary.lastResult === 'L'
+                        ? 'var(--tbl-red)'
+                        : 'var(--tbl-ink)',
+                  }}
+                >
+                  {summary.lastResult ?? '—'}
+                </div>
               </div>
             </div>
-            <div className="fantasy-cta-card">
-              <div className="tbl-eyebrow">Create League</div>
-              <div
-                className="tbl-display"
-                style={{ fontSize: 28, lineHeight: 1, marginTop: 4 }}
-              >
-                Start your own
-              </div>
-              <p className="fantasy-cta-card__copy">
-                10 teams, snake draft, 7-fighter lineups, head-to-head weekly.
-                You can tweak settings before the draft.
-              </p>
-              <div className="fantasy-cta-card__row">
-                <button className="fantasy-btn fantasy-btn--primary" type="button">
-                  Create league →
-                </button>
-              </div>
-            </div>
-          </div>
+          )}
+          <p
+            className="fantasy-cta-card__copy"
+            style={{ marginTop: 12, fontSize: 11 }}
+          >
+            {lastWeekLabel}
+          </p>
         </section>
 
         {/* Quick links */}
         <section className="fantasy-section">
           <div className="tbl-section-rule">
-            <span>Quick actions</span>
+            <span>Quick Actions</span>
           </div>
           <div className="fantasy-quick-grid">
             {[
-              { href: '/fantasy/draft',   eyebrow: 'On the clock', title: 'Draft', sub: 'Round 3 · Pick 27 — your turn' },
-              { href: '/fantasy/waiver',  eyebrow: '2 free agents', title: 'Waiver', sub: 'Process Wed 3am ET' },
-              { href: '/fantasy/trades',  eyebrow: '2 active offers', title: 'Trades', sub: '1 incoming · 1 outgoing' },
-              { href: '/fantasy/scoring', eyebrow: 'Last week', title: 'Scoring', sub: 'You 11 — 9 Headgear Heroes (W)' },
+              { href: '/fantasy/draft',   eyebrow: summary?.hasRoster ? 'Roster saved' : 'Get started', title: 'Draft', sub: summary?.hasRoster ? 'Re-draft to roll a new roster' : 'Run a mock draft (~3 min)' },
+              { href: '/fantasy/team',    eyebrow: 'My Team', title: 'Lineup', sub: summary?.hasRoster ? 'Set this week\'s starters' : 'Draft first to unlock' },
+              { href: '/fantasy/waiver',  eyebrow: 'Mock', title: 'Waiver', sub: 'Free agents (preview)' },
+              { href: '/fantasy/scoring', eyebrow: 'Scoreboard', title: 'Scoring', sub: lastWeekLabel },
             ].map((q) => (
               <Link key={q.href} href={q.href} className="fantasy-quick-card">
                 <div className="tbl-eyebrow">{q.eyebrow}</div>
@@ -109,50 +220,34 @@ export default function FantasyLobbyPage() {
           </div>
         </section>
 
-        {/* Leaderboard */}
+        {/* Future-features placeholder */}
         <section className="fantasy-section">
           <div className="tbl-section-rule">
-            <span>Season Standings</span>
-            <span>Sorted by Wins</span>
+            <span>Coming Later</span>
+            <span>Multi-user leagues</span>
           </div>
-          <div className="fantasy-table-wrap">
-            <table className="fantasy-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Team</th>
-                  <th>Owner</th>
-                  <th className="num">W-L</th>
-                  <th className="num">PF</th>
-                  <th className="num">PA</th>
-                  <th className="num">Strk</th>
-                </tr>
-              </thead>
-              <tbody>
-                {STANDINGS.map((s) => (
-                  <tr key={s.team} className={s.isYou ? 'is-you' : undefined}>
-                    <td>{s.rank}</td>
-                    <td>
-                      <span className="fantasy-table__team">{s.team}</span>
-                      {s.isYou && <span className="fantasy-pill">YOU</span>}
-                    </td>
-                    <td className="muted">@{s.owner}</td>
-                    <td className="num mono">{s.record}</td>
-                    <td className="num mono">{s.pf.toFixed(1)}</td>
-                    <td className="num mono">{s.pa.toFixed(1)}</td>
-                    <td
-                      className="num mono"
-                      style={{
-                        color: s.streak.startsWith('W') ? 'var(--tbl-green)' : 'var(--tbl-red)',
-                        fontWeight: 700,
-                      }}
-                    >
-                      {s.streak}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="fantasy-cta-grid">
+            <div className="fantasy-cta-card" style={{ opacity: 0.7 }}>
+              <div className="tbl-eyebrow">Join League</div>
+              <div className="tbl-display" style={{ fontSize: 28, lineHeight: 1, marginTop: 4 }}>
+                With friends
+              </div>
+              <p className="fantasy-cta-card__copy">
+                Invite-code league flow comes after solo-vs-AI proves the
+                scoring engine for the rest of the season. Trades + waivers
+                stay mock until then.
+              </p>
+            </div>
+            <div className="fantasy-cta-card" style={{ opacity: 0.7 }}>
+              <div className="tbl-eyebrow">Create League</div>
+              <div className="tbl-display" style={{ fontSize: 28, lineHeight: 1, marginTop: 4 }}>
+                8-team commish
+              </div>
+              <p className="fantasy-cta-card__copy">
+                Real 8-team draft room with multi-tab live drafting. Same
+                story — unlocks once the scoring loop is solid.
+              </p>
+            </div>
           </div>
         </section>
       </div>

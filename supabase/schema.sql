@@ -116,3 +116,55 @@ from public.picks p
 join public.profiles pr on p.user_id = pr.id
 group by p.user_id, pr.username, pr.display_name
 order by total_points desc, exact_picks desc;
+
+-- ─── Fantasy: solo-vs-AI roster + weekly lineups ──────────────────────────────
+-- One row per user. Stores their persistent fantasy roster as an array of
+-- fighter slugs that match FighterStat.slug from the Google-Sheets data layer.
+create table public.fantasy_rosters (
+  user_id uuid references public.profiles(id) on delete cascade primary key,
+  fighter_slugs text[] not null default '{}',
+  created_at timestamptz default now() not null,
+  updated_at timestamptz default now() not null
+);
+
+alter table public.fantasy_rosters enable row level security;
+
+create policy "Users can view own roster"
+  on public.fantasy_rosters for select using (auth.uid() = user_id);
+create policy "Users can insert own roster"
+  on public.fantasy_rosters for insert with check (auth.uid() = user_id);
+create policy "Users can update own roster"
+  on public.fantasy_rosters for update using (auth.uid() = user_id);
+create policy "Users can delete own roster"
+  on public.fantasy_rosters for delete using (auth.uid() = user_id);
+
+-- One row per user per fantasy week. starter_slugs is length-7 (Female,
+-- Light, Welter, Middle, Heavy, FLEX1, FLEX2 in that order). opponent
+-- starters are deterministically generated from undrafted fighters.
+-- locks_at = first kickoff of the week; lineup edits blocked after that.
+-- user_points / opponent_points / resolved_at populated by the admin
+-- "Resolve Fantasy" job after the week's matches finalize.
+create table public.fantasy_weeks (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references public.profiles(id) on delete cascade not null,
+  week integer not null,
+  starter_slugs text[] not null default '{}',
+  opponent_starter_slugs text[] not null default '{}',
+  user_points numeric,
+  opponent_points numeric,
+  resolved_at timestamptz,
+  locks_at timestamptz not null,
+  created_at timestamptz default now() not null,
+  unique(user_id, week)
+);
+
+alter table public.fantasy_weeks enable row level security;
+
+create policy "Users can view own fantasy weeks"
+  on public.fantasy_weeks for select using (auth.uid() = user_id);
+create policy "Users can insert own fantasy weeks"
+  on public.fantasy_weeks for insert with check (auth.uid() = user_id);
+create policy "Users can update own fantasy weeks"
+  on public.fantasy_weeks for update using (auth.uid() = user_id);
+-- (No delete policy — weeks are append-only from the user's perspective.)
+-- Service-role (admin) bypasses RLS for the resolution job.
