@@ -136,7 +136,8 @@ function FightCardHero({
                 className="tbl-display gz-hero-team"
                 style={{ fontSize: 96, lineHeight: 0.9, marginTop: 16 }}
               >
-                {shortAbbr(featured.team1)}
+                <span className="gz-hero-team-full">{getCityName(featured.team1)}</span>
+                <span className="gz-hero-team-abbr">{shortAbbr(featured.team1)}</span>
                 <span
                   className="gz-hero-vs"
                   style={{
@@ -156,7 +157,8 @@ function FightCardHero({
                 className="tbl-display gz-hero-team"
                 style={{ fontSize: 96, lineHeight: 0.9, marginTop: -4 }}
               >
-                {shortAbbr(featured.team2)}
+                <span className="gz-hero-team-full">{getCityName(featured.team2)}</span>
+                <span className="gz-hero-team-abbr">{shortAbbr(featured.team2)}</span>
               </div>
               {featured.venueName && (
                 <div

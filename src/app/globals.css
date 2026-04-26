@@ -2680,11 +2680,27 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
    Gazette home — mobile scaling for FightCard hero and Result cards so
    big team names (BOSTON, MIAMI ASSASSINS…) don't overflow narrow phones.
    =========================================================================== */
+
+/* Desktop shows the full city name (e.g. "Los Angeles"); phones swap to the
+   compact abbreviation (e.g. "LA"). Both spans are rendered so the swap is
+   pure CSS. */
+.gz-hero-team-full { display: inline; }
+.gz-hero-team-abbr { display: none; }
+
+/* Tablet / narrower desktop: shrink the giant 96px headline so longer
+   names like "Los Angeles" or "San Antonio" stay on one line. */
+@media (max-width: 1100px) {
+  .gz-hero-team { font-size: 76px !important; }
+  .gz-hero-vs { font-size: 48px !important; }
+}
+
 @media (max-width: 640px) {
-  /* Hero poster team abbreviations shrink so BOSTON / NYC fit on one line. */
+  /* Hero poster team abbreviations shrink so the abbr fits on one line. */
   .gz-fight-card > div:first-child { padding: 22px 20px !important; min-height: 0 !important; }
   .gz-fight-card > div:nth-child(2) { padding: 22px 20px !important; }
   .gz-hero-team { font-size: 56px !important; line-height: 0.9 !important; }
+  .gz-hero-team-full { display: none; }
+  .gz-hero-team-abbr { display: inline; }
   .gz-hero-focus-name { font-size: 42px !important; line-height: 0.95 !important; }
   .gz-hero-vs { font-size: 34px !important; margin: 0 10px !important; }
   .gz-hero-net { font-size: 52px !important; }
