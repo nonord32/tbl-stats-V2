@@ -834,7 +834,7 @@ function WeekendResults({ results }: { results: ResultCard[] }) {
                       marginTop: 2,
                     }}
                   >
-                    {r.date}
+                    {r.date.replace(/\/\d{4}$/, '').replace(/^\d{4}-/, '')}
                   </div>
                 </div>
                 {getTeamLogoPathByName(r.team1) && (

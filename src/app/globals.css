@@ -2504,8 +2504,19 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
   .gz-fighter-left { border-right: none !important; border-bottom: 1px solid rgba(20,17,11,0.2); }
 }
 @media (max-width: 540px) {
-  .gz-fighter-hero .tbl-display { font-size: 56px !important; }
+  /* Only the fighter's name gets the 56px treatment — previously this rule
+     was scoped to .gz-fighter-hero .tbl-display, which also blew up the
+     team link to 56px (huge orange "Las Vegas Hustle" wrapping across the
+     hero). Pin it to the dedicated class instead. */
+  .gz-fighter-name { font-size: 56px !important; }
   .gz-fighter-hero .gz-hero-stats { grid-template-columns: repeat(2, 1fr) !important; }
+  /* Keep the team link readable but small + dark to match the spec
+     screenshot (no longer a giant orange block). */
+  .gz-fighter-team-link {
+    font-size: 16px !important;
+    color: var(--tbl-ink) !important;
+  }
+  .gz-fighter-hero img { width: 26px !important; height: 26px !important; }
 }
 
 /* Schedule 2-col grid collapses to single column on narrow screens */

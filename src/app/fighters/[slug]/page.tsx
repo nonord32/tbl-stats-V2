@@ -158,7 +158,7 @@ export default async function FighterPage({
         >
           <div style={{ minWidth: 0 }}>
             <div
-              className="tbl-display"
+              className="tbl-display gz-fighter-name"
               style={{ fontSize: 96, lineHeight: 0.88, letterSpacing: '-0.02em' }}
             >
               {fighter.name}
@@ -182,7 +182,7 @@ export default async function FighterPage({
               )}
               <Link
                 href={`/teams/${teamSlug}`}
-                className="tbl-display"
+                className="tbl-display gz-fighter-team-link"
                 style={{
                   fontSize: 18,
                   fontWeight: 700,
