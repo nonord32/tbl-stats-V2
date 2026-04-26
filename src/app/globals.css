@@ -3945,3 +3945,67 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
   }
   .fantasy-claim-row__actions { grid-column: 1 / -1; }
 }
+
+/* ── Fantasy mock draft — roster fill widgets in the right rail ─── */
+.fantasy-roster-slots {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+.fantasy-roster-slot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border: 1.5px solid var(--tbl-ink);
+  background: var(--tbl-paper);
+  font-family: var(--tbl-font-mono);
+  font-size: 11px;
+}
+.fantasy-roster-slot[data-filled="true"] {
+  background: var(--tbl-ink);
+  color: var(--tbl-bg);
+  border-color: var(--tbl-ink);
+}
+.fantasy-roster-slot__label {
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.fantasy-roster-slot__count {
+  font-family: var(--tbl-font-serif);
+  font-weight: 900;
+  font-size: 14px;
+}
+
+.fantasy-roster-teams {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.fantasy-roster-team {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: var(--tbl-paper);
+  border: 1px solid rgba(20, 17, 11, 0.18);
+  font-family: var(--tbl-font-mono);
+  font-size: 11px;
+}
+.fantasy-roster-team__name {
+  font-family: var(--tbl-font-serif);
+  font-weight: 800;
+  font-size: 13px;
+}
+.fantasy-roster-team__count {
+  font-family: var(--tbl-font-serif);
+  font-weight: 900;
+  font-size: 14px;
+  color: var(--tbl-accent);
+}
+
+/* On the snake board cell when the user team is highlighted */
+.fantasy-draft-board__cell[style*="border-width: 2"] {
+  position: relative;
+}
