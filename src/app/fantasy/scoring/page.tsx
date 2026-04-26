@@ -40,7 +40,7 @@ export default async function FantasyScoringPage() {
       <div className="fantasy-body">
         <div className="fantasy-empty">
           No fantasy weeks yet. Run the mock draft, set a lineup, and check
-          back after the week's matches resolve.
+          back after the week&apos;s matches resolve.
         </div>
       </div>
     );
