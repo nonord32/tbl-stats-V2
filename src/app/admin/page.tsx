@@ -103,6 +103,7 @@ export default async function AdminPage() {
     const profile = profileMap.get(p.user_id);
     const match = allMatchList.find((m) => m.matchIndex === p.match_index);
     return {
+      userId: p.user_id,
       matchIndex: p.match_index,
       matchLabel: match ? `Wk ${match.week}: ${match.team1} vs ${match.team2}` : `Match ${p.match_index}`,
       displayName: profile?.display_name ?? '',

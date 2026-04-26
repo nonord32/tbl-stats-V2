@@ -17,6 +17,7 @@ interface MatchEntry {
 }
 
 interface PickRow {
+  userId: string;
   matchIndex: number;
   matchLabel: string;
   displayName: string;
@@ -52,11 +53,17 @@ interface DbDebug {
   serviceKeySet: boolean;
 }
 
-export function AdminClient({ matches, picks, dbError, dbDebug }: { matches: MatchEntry[]; picks: PickRow[]; dbError: string | null; dbDebug: DbDebug }) {
+export function AdminClient({ matches, picks: initialPicks, dbError, dbDebug }: { matches: MatchEntry[]; picks: PickRow[]; dbError: string | null; dbDebug: DbDebug }) {
   const [secret, setSecret] = useState('');
   const [authed, setAuthed] = useState(false);
   const [resolving, setResolving] = useState<number | null>(null);
   const [results, setResults] = useState<Record<number, ResolveResult>>({});
+
+  // Local copy of picks so deletions update the table without a page reload.
+  // Keyed by `${userId}:${matchIndex}` since that's our composite identity.
+  const [picks, setPicks] = useState<PickRow[]>(initialPicks);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Picks table filters
   const [userFilter, setUserFilter] = useState('');
@@ -119,6 +126,38 @@ export function AdminClient({ matches, picks, dbError, dbDebug }: { matches: Mat
       setResults((prev) => ({ ...prev, [matchIndex]: { message: '', resolved: 0, error: 'Network error' } }));
     } finally {
       setResolving(null);
+    }
+  }
+
+  async function handleDeletePick(p: PickRow) {
+    const label = p.displayName || p.username || 'this user';
+    if (!confirm(`Delete ${label}'s pick on ${p.matchLabel}? This can't be undone.`)) {
+      return;
+    }
+    const key = `${p.userId}:${p.matchIndex}`;
+    setDeleting(key);
+    setDeleteError(null);
+    try {
+      const res = await fetch('/api/admin/delete-pick', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${secret}`,
+        },
+        body: JSON.stringify({ user_id: p.userId, match_index: p.matchIndex }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setDeleteError(json.error || `Delete failed (${res.status})`);
+        return;
+      }
+      setPicks((prev) =>
+        prev.filter((row) => !(row.userId === p.userId && row.matchIndex === p.matchIndex))
+      );
+    } catch {
+      setDeleteError('Network error while deleting pick.');
+    } finally {
+      setDeleting(null);
     }
   }
 
@@ -360,6 +399,11 @@ export function AdminClient({ matches, picks, dbError, dbDebug }: { matches: Mat
                 </div>
               </div>
               <div className="table-wrap">
+                {deleteError && (
+                  <div style={{ padding: '8px 16px', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--result-l)' }}>
+                    {deleteError}
+                  </div>
+                )}
                 <table>
                   <thead>
                     <tr>
@@ -369,38 +413,67 @@ export function AdminClient({ matches, picks, dbError, dbDebug }: { matches: Mat
                       <th>Margin</th>
                       <th className="num-cell">Pts</th>
                       <th className="num-cell">Status</th>
+                      <th className="num-cell">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredPicks.length === 0 ? (
                       <tr>
-                        <td colSpan={6} style={{ padding: 24, textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
+                        <td colSpan={7} style={{ padding: 24, textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
                           No picks match the current filters.
                         </td>
                       </tr>
                     ) : (
-                      filteredPicks.map((p, i) => (
-                        <tr key={i}>
-                          <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600 }}>
-                            {p.displayName || p.username || '—'}
-                          </td>
-                          <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
-                            {p.matchLabel}
-                          </td>
-                          <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>
-                            {p.pickedTeam}
-                          </td>
-                          <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
-                            {p.diffBand}
-                          </td>
-                          <td className="num-cell" style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: (p.pointsEarned ?? 0) > 0 ? 'var(--result-w)' : 'var(--text-muted)' }}>
-                            {p.resolved ? p.pointsEarned : '—'}
-                          </td>
-                          <td className="num-cell" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: p.resolved ? 'var(--result-w)' : 'var(--text-muted)' }}>
-                            {p.resolved ? 'Scored' : 'Pending'}
-                          </td>
-                        </tr>
-                      ))
+                      filteredPicks.map((p) => {
+                        const key = `${p.userId}:${p.matchIndex}`;
+                        const isDeleting = deleting === key;
+                        return (
+                          <tr key={key}>
+                            <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600 }}>
+                              {p.displayName || p.username || '—'}
+                            </td>
+                            <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
+                              {p.matchLabel}
+                            </td>
+                            <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>
+                              {p.pickedTeam}
+                            </td>
+                            <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
+                              {p.diffBand}
+                            </td>
+                            <td className="num-cell" style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: (p.pointsEarned ?? 0) > 0 ? 'var(--result-w)' : 'var(--text-muted)' }}>
+                              {p.resolved ? p.pointsEarned : '—'}
+                            </td>
+                            <td className="num-cell" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: p.resolved ? 'var(--result-w)' : 'var(--text-muted)' }}>
+                              {p.resolved ? 'Scored' : 'Pending'}
+                            </td>
+                            <td className="num-cell">
+                              <button
+                                type="button"
+                                onClick={() => handleDeletePick(p)}
+                                disabled={isDeleting}
+                                style={{
+                                  fontFamily: 'var(--font-mono)',
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  letterSpacing: '0.08em',
+                                  textTransform: 'uppercase',
+                                  color: 'var(--result-l)',
+                                  background: 'transparent',
+                                  border: '1px solid var(--result-l)',
+                                  borderRadius: 'var(--radius)',
+                                  padding: '4px 10px',
+                                  cursor: isDeleting ? 'wait' : 'pointer',
+                                  opacity: isDeleting ? 0.5 : 1,
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {isDeleting ? 'Deleting…' : 'Delete'}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
