@@ -27,12 +27,14 @@ export default async function AdminPage() {
 
   // Include every scheduled match with an index. The admin needs visibility
   // into completed matches too (to resolve, or to unresolve after a sheet
-  // score correction). The UI splits them by `hasResult` into Completed vs
-  // Upcoming sections.
+  // score correction). The UI splits them by `isCompleted` into Completed vs
+  // Upcoming sections — a match is treated as completed if either the
+  // Schedule tab marks it Completed, or a result row exists in the Data tab.
   const upcomingMatchList = schedule
     .filter((s) => s.matchIndex !== undefined)
     .map((s) => {
       const result = uniqueMatches.find((m) => m.matchIndex === s.matchIndex);
+      const scheduleCompleted = (s.status ?? '').toLowerCase() === 'completed';
       return {
         matchIndex: s.matchIndex!,
         week: s.week,
@@ -41,6 +43,7 @@ export default async function AdminPage() {
         team2: s.team2,
         status: s.status,
         hasResult: !!result,
+        isCompleted: !!result || scheduleCompleted,
         score1: result?.score1 ?? null,
         score2: result?.score2 ?? null,
         winner: result ? (result.result === 'W' ? result.team1 : result.team2) : null,

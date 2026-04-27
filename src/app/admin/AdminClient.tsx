@@ -11,6 +11,7 @@ interface MatchEntry {
   team2: string;
   status: string;
   hasResult: boolean;
+  isCompleted: boolean;
   score1: number | null;
   score2: number | null;
   winner: string | null;
@@ -289,8 +290,8 @@ export function AdminClient({ matches, picks: initialPicks, dbError, dbDebug }: 
     );
   }
 
-  const resolvable = matches.filter((m) => m.hasResult);
-  const upcoming = matches.filter((m) => !m.hasResult);
+  const resolvable = matches.filter((m) => m.isCompleted);
+  const upcoming = matches.filter((m) => !m.isCompleted);
 
 
   return (
@@ -358,15 +359,23 @@ export function AdminClient({ matches, picks: initialPicks, dbError, dbDebug }: 
                         {m.team1} vs {m.team2}
                       </div>
                       <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                        Winner: <span style={{ color: 'var(--result-w)', fontWeight: 700 }}>{m.winner}</span>
-                        {diff !== null && (
-                          <span style={{ marginLeft: 12 }}>
-                            Margin: <span style={{ color: 'var(--text)' }}>{diff} pts</span>
-                          </span>
-                        )}
-                        {m.score1 !== null && (
-                          <span style={{ marginLeft: 12, color: 'var(--text-muted)' }}>
-                            ({m.score1}–{m.score2})
+                        {m.hasResult ? (
+                          <>
+                            Winner: <span style={{ color: 'var(--result-w)', fontWeight: 700 }}>{m.winner}</span>
+                            {diff !== null && (
+                              <span style={{ marginLeft: 12 }}>
+                                Margin: <span style={{ color: 'var(--text)' }}>{diff} pts</span>
+                              </span>
+                            )}
+                            {m.score1 !== null && (
+                              <span style={{ marginLeft: 12, color: 'var(--text-muted)' }}>
+                                ({m.score1}–{m.score2})
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <span style={{ color: 'var(--result-l)' }}>
+                            Marked completed in schedule but no result row in Data tab — add one to enable resolve.
                           </span>
                         )}
                       </div>
@@ -414,9 +423,10 @@ export function AdminClient({ matches, picks: initialPicks, dbError, dbDebug }: 
                       )}
                       <button
                         onClick={() => handleResolve(m.matchIndex)}
-                        disabled={isResolving || isUnresolving}
+                        disabled={isResolving || isUnresolving || !m.hasResult}
                         className="btn btn-primary"
-                        style={{ opacity: isResolving ? 0.6 : 1, whiteSpace: 'nowrap' }}
+                        style={{ opacity: (isResolving || !m.hasResult) ? 0.6 : 1, whiteSpace: 'nowrap' }}
+                        title={!m.hasResult ? 'Add a result row in the Data tab first.' : undefined}
                       >
                         {isResolving ? 'Resolving…' : result ? 'Re-resolve' : 'Resolve Picks'}
                       </button>
