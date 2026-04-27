@@ -62,23 +62,25 @@ export async function POST(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // Fetch all picks for this match
+  // Fetch every pick for this match. We re-score on every call so admins
+  // can correct sheet scores after the fact and click "Re-resolve" without
+  // first having to unresolve.
   const { data: picks, error: fetchError } = await supabase
     .from('picks')
     .select('*')
-    .eq('match_index', match_index)
-    .is('resolved_at', null);
+    .eq('match_index', match_index);
 
   if (fetchError) {
     return NextResponse.json({ error: fetchError.message }, { status: 500 });
   }
 
   if (!picks || picks.length === 0) {
-    return NextResponse.json({ message: 'No unresolved picks for this match', resolved: 0 });
+    return NextResponse.json({ message: 'No picks for this match', resolved: 0 });
   }
 
   const now = new Date().toISOString();
   let resolved = 0;
+  let changed = 0;
 
   for (const pick of picks) {
     const isCorrectWinner = pick.picked_team === actualWinner;
@@ -92,6 +94,12 @@ export async function POST(request: Request) {
       }
     }
 
+    const wasAlreadyResolved = pick.resolved_at !== null;
+    const scoreChanged =
+      pick.is_correct_winner !== isCorrectWinner ||
+      pick.is_correct_band !== isCorrectBand ||
+      pick.points_earned !== pointsEarned;
+
     const { error: updateError } = await supabase
       .from('picks')
       .update({
@@ -104,12 +112,16 @@ export async function POST(request: Request) {
 
     if (!updateError) {
       resolved++;
+      if (!wasAlreadyResolved || scoreChanged) {
+        changed++;
+      }
     }
   }
 
   return NextResponse.json({
-    message: `Resolved ${resolved} picks for match ${match_index}`,
+    message: `Resolved ${resolved} picks for match ${match_index} (${changed} changed)`,
     resolved,
+    changed,
     actualWinner,
     actualBand,
     diff,
