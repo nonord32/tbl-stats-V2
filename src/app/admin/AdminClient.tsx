@@ -31,6 +31,7 @@ interface PickRow {
 interface ResolveResult {
   message: string;
   resolved: number;
+  changed?: number;
   actualWinner?: string;
   actualBand?: string;
   diff?: number;
@@ -375,6 +376,9 @@ export function AdminClient({ matches, picks: initialPicks, dbError, dbDebug }: 
                       {result && !result.error && (
                         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--result-w)' }}>
                           ✓ {result.resolved} picks resolved
+                          {typeof result.changed === 'number' && result.changed !== result.resolved && (
+                            <span style={{ color: 'var(--text-muted)' }}> ({result.changed} changed)</span>
+                          )}
                         </span>
                       )}
                       {result?.error && (
