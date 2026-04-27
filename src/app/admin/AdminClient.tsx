@@ -37,6 +37,12 @@ interface ResolveResult {
   error?: string;
 }
 
+interface UnresolveResult {
+  message: string;
+  unresolved: number;
+  error?: string;
+}
+
 function formatDate(dateStr: string) {
   try {
     return new Date(dateStr).toLocaleDateString('en-US', {
@@ -58,6 +64,8 @@ export function AdminClient({ matches, picks: initialPicks, dbError, dbDebug }: 
   const [authed, setAuthed] = useState(false);
   const [resolving, setResolving] = useState<number | null>(null);
   const [results, setResults] = useState<Record<number, ResolveResult>>({});
+  const [unresolving, setUnresolving] = useState<number | null>(null);
+  const [unresolveResults, setUnresolveResults] = useState<Record<number, UnresolveResult>>({});
 
   // Fantasy resolution state — separate from picks resolution.
   const [fantasyWeek, setFantasyWeek] = useState<string>('');
@@ -167,6 +175,44 @@ export function AdminClient({ matches, picks: initialPicks, dbError, dbDebug }: 
       setResults((prev) => ({ ...prev, [matchIndex]: { message: '', resolved: 0, error: 'Network error' } }));
     } finally {
       setResolving(null);
+    }
+  }
+
+  async function handleUnresolve(matchIndex: number) {
+    if (!confirm(`Unresolve all picks for match ${matchIndex}? Points and results will be cleared so the match can be re-resolved.`)) {
+      return;
+    }
+    setUnresolving(matchIndex);
+    try {
+      const res = await fetch('/api/admin/unresolve', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${secret}`,
+        },
+        body: JSON.stringify({ match_index: matchIndex }),
+      });
+      const json: UnresolveResult = await res.json();
+      setUnresolveResults((prev) => ({ ...prev, [matchIndex]: json }));
+      if (res.ok) {
+        // Clear the prior resolve banner so the UI doesn't show stale "X resolved".
+        setResults((prev) => {
+          const next = { ...prev };
+          delete next[matchIndex];
+          return next;
+        });
+        setPicks((prev) =>
+          prev.map((row) =>
+            row.matchIndex === matchIndex
+              ? { ...row, resolved: false, pointsEarned: null }
+              : row
+          )
+        );
+      }
+    } catch {
+      setUnresolveResults((prev) => ({ ...prev, [matchIndex]: { message: '', unresolved: 0, error: 'Network error' } }));
+    } finally {
+      setUnresolving(null);
     }
   }
 
@@ -280,7 +326,10 @@ export function AdminClient({ matches, picks: initialPicks, dbError, dbDebug }: 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {resolvable.map((m) => {
               const result = results[m.matchIndex];
+              const unresolveResult = unresolveResults[m.matchIndex];
               const isResolving = resolving === m.matchIndex;
+              const isUnresolving = unresolving === m.matchIndex;
+              const hasResolvedPicks = picks.some((p) => p.matchIndex === m.matchIndex && p.resolved);
               const diff = m.score1 !== null && m.score2 !== null ? Math.abs(m.score1 - m.score2) : null;
 
               return (
@@ -310,7 +359,7 @@ export function AdminClient({ matches, picks: initialPicks, dbError, dbDebug }: 
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                       {result && !result.error && (
                         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--result-w)' }}>
                           ✓ {result.resolved} picks resolved
@@ -321,9 +370,35 @@ export function AdminClient({ matches, picks: initialPicks, dbError, dbDebug }: 
                           {result.error}
                         </span>
                       )}
+                      {unresolveResult && !unresolveResult.error && (
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
+                          ↺ {unresolveResult.unresolved} picks unresolved
+                        </span>
+                      )}
+                      {unresolveResult?.error && (
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--result-l)' }}>
+                          {unresolveResult.error}
+                        </span>
+                      )}
+                      {hasResolvedPicks && (
+                        <button
+                          onClick={() => handleUnresolve(m.matchIndex)}
+                          disabled={isUnresolving || isResolving}
+                          className="btn"
+                          style={{
+                            opacity: isUnresolving ? 0.6 : 1,
+                            whiteSpace: 'nowrap',
+                            background: 'transparent',
+                            border: '1px solid var(--border)',
+                            color: 'var(--text-muted)',
+                          }}
+                        >
+                          {isUnresolving ? 'Unresolving…' : 'Unresolve'}
+                        </button>
+                      )}
                       <button
                         onClick={() => handleResolve(m.matchIndex)}
-                        disabled={isResolving}
+                        disabled={isResolving || isUnresolving}
                         className="btn btn-primary"
                         style={{ opacity: isResolving ? 0.6 : 1, whiteSpace: 'nowrap' }}
                       >
