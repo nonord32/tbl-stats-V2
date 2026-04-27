@@ -25,9 +25,12 @@ export default async function AdminPage() {
   const uniqueMatches = extractUniqueMatches(sheetData.teamMatches);
   const schedule = sheetData.schedule;
 
-  // Only upcoming matches — completed matches are not pickable
+  // Include every scheduled match with an index. The admin needs visibility
+  // into completed matches too (to resolve, or to unresolve after a sheet
+  // score correction). The UI splits them by `hasResult` into Completed vs
+  // Upcoming sections.
   const upcomingMatchList = schedule
-    .filter((s) => s.matchIndex !== undefined && s.status === 'Upcoming')
+    .filter((s) => s.matchIndex !== undefined)
     .map((s) => {
       const result = uniqueMatches.find((m) => m.matchIndex === s.matchIndex);
       return {

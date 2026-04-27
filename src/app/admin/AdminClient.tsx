@@ -171,6 +171,18 @@ export function AdminClient({ matches, picks: initialPicks, dbError, dbDebug }: 
       });
       const json: ResolveResult = await res.json();
       setResults((prev) => ({ ...prev, [matchIndex]: json }));
+      if (res.ok) {
+        // Reflect resolved state in the table so the Unresolve button shows
+        // up immediately. Points for individual rows still need a refresh
+        // since the API response only carries the aggregate count.
+        setPicks((prev) =>
+          prev.map((row) =>
+            row.matchIndex === matchIndex && !row.resolved
+              ? { ...row, resolved: true }
+              : row
+          )
+        );
+      }
     } catch {
       setResults((prev) => ({ ...prev, [matchIndex]: { message: '', resolved: 0, error: 'Network error' } }));
     } finally {
