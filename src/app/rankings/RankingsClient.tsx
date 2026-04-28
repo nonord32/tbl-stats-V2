@@ -5,6 +5,7 @@ import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import type { FighterStat, FightHistory } from '@/types';
 import { getTeamColorByName } from '@/lib/teams';
+import { computeMethodSplits } from '@/lib/data';
 
 // ─── Weight class sort ────────────────────────────────────────────────────────
 // Handles both numeric names ("118", "118 lbs") and named classes
@@ -102,6 +103,16 @@ export function RankingsClient({ fighters, fighterHistory, lastUpdated }: Props)
 
   // Effective weight class for a fighter (most recent fight > profile sheet)
   const effectiveWC = (f: FighterStat) => currentWeightClass.get(f.slug) || f.weightClass;
+
+  // Per-fighter KO% (KO + TKO + RSC + RTD wins / total wins). Empty if no wins.
+  const koPctBySlug = useMemo(() => {
+    const map = new Map<string, number | null>();
+    for (const [slug, history] of Object.entries(fighterHistory)) {
+      const splits = computeMethodSplits(history);
+      map.set(slug, splits.totalWins > 0 ? splits.koPct : null);
+    }
+    return map;
+  }, [fighterHistory]);
 
   // Derive per-gender weight class lists, sorted lightest → heaviest
   const { maleWeights, femaleWeights } = useMemo(() => {
@@ -213,13 +224,14 @@ export function RankingsClient({ fighters, fighterHistory, lastUpdated }: Props)
                   <th className="num-cell col-war">Net Pts</th>
                   <th className="num-cell col-hide-mobile">NPPR</th>
                   <th className="num-cell col-hide-mobile">Win%</th>
+                  <th className="num-cell col-hide-mobile" title="% of wins by KO/TKO">KO%</th>
                   <th className="num-cell col-hide-mobile">WAR</th>
                 </tr>
               </thead>
               <tbody>
                 {ranked.length === 0 ? (
                   <tr>
-                    <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0' }}>
+                    <td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0' }}>
                       No fighters in this weight class
                     </td>
                   </tr>
@@ -254,6 +266,9 @@ export function RankingsClient({ fighters, fighterHistory, lastUpdated }: Props)
                       </td>
                       <td className="num-cell mono col-hide-mobile">{f.nppr.toFixed(3)}</td>
                       <td className="num-cell mono col-hide-mobile">{(f.winPct * 100).toFixed(1)}%</td>
+                      <td className="num-cell mono col-hide-mobile">
+                        {koPctBySlug.get(f.slug) != null ? `${(koPctBySlug.get(f.slug)! * 100).toFixed(0)}%` : '—'}
+                      </td>
                       <td className="num-cell mono col-hide-mobile">{f.war.toFixed(2)}</td>
                     </tr>
                   ))

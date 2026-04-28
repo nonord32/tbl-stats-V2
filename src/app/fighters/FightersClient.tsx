@@ -4,7 +4,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import type { FighterStat, FightHistory } from '@/types';
-import { calcFighterStreak } from '@/lib/data';
+import { calcFighterStreak, computeMethodSplits } from '@/lib/data';
 import { getTeamColorByName, getTeamLogoPathByName } from '@/lib/teams';
 
 type SortKey = 'war' | 'nppr' | 'netPts' | 'winPct' | 'rounds' | 'record' | 'name';
@@ -70,21 +70,33 @@ function FighterModal({
           <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
         </div>
         <div className="modal-body">
-          <div className="stat-grid" style={{ padding: 0, marginBottom: 20 }}>
-            {[
+          {(() => {
+            const splits = computeMethodSplits(history);
+            const baseStats: { label: string; value: string | number }[] = [
               { label: 'Record', value: fighter.record },
               { label: 'WAR', value: fighter.war.toFixed(2) },
               { label: 'NPPR', value: fighter.nppr.toFixed(3) },
               { label: 'Net Pts', value: fighter.netPts.toFixed(1) },
               { label: 'Win%', value: `${(fighter.winPct * 100).toFixed(1)}%` },
               { label: 'Rounds', value: fighter.rounds },
-            ].map((s) => (
-              <div className="stat-box" key={s.label}>
-                <span className="label">{s.label}</span>
-                <span className="value">{s.value}</span>
+            ];
+            const methodStats: { label: string; value: string }[] = splits.totalWins > 0 ? [
+              { label: 'KO%',     value: `${(splits.koPct * 100).toFixed(0)}%` },
+              { label: 'KD%',     value: `${(splits.kdPct * 100).toFixed(0)}%` },
+              { label: 'Dec%',    value: `${(splits.decisionPct * 100).toFixed(0)}%` },
+              { label: 'Finish%', value: `${(splits.finishPct * 100).toFixed(0)}%` },
+            ] : [];
+            return (
+              <div className="stat-grid" style={{ padding: 0, marginBottom: 20 }}>
+                {[...baseStats, ...methodStats].map((s) => (
+                  <div className="stat-box" key={s.label}>
+                    <span className="label">{s.label}</span>
+                    <span className="value">{s.value}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            );
+          })()}
 
           <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>
             Fight History

@@ -110,6 +110,38 @@ export interface HighlightEntry {
   type: 'instagram' | 'youtube' | string;
 }
 
+// Aggregated wins-by-method breakdown for a fighter.
+export interface MethodSplits {
+  totalWins: number;
+  koWins: number;        // KO + TKO + RSC + RTD
+  kdWins: number;        // Knockdown / KD
+  decisionWins: number;
+  otherWins: number;     // DQ, unknown methods
+  koPct: number;         // 0..1, share of wins
+  kdPct: number;
+  decisionPct: number;
+  finishPct: number;     // (KO + KD) / wins
+}
+
+// Performance broken down by round phase (Qualifying, Launch, Middle, Money, Final).
+export interface PhasePerformance {
+  phase: string;
+  bouts: number;
+  wins: number;
+  winPct: number;        // 0..1
+  avgNetPts: number;
+}
+
+// Head-to-head record vs a single opponent (only emitted when count >= 2).
+export interface H2HRecord {
+  opponent: string;
+  wins: number;
+  losses: number;
+  draws: number;
+  total: number;
+  lastResult: 'W' | 'L' | 'D';
+}
+
 export interface ParsedSheetData {
   fighters: FighterStat[];
   teams: TeamStanding[];

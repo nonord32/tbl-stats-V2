@@ -12,6 +12,9 @@ import type {
   ScheduleEntry,
   HighlightEntry,
   ParsedSheetData,
+  MethodSplits,
+  PhasePerformance,
+  H2HRecord,
 } from '@/types';
 
 // ─── Sheet URLs ────────────────────────────────────────────────────────────────
@@ -418,6 +421,120 @@ export function calcTeamStreak(matches: TeamMatch[]): string {
     else break;
   }
   return `${first}${count}`;
+}
+
+// ─── Per-fighter aggregations over FightHistory ───────────────────────────────
+// Pure functions over a fighter's history. No fetching, no side effects — same
+// shape contract as calcFighterStreak.
+
+// The match parser title-cases methods except for a small set of caps terms
+// (KO, TKO, RSC, RTD, DQ). So "ko" -> "KO", "decision" -> "Decision",
+// "knockdown" -> "Knockdown", "kd" -> "Kd". Classify case-insensitively.
+type MethodBucket = 'ko' | 'kd' | 'decision' | 'other';
+function classifyMethod(method: string | undefined): MethodBucket {
+  const m = (method || '').trim().toUpperCase();
+  if (!m) return 'other';
+  if (m === 'KO' || m === 'TKO' || m === 'RSC' || m === 'RTD') return 'ko';
+  if (m === 'KD' || m === 'KNOCKDOWN') return 'kd';
+  if (m === 'DECISION') return 'decision';
+  return 'other';
+}
+
+export function computeMethodSplits(history: FightHistory[]): MethodSplits {
+  const wins = history.filter((h) => h.result === 'W');
+  const totalWins = wins.length;
+  let koWins = 0;
+  let kdWins = 0;
+  let decisionWins = 0;
+  let otherWins = 0;
+  for (const w of wins) {
+    switch (classifyMethod(w.resultMethod)) {
+      case 'ko': koWins++; break;
+      case 'kd': kdWins++; break;
+      case 'decision': decisionWins++; break;
+      default: otherWins++;
+    }
+  }
+  const pct = (n: number) => (totalWins > 0 ? n / totalWins : 0);
+  return {
+    totalWins,
+    koWins,
+    kdWins,
+    decisionWins,
+    otherWins,
+    koPct: pct(koWins),
+    kdPct: pct(kdWins),
+    decisionPct: pct(decisionWins),
+    finishPct: pct(koWins + kdWins),
+  };
+}
+
+const PHASE_ORDER = ['Qualifying', 'Launch', 'Middle', 'Money', 'Final'];
+
+export function computePhasePerformance(history: FightHistory[]): PhasePerformance[] {
+  const map = new Map<string, { bouts: number; wins: number; netPtsSum: number }>();
+  for (const h of history) {
+    const phase = (h.roundPhase || '').trim();
+    if (!phase) continue;
+    const e = map.get(phase) ?? { bouts: 0, wins: 0, netPtsSum: 0 };
+    e.bouts++;
+    if (h.result === 'W') e.wins++;
+    e.netPtsSum += h.netPts;
+    map.set(phase, e);
+  }
+  const toRow = (phase: string, e: { bouts: number; wins: number; netPtsSum: number }): PhasePerformance => ({
+    phase,
+    bouts: e.bouts,
+    wins: e.wins,
+    winPct: e.bouts ? e.wins / e.bouts : 0,
+    avgNetPts: e.bouts ? e.netPtsSum / e.bouts : 0,
+  });
+  const known = PHASE_ORDER.filter((p) => map.has(p)).map((p) => toRow(p, map.get(p)!));
+  // Preserve any out-of-canon phases (sheet typos / new phases) at the end.
+  const extras: PhasePerformance[] = [];
+  map.forEach((e, p) => { if (!PHASE_ORDER.includes(p)) extras.push(toRow(p, e)); });
+  return [...known, ...extras];
+}
+
+export function computeRepeatOpponents(history: FightHistory[]): H2HRecord[] {
+  const groups = new Map<string, FightHistory[]>();
+  for (const h of history) {
+    const opp = (h.opponent || '').trim();
+    if (!opp) continue;
+    const list = groups.get(opp) ?? [];
+    list.push(h);
+    groups.set(opp, list);
+  }
+  const records: H2HRecord[] = [];
+  groups.forEach((list, opp) => {
+    if (list.length < 2) return;
+    let wins = 0;
+    let losses = 0;
+    let draws = 0;
+    for (const h of list) {
+      if (h.result === 'W') wins++;
+      else if (h.result === 'L') losses++;
+      else draws++;
+    }
+    // Most recent first by date so [0] is the latest meeting.
+    const sorted = [...list].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    records.push({ opponent: opp, wins, losses, draws, total: list.length, lastResult: sorted[0].result });
+  });
+  records.sort((a, b) => b.total - a.total || a.opponent.localeCompare(b.opponent));
+  return records;
+}
+
+export function computeSOS(history: FightHistory[], allFighters: FighterStat[]): number | null {
+  const byName = new Map(allFighters.map((f) => [f.name.trim().toLowerCase(), f]));
+  let sum = 0;
+  let count = 0;
+  for (const h of history) {
+    const opp = byName.get((h.opponent || '').trim().toLowerCase());
+    if (!opp) continue;
+    sum += opp.war;
+    count++;
+  }
+  return count > 0 ? sum / count : null;
 }
 
 // ─── Results extractor ────────────────────────────────────────────────────────

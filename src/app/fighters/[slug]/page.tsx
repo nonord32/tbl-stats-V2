@@ -2,7 +2,15 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getAllData, getFighterBySlug, calcFighterStreak } from '@/lib/data';
+import {
+  getAllData,
+  getFighterBySlug,
+  calcFighterStreak,
+  computeMethodSplits,
+  computePhasePerformance,
+  computeRepeatOpponents,
+  computeSOS,
+} from '@/lib/data';
 import { getTeamLogoPath, getTeamColor, getFullTeamName } from '@/lib/teams';
 import { LogoImage } from '@/components/LogoImage';
 import type { FightHistory } from '@/types';
@@ -39,10 +47,18 @@ export async function generateMetadata({
 }
 
 export default async function FighterPage({ params }: { params: { slug: string } }) {
-  const result = await getFighterBySlug(params.slug);
+  const [result, allData] = await Promise.all([
+    getFighterBySlug(params.slug),
+    getAllData(),
+  ]);
   if (!result) notFound();
 
   const { fighter, history, streak } = result;
+
+  const methodSplits = computeMethodSplits(history);
+  const phasePerf = computePhasePerformance(history);
+  const repeatOpponents = computeRepeatOpponents(history);
+  const sos = computeSOS(history, allData.fighters);
 
   const isWStreak = streak.startsWith('W');
   const teamSlug = fighter.team.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
@@ -206,6 +222,87 @@ export default async function FighterPage({ params }: { params: { slug: string }
           </div>
         </div>
 
+        {/* Method splits + SOS — only shown when there's at least one win or matched opponent */}
+        {(methodSplits.totalWins > 0 || sos !== null) && (
+          <div className="card" style={{ marginBottom: 24 }}>
+            <div className="card-header">
+              <span className="card-title">Method &amp; Strength</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>
+                Wins by finish · avg opponent WAR
+              </span>
+            </div>
+            <div className="stat-grid">
+              {methodSplits.totalWins > 0 && (
+                <>
+                  <div className="stat-box">
+                    <span className="label">KO%</span>
+                    <span className="value">{(methodSplits.koPct * 100).toFixed(0)}%</span>
+                  </div>
+                  <div className="stat-box">
+                    <span className="label">KD%</span>
+                    <span className="value">{(methodSplits.kdPct * 100).toFixed(0)}%</span>
+                  </div>
+                  <div className="stat-box">
+                    <span className="label">Dec%</span>
+                    <span className="value">{(methodSplits.decisionPct * 100).toFixed(0)}%</span>
+                  </div>
+                  <div className="stat-box">
+                    <span className="label">Finish%</span>
+                    <span className="value">{(methodSplits.finishPct * 100).toFixed(0)}%</span>
+                  </div>
+                </>
+              )}
+              {sos !== null && (
+                <div className="stat-box">
+                  <span className="label">SOS</span>
+                  <span className="value">{sos.toFixed(2)}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Phase performance */}
+        {phasePerf.length > 0 && (
+          <div className="card" style={{ marginBottom: 24 }}>
+            <div className="card-header">
+              <span className="card-title">Phase Performance</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>
+                Per round phase
+              </span>
+            </div>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Phase</th>
+                    <th className="num-cell">Bouts</th>
+                    <th className="num-cell">Wins</th>
+                    <th className="num-cell">Win%</th>
+                    <th className="num-cell">Avg Net</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {phasePerf.map((p) => (
+                    <tr key={p.phase}>
+                      <td style={{ fontWeight: 500 }}>{p.phase}</td>
+                      <td className="num-cell mono">{p.bouts}</td>
+                      <td className="num-cell mono">{p.wins}</td>
+                      <td className="num-cell mono">{(p.winPct * 100).toFixed(0)}%</td>
+                      <td
+                        className="num-cell mono"
+                        style={{ color: p.avgNetPts >= 0 ? 'var(--result-w)' : 'var(--result-l)' }}
+                      >
+                        {p.avgNetPts >= 0 ? '+' : ''}{p.avgNetPts.toFixed(1)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* Fight history */}
         <div className="card">
           <div className="card-header">
@@ -269,6 +366,51 @@ export default async function FighterPage({ params }: { params: { slug: string }
             </div>
           )}
         </div>
+
+        {/* Repeat opponents (H2H) */}
+        {repeatOpponents.length > 0 && (
+          <div className="card" style={{ marginTop: 24 }}>
+            <div className="card-header">
+              <span className="card-title">Repeat Opponents</span>
+              <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)' }}>
+                Faced 2+ times
+              </span>
+            </div>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Opponent</th>
+                    <th className="num-cell">Record</th>
+                    <th className="num-cell">Bouts</th>
+                    <th className="num-cell">Last</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {repeatOpponents.map((h) => {
+                    const oppSlug = h.opponent.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-');
+                    return (
+                      <tr key={h.opponent}>
+                        <td style={{ fontWeight: 500 }}>
+                          <Link href={`/fighters/${oppSlug}`} style={{ color: 'var(--accent)' }}>
+                            {h.opponent}
+                          </Link>
+                        </td>
+                        <td className="num-cell mono">
+                          {h.wins}-{h.losses}{h.draws ? `-${h.draws}` : ''}
+                        </td>
+                        <td className="num-cell mono">{h.total}</td>
+                        <td className="num-cell">
+                          <span className={`result-${h.lastResult.toLowerCase()}`}>{h.lastResult}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {/* Back link */}
         <div style={{ marginTop: 20 }}>
