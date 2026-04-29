@@ -4,7 +4,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getFighterBySlug } from '@/lib/data';
+import { getFighterBySlug, toSlug } from '@/lib/data';
 import {
   getTeamLogoPathByName,
   getFullTeamName,
@@ -53,7 +53,7 @@ export default async function FighterPage({
   const result = await getFighterBySlug(params.slug);
   if (!result) notFound();
 
-  const { fighter, history, streak, warRank } = result;
+  const { fighter, history, streak, warRank, fighterSlugs } = result;
   // Last 10 bouts in chronological order (oldest → newest) for the form strip.
   const formLast10 = [...history].slice(0, 10).reverse();
 
@@ -357,6 +357,8 @@ export default async function FighterPage({
                   const roundLabel = String(h.round).startsWith('R')
                     ? String(h.round)
                     : `R${h.round}`;
+                  const oppFighterSlug = toSlug(h.opponent);
+                  const oppHasProfile = fighterSlugs.has(oppFighterSlug);
                   return (
                     <div key={i} className="gz-fighter-history-row">
                       <div
@@ -376,7 +378,16 @@ export default async function FighterPage({
                       )}
                       <div className="gz-fighter-history-row__body">
                         <div className="gz-fighter-history-row__name">
-                          {h.opponent}
+                          {oppHasProfile ? (
+                            <Link
+                              href={`/fighters/${oppFighterSlug}`}
+                              style={{ color: 'inherit', textDecoration: 'none' }}
+                            >
+                              {h.opponent}
+                            </Link>
+                          ) : (
+                            h.opponent
+                          )}
                         </div>
                         <div className="gz-fighter-history-row__meta">
                           {h.date} · {roundLabel}
@@ -433,6 +444,8 @@ export default async function FighterPage({
                       .toLowerCase()
                       .replace(/\s+/g, '-')
                       .replace(/[^a-z0-9-]/g, '');
+                    const oppFighterSlug = toSlug(h.opponent);
+                    const oppHasProfile = fighterSlugs.has(oppFighterSlug);
                     const oppLogo = getTeamLogoPathByName(h.opponentTeam);
                     const winBg = h.result === 'W' ? 'var(--tbl-green)' : 'var(--tbl-red)';
                     return (
@@ -448,7 +461,16 @@ export default async function FighterPage({
                             fontWeight: 700,
                           }}
                         >
-                          {h.opponent}
+                          {oppHasProfile ? (
+                            <Link
+                              href={`/fighters/${oppFighterSlug}`}
+                              style={{ color: 'inherit', textDecoration: 'none' }}
+                            >
+                              {h.opponent}
+                            </Link>
+                          ) : (
+                            h.opponent
+                          )}
                         </td>
                         <td style={{ padding: '10px 6px' }}>
                           <Link

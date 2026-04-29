@@ -20,6 +20,7 @@ interface MatchEntry {
 interface PickRow {
   userId: string;
   matchIndex: number;
+  week: number | string | null;
   matchLabel: string;
   displayName: string;
   username: string;
@@ -118,6 +119,7 @@ export function AdminClient({ matches, picks: initialPicks, dbError, dbDebug }: 
 
   // Picks table filters
   const [userFilter, setUserFilter] = useState('');
+  const [weekFilter, setWeekFilter] = useState('');
   const [matchFilter, setMatchFilter] = useState('');
   const [pickedFilter, setPickedFilter] = useState('');
   const [marginFilter, setMarginFilter] = useState('');
@@ -135,6 +137,17 @@ export function AdminClient({ matches, picks: initialPicks, dbError, dbDebug }: 
     () => Array.from(new Set(picks.map((p) => p.diffBand).filter(Boolean))).sort(),
     [picks]
   );
+  const uniqueWeeks = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          picks
+            .map((p) => p.week)
+            .filter((w): w is number => typeof w === 'number')
+        )
+      ).sort((a, b) => a - b),
+    [picks]
+  );
 
   const filteredPicks = useMemo(() => {
     const q = userFilter.trim().toLowerCase();
@@ -143,6 +156,7 @@ export function AdminClient({ matches, picks: initialPicks, dbError, dbDebug }: 
         const name = (p.displayName || p.username || '').toLowerCase();
         if (!name.includes(q)) return false;
       }
+      if (weekFilter && String(p.week) !== weekFilter) return false;
       if (matchFilter && p.matchLabel !== matchFilter) return false;
       if (pickedFilter && p.pickedTeam !== pickedFilter) return false;
       if (marginFilter && p.diffBand !== marginFilter) return false;
@@ -150,10 +164,10 @@ export function AdminClient({ matches, picks: initialPicks, dbError, dbDebug }: 
       if (statusFilter === 'pending' && p.resolved) return false;
       return true;
     });
-  }, [picks, userFilter, matchFilter, pickedFilter, marginFilter, statusFilter]);
+  }, [picks, userFilter, weekFilter, matchFilter, pickedFilter, marginFilter, statusFilter]);
 
   const hasActiveFilter =
-    !!(userFilter || matchFilter || pickedFilter || marginFilter || statusFilter);
+    !!(userFilter || weekFilter || matchFilter || pickedFilter || marginFilter || statusFilter);
 
   function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -529,6 +543,17 @@ export function AdminClient({ matches, picks: initialPicks, dbError, dbDebug }: 
                   />
                   <select
                     className="filter-select"
+                    value={weekFilter}
+                    onChange={(e) => setWeekFilter(e.target.value)}
+                    aria-label="Filter picks by week"
+                  >
+                    <option value="">All weeks</option>
+                    {uniqueWeeks.map((w) => (
+                      <option key={w} value={String(w)}>Week {w}</option>
+                    ))}
+                  </select>
+                  <select
+                    className="filter-select"
                     value={matchFilter}
                     onChange={(e) => setMatchFilter(e.target.value)}
                     aria-label="Filter picks by match"
@@ -575,6 +600,7 @@ export function AdminClient({ matches, picks: initialPicks, dbError, dbDebug }: 
                       type="button"
                       onClick={() => {
                         setUserFilter('');
+                        setWeekFilter('');
                         setMatchFilter('');
                         setPickedFilter('');
                         setMarginFilter('');
