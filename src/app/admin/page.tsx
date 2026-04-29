@@ -111,6 +111,7 @@ export default async function AdminPage() {
     return {
       userId: p.user_id,
       matchIndex: p.match_index,
+      week: match?.week ?? null,
       matchLabel: match ? `Wk ${match.week}: ${match.team1} vs ${match.team2}` : `Match ${p.match_index}`,
       displayName: profile?.display_name ?? '',
       username: profile?.username ?? '',

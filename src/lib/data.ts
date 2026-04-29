@@ -791,7 +791,11 @@ export async function getFighterBySlug(slug: string) {
         fighter.team.startsWith(t.team)
     )?.team ?? fighter.team;
 
-  return { fighter, history, streak, fullTeamName, warRank };
+  // Slugs of every fighter in the league — used to decide whether each
+  // opponent in fight history should render as a link to their profile.
+  const fighterSlugs = new Set(data.fighters.map((f) => f.slug));
+
+  return { fighter, history, streak, fullTeamName, warRank, fighterSlugs };
 }
 
 export async function getTeamBySlug(slug: string) {

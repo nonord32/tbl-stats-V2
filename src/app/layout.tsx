@@ -4,6 +4,7 @@ import './globals.css';
 import Script from 'next/script';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import { PageviewTracker } from '@/components/PageviewTracker';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { TopStrip } from '@/components/chrome/TopStrip';
 import { TopNav } from '@/components/chrome/TopNav';
@@ -67,6 +68,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </ThemeProvider>
         <Analytics />
         <SpeedInsights />
+        <PageviewTracker />
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-2G5HV9RKGS"
           strategy="afterInteractive"
