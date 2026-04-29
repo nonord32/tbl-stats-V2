@@ -168,3 +168,27 @@ create policy "Users can update own fantasy weeks"
   on public.fantasy_weeks for update using (auth.uid() = user_id);
 -- (No delete policy — weeks are append-only from the user's perspective.)
 -- Service-role (admin) bypasses RLS for the resolution job.
+
+-- ─── Pageviews (analytics) ────────────────────────────────────────────────────
+-- Anonymous pageview log. Populated by /api/track on every client-side
+-- navigation; queried by the admin analytics dashboard via service role.
+create table if not exists public.pageviews (
+  id bigserial primary key,
+  created_at timestamptz default now() not null,
+  visitor_id text not null,         -- anonymous tbl_vid cookie value
+  path text not null,
+  country text,
+  city text,
+  region text,
+  referrer text,
+  user_agent text
+);
+
+create index if not exists pageviews_created_at_idx on public.pageviews (created_at desc);
+create index if not exists pageviews_visitor_id_idx on public.pageviews (visitor_id);
+create index if not exists pageviews_path_idx on public.pageviews (path);
+create index if not exists pageviews_country_idx on public.pageviews (country);
+
+alter table public.pageviews enable row level security;
+-- No client-side policies. /api/track inserts via service-role; the gated
+-- /api/admin/analytics/summary reads via service-role.
