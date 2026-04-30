@@ -6,7 +6,7 @@ import Link from 'next/link';
 import type { FighterStat, FightHistory, ScheduleEntry } from '@/types';
 import { calcFighterStreak, toSlug } from '@/lib/data';
 import { getFighterWeightClasses } from '@/lib/fighters';
-import { getTeamColorByName, getTeamLogoPathByName } from '@/lib/teams';
+import { getTeamColorByName, getTeamLogoPathByName, getCityName } from '@/lib/teams';
 import { PageHeader } from '@/components/chrome/PageHeader';
 
 type SortKey = 'war' | 'nppr' | 'netPts' | 'winPct' | 'rounds' | 'record' | 'name';
@@ -225,8 +225,15 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
     return Array.from(set).sort();
   }, [fighters, fighterWeightClasses, FEMALE_CLASSES]);
 
+  // Dropdown lists the 12 canonical teams. Fighter.team strings can carry a
+  // previous-team suffix like "Houston (prev: Miami)"; getCityName() strips
+  // that and returns just the current city, so a moved fighter only appears
+  // under their current team's filter.
   const teams = useMemo(
-    () => Array.from(new Set(fighters.map((f) => f.team).filter(Boolean))).sort(),
+    () =>
+      Array.from(
+        new Set(fighters.map((f) => getCityName(f.team)).filter(Boolean))
+      ).sort(),
     [fighters]
   );
 
@@ -288,7 +295,7 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
         if (isFemaleOption && f.gender !== 'Female') return false;
         if (!isFemaleOption && FEMALE_CLASSES.has(baseClass) && f.gender === 'Female') return false;
       }
-      if (teamFilter && f.team !== teamFilter) return false;
+      if (teamFilter && getCityName(f.team) !== teamFilter) return false;
       if (genderFilter && f.gender !== genderFilter) return false;
       if (weekNum !== null) {
         const history = fighterHistory[f.slug] || [];
