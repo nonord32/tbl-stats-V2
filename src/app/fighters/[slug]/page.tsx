@@ -4,7 +4,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getFighterBySlug } from '@/lib/data';
+import { getFighterBySlug, toSlug } from '@/lib/data';
 import {
   getTeamLogoPathByName,
   getFullTeamName,
@@ -375,9 +375,13 @@ export default async function FighterPage({
                         />
                       )}
                       <div className="gz-fighter-history-row__body">
-                        <div className="gz-fighter-history-row__name">
+                        <Link
+                          href={`/fighters/${toSlug(h.opponent)}`}
+                          className="gz-fighter-history-row__name"
+                          style={{ color: 'inherit', textDecoration: 'none' }}
+                        >
                           {h.opponent}
-                        </div>
+                        </Link>
                         <div className="gz-fighter-history-row__meta">
                           {h.date} · {roundLabel}
                         </div>
@@ -448,7 +452,12 @@ export default async function FighterPage({
                             fontWeight: 700,
                           }}
                         >
-                          {h.opponent}
+                          <Link
+                            href={`/fighters/${toSlug(h.opponent)}`}
+                            style={{ color: 'inherit', textDecoration: 'none' }}
+                          >
+                            {h.opponent}
+                          </Link>
                         </td>
                         <td style={{ padding: '10px 6px' }}>
                           <Link

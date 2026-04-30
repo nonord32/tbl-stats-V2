@@ -4,7 +4,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import type { FighterStat, FightHistory, ScheduleEntry } from '@/types';
-import { calcFighterStreak } from '@/lib/data';
+import { calcFighterStreak, toSlug } from '@/lib/data';
 import { getFighterWeightClasses } from '@/lib/fighters';
 import { getTeamColorByName, getTeamLogoPathByName } from '@/lib/teams';
 import { PageHeader } from '@/components/chrome/PageHeader';
@@ -114,7 +114,15 @@ function FighterModal({
                   {history.map((h, i) => (
                     <tr key={i}>
                       <td className="mono" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{h.date}</td>
-                      <td style={{ fontWeight: 500 }}>{h.opponent}</td>
+                      <td style={{ fontWeight: 500 }}>
+                        <Link
+                          href={`/fighters/${toSlug(h.opponent)}`}
+                          style={{ color: 'inherit', textDecoration: 'none' }}
+                          onClick={onClose}
+                        >
+                          {h.opponent}
+                        </Link>
+                      </td>
                       <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{h.opponentTeam}</td>
                       <td style={{ fontSize: 12 }}>{h.weightClass}</td>
                       <td className="mono" style={{ fontSize: 12 }}>{h.round}</td>
@@ -161,6 +169,7 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
   const [teamFilter, setTeamFilter] = useState('');
   const [genderFilter, setGenderFilter] = useState('');
   const [weekFilter, setWeekFilter] = useState('');
+  const [minRoundsFilter, setMinRoundsFilter] = useState('');
   const [modalFighter, setModalFighter] = useState<FighterStat | null>(null);
 
   const matchIndexToWeek = useMemo(() => {
@@ -264,6 +273,7 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const weekNum = weekFilter ? Number(weekFilter) : null;
+    const minRounds = minRoundsFilter ? Number(minRoundsFilter) : 0;
     return displayedFighters.filter((f) => {
       if (q && !f.name.toLowerCase().includes(q)) return false;
       if (weightFilter) {
@@ -284,9 +294,10 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
         const history = fighterHistory[f.slug] || [];
         if (!history.some((h) => matchIndexToWeek.get(h.matchIndex) === weekNum)) return false;
       }
+      if (minRounds > 0 && f.rounds < minRounds) return false;
       return true;
     });
-  }, [displayedFighters, search, weightFilter, teamFilter, genderFilter, weekFilter, fighterWeightClasses, fighterHistory, matchIndexToWeek, FEMALE_CLASSES]);
+  }, [displayedFighters, search, weightFilter, teamFilter, genderFilter, weekFilter, minRoundsFilter, fighterWeightClasses, fighterHistory, matchIndexToWeek, FEMALE_CLASSES]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -347,6 +358,19 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
             {weightClasses.map((w) => (
               <option key={w} value={w}>
                 {w}
+              </option>
+            ))}
+          </select>
+          <select
+            className="fighters-mobile-select"
+            value={minRoundsFilter}
+            onChange={(e) => setMinRoundsFilter(e.target.value)}
+            aria-label="Filter by minimum rounds"
+          >
+            <option value="">Any rounds</option>
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+              <option key={n} value={n}>
+                ≥ {n} rounds
               </option>
             ))}
           </select>
@@ -435,6 +459,19 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
               <select className="filter-select" value={weekFilter} onChange={(e) => setWeekFilter(e.target.value)}>
                 <option value="">All weeks</option>
                 {weeks.map((w) => <option key={w} value={w}>Week {w}</option>)}
+              </select>
+              <select
+                className="filter-select"
+                value={minRoundsFilter}
+                onChange={(e) => setMinRoundsFilter(e.target.value)}
+                aria-label="Filter by minimum rounds"
+              >
+                <option value="">Any rounds</option>
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+                  <option key={n} value={n}>
+                    ≥ {n} rounds
+                  </option>
+                ))}
               </select>
             </div>
           </div>
