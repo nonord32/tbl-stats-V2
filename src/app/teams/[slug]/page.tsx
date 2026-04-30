@@ -12,7 +12,8 @@ import {
 } from '@/lib/teams';
 import { SectionRule } from '@/components/chrome/SectionRule';
 import { HighlightsSection } from '@/components/HighlightsSection';
-import type { TeamMatch, FighterStat, ScheduleEntry } from '@/types';
+import { RosterTable } from './RosterTable';
+import type { TeamMatch, ScheduleEntry } from '@/types';
 
 export const revalidate = 300;
 export const dynamic = 'force-dynamic';
@@ -211,99 +212,6 @@ function NextMatchInline({ entry, teamName }: NextMatchInlineProps) {
   );
 }
 
-interface RosterTableProps {
-  fighters: FighterStat[];
-}
-function RosterTable({ fighters }: RosterTableProps) {
-  if (fighters.length === 0) return null;
-  const sorted = [...fighters].sort((a, b) => b.war - a.war);
-  return (
-    <table
-      style={{
-        width: '100%',
-        borderCollapse: 'collapse',
-        fontFamily: 'var(--tbl-font-mono)',
-        fontSize: 12,
-      }}
-    >
-      <thead>
-        <tr style={{ borderBottom: '1.5px solid var(--tbl-ink)' }}>
-          {[
-            { label: 'Fighter', align: 'left' as const },
-            { label: 'Weight', align: 'left' as const },
-            { label: 'Rec', align: 'right' as const },
-            { label: 'WAR', align: 'right' as const },
-            { label: 'NPPR', align: 'right' as const },
-            { label: 'Net', align: 'right' as const },
-          ].map((h) => (
-            <th
-              key={h.label}
-              style={{
-                textAlign: h.align,
-                padding: '6px 6px',
-                fontWeight: 700,
-                letterSpacing: '0.12em',
-                fontSize: 10,
-                textTransform: 'uppercase',
-                color: 'var(--tbl-ink-soft)',
-              }}
-            >
-              {h.label}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {sorted.map((f) => (
-          <tr key={f.slug} style={{ borderBottom: '1px dotted rgba(20,17,11,0.3)' }}>
-            <td
-              style={{
-                padding: '9px 6px',
-                fontFamily: 'var(--tbl-font-serif)',
-                fontSize: 14,
-                fontWeight: 700,
-              }}
-            >
-              <Link
-                href={`/fighters/${f.slug}`}
-                style={{ color: 'var(--tbl-accent)', textDecoration: 'none' }}
-              >
-                {f.name}
-              </Link>
-            </td>
-            <td style={{ padding: '9px 6px', color: 'var(--tbl-ink-soft)' }}>
-              {f.weightClass}
-            </td>
-            <td style={{ padding: '9px 6px', textAlign: 'right', fontWeight: 600 }}>
-              {f.record}
-            </td>
-            <td
-              style={{
-                padding: '9px 6px',
-                textAlign: 'right',
-                fontWeight: 700,
-                color: 'var(--tbl-accent)',
-              }}
-            >
-              {f.war.toFixed(2)}
-            </td>
-            <td style={{ padding: '9px 6px', textAlign: 'right' }}>{f.nppr.toFixed(2)}</td>
-            <td
-              style={{
-                padding: '9px 6px',
-                textAlign: 'right',
-                color: f.netPts >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)',
-              }}
-            >
-              {f.netPts >= 0 ? '+' : ''}
-              {f.netPts.toFixed(0)}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
 
 export default async function TeamPage({
   params,
@@ -494,7 +402,7 @@ export default async function TeamPage({
             borderRight: '1px solid rgba(20,17,11,0.2)',
           }}
         >
-          <SectionRule left="Roster · 2026 Season" right="Sorted by WAR" />
+          <SectionRule left="Roster · 2026 Season" right="Click any column to sort" />
           {roster.length > 0 ? (
             <RosterTable fighters={roster} />
           ) : (
