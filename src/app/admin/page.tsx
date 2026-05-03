@@ -1,5 +1,5 @@
 // src/app/admin/page.tsx
-import { getAllData, extractUniqueMatches } from '@/lib/data';
+import { getAllData } from '@/lib/data';
 import { createClient as createSupabaseClient, type SupabaseClient } from '@supabase/supabase-js';
 import { safeQuery } from '@/lib/supabase/safe';
 import { AdminClient } from './AdminClient';
@@ -22,33 +22,12 @@ interface AdminProfileRow {
 
 export default async function AdminPage() {
   const sheetData = await getAllData();
-  const uniqueMatches = extractUniqueMatches(sheetData.teamMatches);
   const schedule = sheetData.schedule;
 
-  // Include every scheduled match with an index. The admin needs visibility
-  // into completed matches too (to resolve, or to unresolve after a sheet
-  // score correction). The UI splits them by `isCompleted` into Completed vs
-  // Upcoming sections — a match is treated as completed if either the
-  // Schedule tab marks it Completed, or a result row exists in the Data tab.
-  const upcomingMatchList = schedule
+  // matchIndex → week mapping is the only thing the picks table filter needs.
+  const matchList = schedule
     .filter((s) => s.matchIndex !== undefined)
-    .map((s) => {
-      const result = uniqueMatches.find((m) => m.matchIndex === s.matchIndex);
-      const scheduleCompleted = (s.status ?? '').toLowerCase() === 'completed';
-      return {
-        matchIndex: s.matchIndex!,
-        week: s.week,
-        date: s.date,
-        team1: s.team1,
-        team2: s.team2,
-        status: s.status,
-        hasResult: !!result,
-        isCompleted: !!result || scheduleCompleted,
-        score1: result?.score1 ?? null,
-        score2: result?.score2 ?? null,
-        winner: result ? (result.result === 'W' ? result.team1 : result.team2) : null,
-      };
-    })
+    .map((s) => ({ matchIndex: s.matchIndex!, week: s.week }))
     .sort((a, b) => a.matchIndex - b.matchIndex);
 
   // Guard service-role client construction so missing env vars can't crash
@@ -121,5 +100,5 @@ export default async function AdminPage() {
     };
   });
 
-  return <AdminClient matches={upcomingMatchList} picks={picks} dbError={dbError} dbDebug={dbDebug} />;
+  return <AdminClient matches={matchList} picks={picks} dbError={dbError} dbDebug={dbDebug} />;
 }
