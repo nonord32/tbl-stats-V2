@@ -58,13 +58,13 @@ function aiSelect(
   if (needIdx >= 0) {
     const bucket = SLOT_BUCKETS[needIdx];
     const eligible = available.filter((f) => bucket.matches(f));
-    if (eligible.length > 0) return eligible[0]; // already projected-sorted
+    if (eligible.length > 0) return eligible[0]; // already best-first
   }
   // Otherwise best available
   return available[0];
 }
 
-type SortKey = 'projected' | 'avg' | 'owned' | 'name';
+type SortKey = 'avg' | 'owned' | 'name';
 
 export function DraftRoom({
   pool,
@@ -81,7 +81,7 @@ export function DraftRoom({
   const [search, setSearch] = useState('');
   const [classFilter, setClassFilter] = useState('');
   const [genderFilter, setGenderFilter] = useState('');
-  const [sortKey, setSortKey] = useState<SortKey>('projected');
+  const [sortKey, setSortKey] = useState<SortKey>('avg');
 
   const totalPicks = teams.length * rounds;
   const currentPickNumber = picks.length + 1;
@@ -116,11 +116,10 @@ export function DraftRoom({
       })
       .sort((a, b) => {
         switch (sortKey) {
-          case 'avg':       return b.avg - a.avg;
           case 'owned':     return b.owned - a.owned;
           case 'name':      return a.name.localeCompare(b.name);
-          case 'projected':
-          default:          return b.projected - a.projected;
+          case 'avg':
+          default:          return b.avg - a.avg;
         }
       });
   }, [pool, draftedIds, search, classFilter, genderFilter, sortKey]);
@@ -408,7 +407,6 @@ export function DraftRoom({
                 value={sortKey}
                 onChange={(e) => setSortKey(e.target.value as SortKey)}
               >
-                <option value="projected">Sort: Projected</option>
                 <option value="avg">Sort: Season avg</option>
                 <option value="owned">Sort: Ownership</option>
                 <option value="name">Sort: Name</option>
@@ -421,7 +419,6 @@ export function DraftRoom({
                     <th className="fv2-col-left">Fighter</th>
                     <th className="fv2-col-left">Team</th>
                     <th className="fv2-col-left">Class</th>
-                    <th>Proj</th>
                     <th>Avg</th>
                     <th>Own%</th>
                     <th>Action</th>
@@ -439,7 +436,6 @@ export function DraftRoom({
                       <td className="fv2-col-left" style={{ color: 'var(--fv2-text-3)' }}>
                         {f.weightClass}
                       </td>
-                      <td>{f.projected.toFixed(1)}</td>
                       <td>{f.avg.toFixed(1)}</td>
                       <td>{f.owned}%</td>
                       <td>
@@ -458,7 +454,7 @@ export function DraftRoom({
                   ))}
                   {availableSorted.length === 0 && (
                     <tr>
-                      <td colSpan={7} style={{ padding: 24, textAlign: 'center', color: 'var(--fv2-text-3)' }}>
+                      <td colSpan={6} style={{ padding: 24, textAlign: 'center', color: 'var(--fv2-text-3)' }}>
                         No fighters match your filters.
                       </td>
                     </tr>

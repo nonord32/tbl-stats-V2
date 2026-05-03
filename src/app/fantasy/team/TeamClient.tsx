@@ -88,13 +88,6 @@ function initials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-function formatDelta(delta: number | null): { text: string; cls: string } {
-  if (delta === null) return { text: '—', cls: '' };
-  if (delta > 0) return { text: `+${delta.toFixed(1)}`, cls: 'fv2-delta--positive' };
-  if (delta < 0) return { text: delta.toFixed(1), cls: 'fv2-delta--negative' };
-  return { text: '0.0', cls: '' };
-}
-
 function formatNextLock(ts: number, now: number): string {
   const diff = ts - now;
   if (diff <= 0) return 'now';
@@ -167,10 +160,6 @@ export function TeamClient({
     .filter((ts) => ts > now)
     .sort((a, b) => a - b)[0];
 
-  const totalProjected = lineup.reduce(
-    (sum, row) => sum + (row.fighter?.projected ?? 0),
-    0
-  );
   const totalScore = lineup.reduce(
     (sum, row) => sum + (row.fighter?.weekScore ?? 0),
     0
@@ -403,12 +392,10 @@ export function TeamClient({
 
       {/* Stat strip */}
       <section className="fv2-section">
-        <div className="fv2-stat-grid">
-          <div className="fv2-stat">
-            <div className="fv2-stat__label">Projected</div>
-            <div className="fv2-stat__value">{totalProjected.toFixed(1)}</div>
-            <div className="fv2-stat__hint">7 starters</div>
-          </div>
+        <div
+          className="fv2-stat-grid"
+          style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}
+        >
           <div className="fv2-stat">
             <div className="fv2-stat__label">Score so far</div>
             <div className="fv2-stat__value fv2-stat__value--accent">
@@ -449,7 +436,7 @@ export function TeamClient({
             <thead>
               <tr className="fv2-roster__group-row">
                 <th colSpan={3} className="fv2-col-left">Starters</th>
-                <th colSpan={5}>Week {week}</th>
+                <th colSpan={3}>Week {week}</th>
                 <th colSpan={3}>Season</th>
               </tr>
               <tr className="fv2-roster__col-row">
@@ -458,9 +445,7 @@ export function TeamClient({
                 <th>Action</th>
                 <th>Opp</th>
                 <th>Status</th>
-                <th>Proj</th>
                 <th>Score</th>
-                <th>+/-</th>
                 <th>Fpts</th>
                 <th>Avg</th>
                 <th>Last</th>
@@ -477,11 +462,6 @@ export function TeamClient({
                 const eligibleBench = bench.filter((b) => slotEligible(slot, b));
                 const swappableBench = eligibleBench.filter((b) => !isLocked(b, now));
                 const canSwap = !resolved && !locked && swappableBench.length > 0;
-                const delta =
-                  f && f.weekScore !== null
-                    ? Number((f.weekScore - f.projected).toFixed(1))
-                    : null;
-                const deltaFmt = formatDelta(delta);
 
                 return (
                   <Fragment key={slot}>
@@ -545,11 +525,9 @@ export function TeamClient({
                       </td>
                       <td>{f?.opp ?? 'BYE'}</td>
                       <td>{f ? <StatusPill status={f.status} /> : '—'}</td>
-                      <td>{f ? f.projected.toFixed(1) : '—'}</td>
                       <td>
                         {f && f.weekScore !== null ? f.weekScore.toFixed(1) : '—'}
                       </td>
-                      <td className={deltaFmt.cls}>{deltaFmt.text}</td>
                       <td>{f ? f.seasonFpts.toFixed(1) : '—'}</td>
                       <td>{f ? f.avg.toFixed(1) : '—'}</td>
                       <td>
@@ -558,7 +536,7 @@ export function TeamClient({
                     </tr>
                     {isOpen && f && (
                       <tr>
-                        <td colSpan={11} style={{ padding: 0 }}>
+                        <td colSpan={9} style={{ padding: 0 }}>
                           <div className="fv2-swap-tray">
                             <div className="fv2-swap-tray__head">
                               Eligible bench fighters
@@ -576,7 +554,7 @@ export function TeamClient({
                               <div className="fv2-swap-grid">
                                 {swappableBench
                                   .slice()
-                                  .sort((a, b) => b.projected - a.projected)
+                                  .sort((a, b) => b.avg - a.avg)
                                   .map((b) => (
                                     <button
                                       key={b.id}
@@ -592,7 +570,7 @@ export function TeamClient({
                                         {b.team} · {b.weightClass}
                                       </div>
                                       <div className="fv2-swap-card__proj">
-                                        Proj {b.projected.toFixed(1)}
+                                        Avg {b.avg.toFixed(1)}
                                       </div>
                                     </button>
                                   ))}
@@ -610,9 +588,7 @@ export function TeamClient({
                 <td>—</td>
                 <td>—</td>
                 <td>—</td>
-                <td>{totalProjected.toFixed(1)}</td>
                 <td>{anyScored ? totalScore.toFixed(1) : '—'}</td>
-                <td>—</td>
                 <td>{totalFpts.toFixed(1)}</td>
                 <td>{totalAvg.toFixed(1)}</td>
                 <td>—</td>
@@ -643,7 +619,6 @@ export function TeamClient({
                   <th className="fv2-col-left">Player</th>
                   <th>Opp</th>
                   <th>Status</th>
-                  <th>Proj</th>
                   <th>Score</th>
                   <th>Fpts</th>
                   <th>Avg</th>
@@ -653,7 +628,7 @@ export function TeamClient({
               <tbody>
                 {bench
                   .slice()
-                  .sort((a, b) => b.projected - a.projected)
+                  .sort((a, b) => b.avg - a.avg)
                   .map((b) => {
                     const benchLocked = isLocked(b, now);
                     return (
@@ -681,7 +656,6 @@ export function TeamClient({
                         <td>
                           <StatusPill status={b.status} />
                         </td>
-                        <td>{b.projected.toFixed(1)}</td>
                         <td>
                           {b.weekScore !== null ? b.weekScore.toFixed(1) : '—'}
                         </td>

@@ -49,7 +49,7 @@ export async function POST(request: Request) {
   // sheet data layer, not Supabase.
   const data = await getAllData();
   // Re-derive a FantasyFighter-shaped pool the same way fantasyData does.
-  // (We don't need projected/owned/etc. for scoring — only id + name —
+  // (We don't need owned/etc. for scoring — only id + name —
   // so a slim shape would do, but reusing the full pool keeps the helper
   // signature consistent.)
   const minimalPool = data.fighters.map((f) => ({
@@ -59,7 +59,6 @@ export async function POST(request: Request) {
     city: f.team,
     weightClass: f.weightClass,
     gender: (f.gender === 'Female' ? 'Female' : 'Male') as 'Female' | 'Male',
-    projected: 0,
     avg: 0,
     owned: 0,
     status: 'active' as const,

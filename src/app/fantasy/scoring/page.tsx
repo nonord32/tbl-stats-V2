@@ -60,7 +60,6 @@ export default async function FantasyScoringPage() {
     city: f.team,
     weightClass: f.weightClass,
     gender: (f.gender === 'Female' ? 'Female' : 'Male') as 'Female' | 'Male',
-    projected: 0,
     avg: 0,
     owned: 0,
     status: 'active' as const,

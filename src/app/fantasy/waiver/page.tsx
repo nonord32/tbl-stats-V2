@@ -27,7 +27,7 @@ const PENDING_CLAIMS = [
 
 export default async function FantasyWaiverPage() {
   const { freeAgents } = await getFantasyData();
-  const FREE_AGENTS = [...freeAgents].sort((a, b) => b.projected - a.projected);
+  const FREE_AGENTS = [...freeAgents].sort((a, b) => b.avg - a.avg);
 
   return (
     <div className="fv2-body">
@@ -110,7 +110,7 @@ export default async function FantasyWaiverPage() {
           <span className="fv2-section-head__title">
             Available · {FREE_AGENTS.length} free agents
           </span>
-          <span className="fv2-section-head__meta">sorted by projected</span>
+          <span className="fv2-section-head__meta">sorted by season avg</span>
         </div>
         <div className="fv2-filters">
           <input className="fv2-input" placeholder="Search…" />
@@ -130,7 +130,6 @@ export default async function FantasyWaiverPage() {
                 <th className="fv2-col-left">Fighter</th>
                 <th className="fv2-col-left">Team</th>
                 <th className="fv2-col-left">Class</th>
-                <th>Proj</th>
                 <th>Avg</th>
                 <th>Owned</th>
                 <th>Action</th>
@@ -148,7 +147,6 @@ export default async function FantasyWaiverPage() {
                   <td className="fv2-col-left" style={{ color: 'var(--fv2-text-3)' }}>
                     {f.weightClass}
                   </td>
-                  <td>{f.projected.toFixed(1)}</td>
                   <td>{f.avg.toFixed(1)}</td>
                   <td>{f.owned}%</td>
                   <td>

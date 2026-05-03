@@ -40,7 +40,6 @@ export interface FantasyFighter {
   city: string;
   weightClass: string;
   gender: 'Male' | 'Female';
-  projected: number;   // projected fantasy points this event
   avg: number;         // season avg fantasy points
   owned: number;       // % of leagues that own this fighter
   status: 'active' | 'questionable' | 'out' | 'free';
@@ -99,30 +98,30 @@ export interface ScoringRow {
 
 // ── Fighter pool ────────────────────────────────────────────────────────────
 export const POOL: FantasyFighter[] = [
-  { id: 'f01', name: 'Kye Brooks',      team: 'NYC Attitude',      city: 'NYC',          weightClass: 'Lightweight',         gender: 'Male',   projected: 9.4, avg: 8.6,  owned: 99, status: 'active' },
-  { id: 'f02', name: 'Marcus Valdez',   team: 'NYC Attitude',      city: 'NYC',          weightClass: 'Welterweight',        gender: 'Male',   projected: 7.2, avg: 6.9,  owned: 98, status: 'active' },
-  { id: 'f03', name: 'Jordan Reyes',    team: 'Boston Butchers',   city: 'Boston',       weightClass: 'Middleweight',        gender: 'Male',   projected: 6.8, avg: 6.4,  owned: 96, status: 'active' },
-  { id: 'f04', name: 'Declan O’Hara',  team: 'Dallas Enforcers',  city: 'Dallas',       weightClass: 'Heavyweight',         gender: 'Male',   projected: 5.9, avg: 5.7,  owned: 92, status: 'active' },
-  { id: 'f05', name: 'Isaiah Crane',    team: 'Las Vegas Hustle',  city: 'Las Vegas',    weightClass: 'Lightweight',         gender: 'Male',   projected: 5.6, avg: 5.4,  owned: 88, status: 'questionable' },
-  { id: 'f06', name: 'Amani Okafor',    team: 'NYC Attitude',      city: 'NYC',          weightClass: 'Featherweight',       gender: 'Male',   projected: 5.4, avg: 5.1,  owned: 84, status: 'active' },
-  { id: 'f07', name: 'Luca Bianchi',    team: 'Miami Assassins',   city: 'Miami',        weightClass: 'Welterweight',        gender: 'Male',   projected: 4.9, avg: 4.7,  owned: 79, status: 'active' },
-  { id: 'f08', name: 'Nia Thompson',    team: 'Atlanta Attack',    city: 'Atlanta',      weightClass: 'Featherweight',       gender: 'Female', projected: 5.2, avg: 4.8,  owned: 91, status: 'active' },
-  { id: 'f09', name: 'Rafael Silva',    team: 'Dallas Enforcers',  city: 'Dallas',       weightClass: 'Middleweight',        gender: 'Male',   projected: 4.6, avg: 4.3,  owned: 71, status: 'active' },
-  { id: 'f10', name: 'Jalen Wright',    team: 'Houston Hitmen',    city: 'Houston',      weightClass: 'Heavyweight',         gender: 'Male',   projected: 4.0, avg: 3.9,  owned: 65, status: 'active' },
-  { id: 'f11', name: 'Briana Carrera',  team: 'Dallas Enforcers',  city: 'Dallas',       weightClass: 'Super Lightweight',   gender: 'Female', projected: 4.4, avg: 4.0,  owned: 73, status: 'active' },
-  { id: 'f12', name: 'Tariq Whitaker',  team: 'NYC Attitude',      city: 'NYC',          weightClass: 'Super Welterweight',  gender: 'Male',   projected: 4.2, avg: 3.8,  owned: 60, status: 'active' },
-  { id: 'f13', name: 'Money Powell',    team: 'Atlanta Attack',    city: 'Atlanta',      weightClass: 'Light Heavyweight',   gender: 'Male',   projected: 5.1, avg: 4.7,  owned: 70, status: 'active' },
-  { id: 'f14', name: 'Ariele Davis',    team: 'Atlanta Attack',    city: 'Atlanta',      weightClass: 'Super Lightweight',   gender: 'Female', projected: 4.3, avg: 4.0,  owned: 68, status: 'active' },
-  { id: 'f15', name: 'Yosidel Napoles', team: 'Miami Assassins',   city: 'Miami',        weightClass: 'Lightweight',         gender: 'Male',   projected: 4.7, avg: 4.4,  owned: 81, status: 'active' },
-  { id: 'f16', name: 'Erika Voss',      team: 'Los Angeles Elite', city: 'Los Angeles',  weightClass: 'Bantamweight',        gender: 'Female', projected: 3.9, avg: 3.6,  owned: 52, status: 'active' },
-  { id: 'f17', name: 'Connor Mulligan', team: 'Boston Butchers',   city: 'Boston',       weightClass: 'Lightweight',         gender: 'Male',   projected: 3.4, avg: 3.2,  owned: 41, status: 'active' },
-  { id: 'f18', name: 'Tomás Arnaud',    team: 'NYC Attitude',      city: 'NYC',          weightClass: 'Middleweight',        gender: 'Male',   projected: 3.7, avg: 3.5,  owned: 47, status: 'active' },
-  { id: 'f19', name: 'Eli Whelan',      team: 'Boston Butchers',   city: 'Boston',       weightClass: 'Light Heavyweight',   gender: 'Male',   projected: 3.0, avg: 2.8,  owned: 33, status: 'free' },
-  { id: 'f20', name: 'Jeovanny Estela', team: 'Miami Assassins',   city: 'Miami',        weightClass: 'Middleweight',        gender: 'Male',   projected: 3.2, avg: 3.0,  owned: 38, status: 'free' },
-  { id: 'f21', name: 'Kayla Ortiz',     team: 'Atlanta Attack',    city: 'Atlanta',      weightClass: 'Bantamweight',        gender: 'Female', projected: 3.1, avg: 2.9,  owned: 27, status: 'free' },
-  { id: 'f22', name: 'Rashad Pierre',   team: 'Philadelphia Smoke',city: 'Philadelphia', weightClass: 'Featherweight',       gender: 'Male',   projected: 2.8, avg: 2.6,  owned: 18, status: 'free' },
-  { id: 'f23', name: 'Tierra Volk',     team: 'Phoenix Fury',      city: 'Phoenix',      weightClass: 'Featherweight',       gender: 'Female', projected: 2.6, avg: 2.4,  owned: 11, status: 'free' },
-  { id: 'f24', name: 'Sami Pereira',    team: 'NYC Attitude',      city: 'NYC',          weightClass: 'Light Heavyweight',   gender: 'Male',   projected: 3.5, avg: 3.3,  owned: 44, status: 'out' },
+  { id: 'f01', name: 'Kye Brooks',      team: 'NYC Attitude',      city: 'NYC',          weightClass: 'Lightweight',         gender: 'Male',   avg: 8.6,  owned: 99, status: 'active' },
+  { id: 'f02', name: 'Marcus Valdez',   team: 'NYC Attitude',      city: 'NYC',          weightClass: 'Welterweight',        gender: 'Male',   avg: 6.9,  owned: 98, status: 'active' },
+  { id: 'f03', name: 'Jordan Reyes',    team: 'Boston Butchers',   city: 'Boston',       weightClass: 'Middleweight',        gender: 'Male',   avg: 6.4,  owned: 96, status: 'active' },
+  { id: 'f04', name: 'Declan O’Hara',  team: 'Dallas Enforcers',  city: 'Dallas',       weightClass: 'Heavyweight',         gender: 'Male',   avg: 5.7,  owned: 92, status: 'active' },
+  { id: 'f05', name: 'Isaiah Crane',    team: 'Las Vegas Hustle',  city: 'Las Vegas',    weightClass: 'Lightweight',         gender: 'Male',   avg: 5.4,  owned: 88, status: 'questionable' },
+  { id: 'f06', name: 'Amani Okafor',    team: 'NYC Attitude',      city: 'NYC',          weightClass: 'Featherweight',       gender: 'Male',   avg: 5.1,  owned: 84, status: 'active' },
+  { id: 'f07', name: 'Luca Bianchi',    team: 'Miami Assassins',   city: 'Miami',        weightClass: 'Welterweight',        gender: 'Male',   avg: 4.7,  owned: 79, status: 'active' },
+  { id: 'f08', name: 'Nia Thompson',    team: 'Atlanta Attack',    city: 'Atlanta',      weightClass: 'Featherweight',       gender: 'Female', avg: 4.8,  owned: 91, status: 'active' },
+  { id: 'f09', name: 'Rafael Silva',    team: 'Dallas Enforcers',  city: 'Dallas',       weightClass: 'Middleweight',        gender: 'Male',   avg: 4.3,  owned: 71, status: 'active' },
+  { id: 'f10', name: 'Jalen Wright',    team: 'Houston Hitmen',    city: 'Houston',      weightClass: 'Heavyweight',         gender: 'Male',   avg: 3.9,  owned: 65, status: 'active' },
+  { id: 'f11', name: 'Briana Carrera',  team: 'Dallas Enforcers',  city: 'Dallas',       weightClass: 'Super Lightweight',   gender: 'Female', avg: 4.0,  owned: 73, status: 'active' },
+  { id: 'f12', name: 'Tariq Whitaker',  team: 'NYC Attitude',      city: 'NYC',          weightClass: 'Super Welterweight',  gender: 'Male',   avg: 3.8,  owned: 60, status: 'active' },
+  { id: 'f13', name: 'Money Powell',    team: 'Atlanta Attack',    city: 'Atlanta',      weightClass: 'Light Heavyweight',   gender: 'Male',   avg: 4.7,  owned: 70, status: 'active' },
+  { id: 'f14', name: 'Ariele Davis',    team: 'Atlanta Attack',    city: 'Atlanta',      weightClass: 'Super Lightweight',   gender: 'Female', avg: 4.0,  owned: 68, status: 'active' },
+  { id: 'f15', name: 'Yosidel Napoles', team: 'Miami Assassins',   city: 'Miami',        weightClass: 'Lightweight',         gender: 'Male',   avg: 4.4,  owned: 81, status: 'active' },
+  { id: 'f16', name: 'Erika Voss',      team: 'Los Angeles Elite', city: 'Los Angeles',  weightClass: 'Bantamweight',        gender: 'Female', avg: 3.6,  owned: 52, status: 'active' },
+  { id: 'f17', name: 'Connor Mulligan', team: 'Boston Butchers',   city: 'Boston',       weightClass: 'Lightweight',         gender: 'Male',   avg: 3.2,  owned: 41, status: 'active' },
+  { id: 'f18', name: 'Tomás Arnaud',    team: 'NYC Attitude',      city: 'NYC',          weightClass: 'Middleweight',        gender: 'Male',   avg: 3.5,  owned: 47, status: 'active' },
+  { id: 'f19', name: 'Eli Whelan',      team: 'Boston Butchers',   city: 'Boston',       weightClass: 'Light Heavyweight',   gender: 'Male',   avg: 2.8,  owned: 33, status: 'free' },
+  { id: 'f20', name: 'Jeovanny Estela', team: 'Miami Assassins',   city: 'Miami',        weightClass: 'Middleweight',        gender: 'Male',   avg: 3.0,  owned: 38, status: 'free' },
+  { id: 'f21', name: 'Kayla Ortiz',     team: 'Atlanta Attack',    city: 'Atlanta',      weightClass: 'Bantamweight',        gender: 'Female', avg: 2.9,  owned: 27, status: 'free' },
+  { id: 'f22', name: 'Rashad Pierre',   team: 'Philadelphia Smoke',city: 'Philadelphia', weightClass: 'Featherweight',       gender: 'Male',   avg: 2.6,  owned: 18, status: 'free' },
+  { id: 'f23', name: 'Tierra Volk',     team: 'Phoenix Fury',      city: 'Phoenix',      weightClass: 'Featherweight',       gender: 'Female', avg: 2.4,  owned: 11, status: 'free' },
+  { id: 'f24', name: 'Sami Pereira',    team: 'NYC Attitude',      city: 'NYC',          weightClass: 'Light Heavyweight',   gender: 'Male',   avg: 3.3,  owned: 44, status: 'out' },
 ];
 
 export function findFighter(id: string): FantasyFighter {

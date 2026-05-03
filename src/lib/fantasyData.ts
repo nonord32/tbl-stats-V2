@@ -4,7 +4,7 @@
 // FantasyFighter shape our /fantasy preview pages render.
 //
 // Real fields:        name, team, weightClass, gender, season stats
-// Synthesized fields: projected (NPPR + small bias), avg (NPPR), owned %
+// Synthesized fields: avg (NPPR), owned %
 //                     (percentile of net points), status (active),
 //                     lineup matchup labels, recent-pick attribution.
 //
@@ -45,10 +45,6 @@ function fighterMatchesAny(f: FighterStat, classes: string[]): boolean {
 
 function toFantasyFighter(f: FighterStat, percentile: number): FantasyFighter {
   const avg = Number.isFinite(f.nppr) ? Math.max(0, f.nppr) : 0;
-  // "Projected" for the next event = season avg (NPPR) plus a tiny shooter's
-  // bias (~10%). Fully synthesized — replace with a real projection model
-  // once one exists.
-  const projected = +(avg * 1.1).toFixed(1);
   // Synthesize ownership %: top fighter ~99%, bottom ~5%, scaled by their
   // net-points percentile. Pure mock until a "rostered_in_n_leagues" feed
   // exists.
@@ -61,7 +57,6 @@ function toFantasyFighter(f: FighterStat, percentile: number): FantasyFighter {
     city: getCityName(f.team),
     weightClass: splitClasses(f.weightClass)[0] || 'Unknown',
     gender,
-    projected,
     avg: +avg.toFixed(1),
     owned,
     status: 'active',
@@ -125,7 +120,7 @@ export async function getFantasyData(): Promise<FantasyData> {
   const data = await getAllData();
   const fighters = data.fighters.filter((f) => f.rounds > 0); // require ≥1 bout
 
-  // Rank by net points to drive ownership %, projected ordering, etc.
+  // Rank by net points to drive ownership % + draft ordering.
   const byNet = [...fighters].sort((a, b) => b.netPts - a.netPts);
   const total = byNet.length || 1;
 
@@ -232,7 +227,7 @@ export async function getFantasyData(): Promise<FantasyData> {
     otherOwned.add(f.id);
   }
 
-  // Recent picks: the seven highest-projected fighters who are owned by
+  // Recent picks: the seven highest-ranked fighters who are owned by
   // someone else. We attribute them to mock teams in round 3 of the draft.
   const recentPicksSrc = pool.filter(
     (f) => !myRosterIds.has(f.id) && otherOwned.has(f.id)
@@ -463,11 +458,11 @@ function deterministicShuffle<T>(arr: T[], seed: number): T[] {
 }
 
 /** Auto-pick the best lineup of 7 starters from a roster, matching slot
- *  eligibility rules. FLEX slots take whoever's left (highest projected). */
+ *  eligibility rules. FLEX slots take whoever's left (highest season avg). */
 function pickStarters(roster: FantasyFighter[]): FantasyFighter[] {
   const taken = new Set<string>();
   const result: FantasyFighter[] = [];
-  const sorted = [...roster].sort((a, b) => b.projected - a.projected);
+  const sorted = [...roster].sort((a, b) => b.avg - a.avg);
   const RULES: ((f: FantasyFighter) => boolean)[] = [
     (f) => f.gender === 'Female' && FEMALE_FANTASY_CLASSES.has(f.weightClass),
     (f) => f.gender === 'Male' && ['Featherweight', 'Lightweight'].includes(f.weightClass),
