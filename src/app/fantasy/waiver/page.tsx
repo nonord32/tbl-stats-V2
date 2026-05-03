@@ -1,6 +1,7 @@
 // src/app/fantasy/waiver/page.tsx
 // Free agents come from real TBL data via getFantasyData(); pending
-// claims, priority order, and processing window are mock.
+// claims, priority order, and processing window are mock until Stage 4
+// (FAAB waivers) ships.
 import { getFantasyData } from '@/lib/fantasyData';
 
 export const dynamic = 'force-dynamic';
@@ -27,128 +28,140 @@ const PENDING_CLAIMS = [
 export default async function FantasyWaiverPage() {
   const { freeAgents } = await getFantasyData();
   const FREE_AGENTS = [...freeAgents].sort((a, b) => b.projected - a.projected);
-  return (
-    <>
-      <div className="fantasy-hero fantasy-hero--compact">
-        <div>
-          <div className="tbl-eyebrow" style={{ color: 'var(--tbl-accent-bright)' }}>
-            Waiver Wire
-          </div>
-          <div className="tbl-display fantasy-hero__title">Free Agents</div>
-          <div className="fantasy-hero__sub">
-            Claims process Wed 3:00 AM ET · Your priority: #4 of 10
-          </div>
-        </div>
-        <div className="fantasy-hero__stats">
-          <div>
-            <div className="fantasy-hero__stat-label">Pending</div>
-            <div className="tbl-display fantasy-hero__stat-value">
-              {PENDING_CLAIMS.length}
-            </div>
-          </div>
-          <div>
-            <div className="fantasy-hero__stat-label">Priority</div>
-            <div className="tbl-display fantasy-hero__stat-value">#4</div>
-          </div>
-        </div>
-      </div>
 
-      <div className="fantasy-body">
-        {/* Pending claims */}
-        <section className="fantasy-section">
-          <div className="tbl-section-rule">
-            <span>My Pending Claims</span>
-            <span>Drag to reorder priority</span>
+  return (
+    <div className="fv2-body">
+      {/* Hero */}
+      <section className="fv2-hero">
+        <div className="fv2-hero__eyebrow">Waiver Wire · Mock</div>
+        <div className="fv2-hero__title">Free Agents</div>
+        <div className="fv2-hero__sub">
+          Claims process <strong>Wed 3:00 AM ET</strong> · Your priority{' '}
+          <strong>#4 of 10</strong>
+        </div>
+      </section>
+
+      {/* Stat strip */}
+      <section className="fv2-section">
+        <div className="fv2-stat-grid">
+          <div className="fv2-stat">
+            <div className="fv2-stat__label">Pending</div>
+            <div className="fv2-stat__value">{PENDING_CLAIMS.length}</div>
+            <div className="fv2-stat__hint">claims queued</div>
           </div>
-          {PENDING_CLAIMS.length === 0 ? (
-            <div className="fantasy-empty">No pending claims.</div>
-          ) : (
-            <div className="fantasy-claims">
-              {PENDING_CLAIMS.map((c, i) => (
-                <div key={c.fighter} className="fantasy-claim-row">
-                  <div className="fantasy-claim-row__order">{i + 1}</div>
-                  <div className="fantasy-claim-row__body">
-                    <div className="fantasy-claim-row__heading">
-                      <span className="fantasy-claim-row__add">+ {c.fighter}</span>
-                      <span className="fantasy-claim-row__sep">/</span>
-                      <span className="fantasy-claim-row__drop">– {c.drop}</span>
-                    </div>
-                    <div className="fantasy-claim-row__meta">
-                      {c.weightClass} · {c.team} · processes {c.processes}
-                    </div>
+          <div className="fv2-stat">
+            <div className="fv2-stat__label">Priority</div>
+            <div className="fv2-stat__value">#4</div>
+            <div className="fv2-stat__hint">of 10 teams</div>
+          </div>
+          <div className="fv2-stat">
+            <div className="fv2-stat__label">Available</div>
+            <div className="fv2-stat__value">{FREE_AGENTS.length}</div>
+            <div className="fv2-stat__hint">free agents</div>
+          </div>
+          <div className="fv2-stat">
+            <div className="fv2-stat__label">Process</div>
+            <div className="fv2-stat__value fv2-stat__value--accent">3 AM</div>
+            <div className="fv2-stat__hint">Wednesday ET</div>
+          </div>
+        </div>
+      </section>
+
+      {/* Pending claims */}
+      <section className="fv2-section">
+        <div className="fv2-section-head">
+          <span className="fv2-section-head__title">My pending claims</span>
+          <span className="fv2-section-head__meta">drag to reorder priority</span>
+        </div>
+        {PENDING_CLAIMS.length === 0 ? (
+          <div className="fv2-empty">No pending claims.</div>
+        ) : (
+          <div>
+            {PENDING_CLAIMS.map((c, i) => (
+              <div key={c.fighter} className="fv2-claim-row">
+                <div className="fv2-claim-row__order">{i + 1}</div>
+                <div className="fv2-claim-row__body">
+                  <div className="fv2-claim-row__heading">
+                    <span className="fv2-claim-row__add">+ {c.fighter}</span>
+                    <span className="fv2-claim-row__sep">/</span>
+                    <span className="fv2-claim-row__drop">– {c.drop}</span>
                   </div>
-                  <div className="fantasy-claim-row__actions">
-                    <button className="fantasy-btn fantasy-btn--ghost" type="button">
-                      Edit
-                    </button>
-                    <button
-                      className="fantasy-btn fantasy-btn--ghost"
-                      type="button"
-                      style={{ color: 'var(--tbl-red)', borderColor: 'var(--tbl-red)' }}
-                    >
-                      Cancel
-                    </button>
+                  <div className="fv2-claim-row__meta">
+                    {c.weightClass} · {c.team} · processes {c.processes}
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </section>
+                <div className="fv2-claim-row__actions">
+                  <button className="fv2-action-btn" type="button">
+                    Edit
+                  </button>
+                  <button className="fv2-action-btn" type="button">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
-        {/* Free agent pool */}
-        <section className="fantasy-section">
-          <div className="tbl-section-rule">
-            <span>Available · {FREE_AGENTS.length} free agents</span>
-            <span>Sorted by Projected</span>
-          </div>
-          <div className="fantasy-draft-filters">
-            <input className="fantasy-input" placeholder="Search…" />
-            <select className="fantasy-select">
-              <option>All weights</option>
-              <option>Featherweight</option>
-              <option>Lightweight</option>
-              <option>Middleweight</option>
-              <option>Light Heavyweight</option>
-              <option>Bantamweight</option>
-            </select>
-          </div>
-          <div className="fantasy-table-wrap">
-            <table className="fantasy-table">
-              <thead>
-                <tr>
-                  <th>Fighter</th>
-                  <th>Team</th>
-                  <th>Class</th>
-                  <th className="num">Proj</th>
-                  <th className="num">Avg</th>
-                  <th className="num">Action</th>
+      {/* Free agent pool */}
+      <section className="fv2-section">
+        <div className="fv2-section-head">
+          <span className="fv2-section-head__title">
+            Available · {FREE_AGENTS.length} free agents
+          </span>
+          <span className="fv2-section-head__meta">sorted by projected</span>
+        </div>
+        <div className="fv2-filters">
+          <input className="fv2-input" placeholder="Search…" />
+          <select className="fv2-select">
+            <option>All weights</option>
+            <option>Featherweight</option>
+            <option>Lightweight</option>
+            <option>Middleweight</option>
+            <option>Light Heavyweight</option>
+            <option>Bantamweight</option>
+          </select>
+        </div>
+        <div className="fv2-table-wrap">
+          <table className="fv2-table">
+            <thead>
+              <tr>
+                <th className="fv2-col-left">Fighter</th>
+                <th className="fv2-col-left">Team</th>
+                <th className="fv2-col-left">Class</th>
+                <th>Proj</th>
+                <th>Avg</th>
+                <th>Owned</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {FREE_AGENTS.map((f) => (
+                <tr key={f.id}>
+                  <td className="fv2-col-left">
+                    <span className="fv2-table__name">{f.name}</span>
+                  </td>
+                  <td className="fv2-col-left" style={{ color: 'var(--fv2-text-3)' }}>
+                    {f.city}
+                  </td>
+                  <td className="fv2-col-left" style={{ color: 'var(--fv2-text-3)' }}>
+                    {f.weightClass}
+                  </td>
+                  <td>{f.projected.toFixed(1)}</td>
+                  <td>{f.avg.toFixed(1)}</td>
+                  <td>{f.owned}%</td>
+                  <td>
+                    <button className="fv2-action-btn fv2-action-btn--active" type="button">
+                      Claim
+                    </button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {FREE_AGENTS.map((f) => (
-                  <tr key={f.id}>
-                    <td>
-                      <span className="fantasy-table__team">{f.name}</span>
-                    </td>
-                    <td className="muted">{f.city}</td>
-                    <td className="muted">{f.weightClass}</td>
-                    <td className="num mono">{f.projected.toFixed(1)}</td>
-                    <td className="num mono">{f.avg.toFixed(1)}</td>
-                    <td className="num">
-                      <button
-                        className="fantasy-btn fantasy-btn--primary fantasy-btn--small"
-                        type="button"
-                      >
-                        Claim
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-    </>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
   );
 }

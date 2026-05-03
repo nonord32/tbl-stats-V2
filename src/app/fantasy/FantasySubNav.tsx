@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 
 const TABS: { label: string; href: string; match: (p: string) => boolean }[] = [
   { label: 'Lobby',   href: '/fantasy',          match: (p) => p === '/fantasy' },
-  { label: 'Team',    href: '/fantasy/team',     match: (p) => p.startsWith('/fantasy/team') },
+  { label: 'My Team', href: '/fantasy/team',     match: (p) => p.startsWith('/fantasy/team') },
   { label: 'Draft',   href: '/fantasy/draft',    match: (p) => p.startsWith('/fantasy/draft') },
   { label: 'Waiver',  href: '/fantasy/waiver',   match: (p) => p.startsWith('/fantasy/waiver') },
   { label: 'Trades',  href: '/fantasy/trades',   match: (p) => p.startsWith('/fantasy/trades') },

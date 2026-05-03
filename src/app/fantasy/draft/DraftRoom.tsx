@@ -257,72 +257,73 @@ export function DraftRoom({
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (
-    <>
+    <div className="fv2-body">
       {/* Hero strip: round / pick / clock */}
-      <div className="fantasy-hero fantasy-hero--compact">
-        <div>
-          <div
-            className="tbl-eyebrow"
-            style={{
-              color: isUserTurn
-                ? 'var(--tbl-accent-bright)'
-                : 'rgba(244,237,224,0.6)',
-            }}
-          >
-            {phase === 'pre'
-              ? 'Mock Draft · 8 teams · 10 rounds · 60-sec clock'
-              : phase === 'complete'
-              ? 'Draft Complete'
-              : isUserTurn
-              ? 'You are on the clock'
-              : `${teamOnClockName} on the clock`}
+      <section className="fv2-hero">
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div>
+            <div
+              className="fv2-hero__eyebrow"
+              style={{
+                color: isUserTurn
+                  ? 'var(--fv2-accent-bright)'
+                  : 'var(--fv2-text-3)',
+              }}
+            >
+              {phase === 'pre'
+                ? 'Mock Draft · 8 teams · 10 rounds · 60-sec clock'
+                : phase === 'complete'
+                ? 'Draft Complete'
+                : isUserTurn
+                ? 'You are on the clock'
+                : `${teamOnClockName} on the clock`}
+            </div>
+            <div className="fv2-hero__title">
+              {phase === 'complete'
+                ? 'Final Boards'
+                : `Round ${currentRound} · Pick ${currentPickNumber}`}
+            </div>
+            <div className="fv2-hero__sub">
+              of {totalPicks} total · {teams.length} teams · snake order
+            </div>
           </div>
-          <div className="tbl-display fantasy-hero__title">
-            {phase === 'complete'
-              ? 'Final Boards'
-              : `Round ${currentRound} · Pick ${currentPickNumber}`}
-          </div>
-          <div className="fantasy-hero__sub">
-            of {totalPicks} total · {teams.length} teams · Snake order
+          <div className="fv2-draft-clock">
+            <div className="fv2-draft-clock__label">Clock</div>
+            <div
+              className={`fv2-draft-clock__time${
+                isUserTurn ? ' fv2-draft-clock__time--live' : ''
+              }`}
+            >
+              {phase === 'pre' || phase === 'complete'
+                ? '—'
+                : isUserTurn
+                ? `0:${String(secondsLeft).padStart(2, '0')}`
+                : 'AI…'}
+            </div>
           </div>
         </div>
-        <div className="fantasy-draft-clock">
-          <div className="fantasy-draft-clock__label">Clock</div>
-          <div className="tbl-display fantasy-draft-clock__time">
-            {phase === 'pre' || phase === 'complete'
-              ? '—'
-              : isUserTurn
-              ? `0:${String(secondsLeft).padStart(2, '0')}`
-              : 'AI…'}
-          </div>
-        </div>
-      </div>
+      </section>
 
-      <div className="fantasy-body">
+      <div>
         {/* Pre-draft start gate */}
         {phase === 'pre' && (
-          <section className="fantasy-section">
-            <div
-              className="fantasy-cta-card"
-              style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
-            >
-              <div className="tbl-eyebrow">Start Mock Draft</div>
-              <div className="tbl-display" style={{ fontSize: 28, lineHeight: 1 }}>
-                Ready to roll
-              </div>
-              <p className="fantasy-cta-card__copy">
-                You&apos;ll draft from pick #{userTeamIndex + 1} in an
-                8-team snake. AI teams pick automatically (~1s each). Your
-                clock is {pickClockSeconds}s — if it hits zero we auto-pick the
-                best available for you.
+          <section className="fv2-section">
+            <div className="fv2-card" style={{ padding: 22 }}>
+              <div className="fv2-card__eyebrow">Start mock draft</div>
+              <div className="fv2-card__title">Ready to roll</div>
+              <p className="fv2-card__sub">
+                You&apos;ll draft from pick #{userTeamIndex + 1} in an 8-team
+                snake. AI teams pick automatically (~1s each). Your clock is{' '}
+                {pickClockSeconds}s — if it hits zero we auto-pick the best
+                available for you.
               </p>
-              <div>
+              <div style={{ marginTop: 16 }}>
                 <button
                   type="button"
-                  className="fantasy-btn fantasy-btn--primary"
+                  className="fv2-btn fv2-btn--primary"
                   onClick={() => setPhase('drafting')}
                 >
-                  Start mock draft →
+                  Start mock draft
                 </button>
               </div>
             </div>
@@ -330,12 +331,16 @@ export function DraftRoom({
         )}
 
         {/* Snake board */}
-        <section className="fantasy-section">
-          <div className="tbl-section-rule">
-            <span>Draft Order · Round {currentRound}</span>
-            <span>{phase === 'complete' ? 'Done' : 'Snake'}</span>
+        <section className="fv2-section">
+          <div className="fv2-section-head">
+            <span className="fv2-section-head__title">
+              Draft order · Round {currentRound}
+            </span>
+            <span className="fv2-section-head__meta">
+              {phase === 'complete' ? 'Done' : 'Snake'}
+            </span>
           </div>
-          <div className="fantasy-draft-board">
+          <div className="fv2-draft-board">
             {teams.map((team, i) => {
               const pickThisRound =
                 currentRound % 2 === 1
@@ -348,17 +353,12 @@ export function DraftRoom({
               return (
                 <div
                   key={team}
-                  className={`fantasy-draft-board__cell${
+                  className={`fv2-draft-board__cell${
                     isNow ? ' is-now' : isPast ? ' is-past' : ''
-                  }`}
-                  style={
-                    isYou
-                      ? { borderColor: 'var(--tbl-accent)', borderWidth: 2 }
-                      : undefined
-                  }
+                  }${isYou ? ' is-you' : ''}`}
                 >
-                  <div className="fantasy-draft-board__pick">#{pickThisRound}</div>
-                  <div className="fantasy-draft-board__team">{team}</div>
+                  <div className="fv2-draft-board__pick">#{pickThisRound}</div>
+                  <div className="fv2-draft-board__team">{team}</div>
                 </div>
               );
             })}
@@ -366,22 +366,24 @@ export function DraftRoom({
         </section>
 
         {/* Main 2-column grid: pool left, my roster right */}
-        <div className="fantasy-draft-grid">
+        <div className="fv2-draft-grid">
           {/* Available pool */}
-          <section className="fantasy-section fantasy-draft-grid__main">
-            <div className="tbl-section-rule">
-              <span>Available · {availableSorted.length} fighters</span>
-              <span>Live ranked</span>
+          <section className="fv2-section fv2-draft-grid__main">
+            <div className="fv2-section-head">
+              <span className="fv2-section-head__title">
+                Available · {availableSorted.length} fighters
+              </span>
+              <span className="fv2-section-head__meta">live ranked</span>
             </div>
-            <div className="fantasy-draft-filters">
+            <div className="fv2-filters">
               <input
-                className="fantasy-input"
+                className="fv2-input"
                 placeholder="Search fighter…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
               <select
-                className="fantasy-select"
+                className="fv2-select"
                 value={classFilter}
                 onChange={(e) => setClassFilter(e.target.value)}
               >
@@ -393,7 +395,7 @@ export function DraftRoom({
                 ))}
               </select>
               <select
-                className="fantasy-select"
+                className="fv2-select"
                 value={genderFilter}
                 onChange={(e) => setGenderFilter(e.target.value)}
               >
@@ -402,7 +404,7 @@ export function DraftRoom({
                 <option value="Female">Female</option>
               </select>
               <select
-                className="fantasy-select"
+                className="fv2-select"
                 value={sortKey}
                 onChange={(e) => setSortKey(e.target.value as SortKey)}
               >
@@ -412,37 +414,42 @@ export function DraftRoom({
                 <option value="name">Sort: Name</option>
               </select>
             </div>
-            <div className="fantasy-table-wrap">
-              <table className="fantasy-table">
+            <div className="fv2-table-wrap">
+              <table className="fv2-table">
                 <thead>
                   <tr>
-                    <th>Fighter</th>
-                    <th>Team</th>
-                    <th>Class</th>
-                    <th className="num">Proj</th>
-                    <th className="num">Avg</th>
-                    <th className="num">Own%</th>
-                    <th className="num">Action</th>
+                    <th className="fv2-col-left">Fighter</th>
+                    <th className="fv2-col-left">Team</th>
+                    <th className="fv2-col-left">Class</th>
+                    <th>Proj</th>
+                    <th>Avg</th>
+                    <th>Own%</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {availableSorted.slice(0, 80).map((f) => (
                     <tr key={f.id}>
-                      <td>
-                        <span className="fantasy-table__team">{f.name}</span>
+                      <td className="fv2-col-left">
+                        <span className="fv2-table__name">{f.name}</span>
                       </td>
-                      <td className="muted">{f.city}</td>
-                      <td className="muted">{f.weightClass}</td>
-                      <td className="num mono">{f.projected.toFixed(1)}</td>
-                      <td className="num mono">{f.avg.toFixed(1)}</td>
-                      <td className="num mono">{f.owned}%</td>
-                      <td className="num">
+                      <td className="fv2-col-left" style={{ color: 'var(--fv2-text-3)' }}>
+                        {f.city}
+                      </td>
+                      <td className="fv2-col-left" style={{ color: 'var(--fv2-text-3)' }}>
+                        {f.weightClass}
+                      </td>
+                      <td>{f.projected.toFixed(1)}</td>
+                      <td>{f.avg.toFixed(1)}</td>
+                      <td>{f.owned}%</td>
+                      <td>
                         <button
                           type="button"
-                          className="fantasy-btn fantasy-btn--primary fantasy-btn--small"
+                          className={`fv2-action-btn${
+                            isUserTurn ? ' fv2-action-btn--active' : ''
+                          }`}
                           disabled={!isUserTurn}
                           onClick={() => makePick(f)}
-                          style={{ opacity: isUserTurn ? 1 : 0.4 }}
                         >
                           Draft
                         </button>
@@ -451,7 +458,7 @@ export function DraftRoom({
                   ))}
                   {availableSorted.length === 0 && (
                     <tr>
-                      <td colSpan={7} style={{ padding: 24, textAlign: 'center' }} className="muted">
+                      <td colSpan={7} style={{ padding: 24, textAlign: 'center', color: 'var(--fv2-text-3)' }}>
                         No fighters match your filters.
                       </td>
                     </tr>
@@ -462,41 +469,43 @@ export function DraftRoom({
           </section>
 
           {/* Right rail: My roster + recent picks */}
-          <aside className="fantasy-draft-grid__side">
-            <section className="fantasy-section">
-              <div className="tbl-section-rule">
-                <span>Your Roster · {myFighters.length}/{rounds}</span>
+          <aside className="fv2-draft-grid__side">
+            <section className="fv2-section">
+              <div className="fv2-section-head">
+                <span className="fv2-section-head__title">
+                  Your roster · {myFighters.length}/{rounds}
+                </span>
               </div>
 
               {/* Slot fill */}
-              <div className="fantasy-roster-slots">
+              <div className="fv2-roster-slots">
                 {slotSummary.map((s) => {
                   const filled = Math.min(s.need, s.count);
                   return (
                     <div
                       key={s.label}
-                      className="fantasy-roster-slot"
+                      className="fv2-roster-slot"
                       data-filled={filled >= s.need ? 'true' : 'false'}
                     >
-                      <span className="fantasy-roster-slot__label">{s.label}</span>
-                      <span className="fantasy-roster-slot__count">
+                      <span className="fv2-roster-slot__label">{s.label}</span>
+                      <span className="fv2-roster-slot__count">
                         {filled}/{s.need}
                       </span>
                     </div>
                   );
                 })}
                 <div
-                  className="fantasy-roster-slot"
+                  className="fv2-roster-slot"
                   data-filled={flexFilled >= FLEX_NEED ? 'true' : 'false'}
                 >
-                  <span className="fantasy-roster-slot__label">FLEX</span>
-                  <span className="fantasy-roster-slot__count">
+                  <span className="fv2-roster-slot__label">FLEX</span>
+                  <span className="fv2-roster-slot__count">
                     {flexFilled}/{FLEX_NEED}
                   </span>
                 </div>
-                <div className="fantasy-roster-slot">
-                  <span className="fantasy-roster-slot__label">Bench</span>
-                  <span className="fantasy-roster-slot__count">
+                <div className="fv2-roster-slot">
+                  <span className="fv2-roster-slot__label">Bench</span>
+                  <span className="fv2-roster-slot__count">
                     {Math.max(0, myFighters.length - 7)}/{rounds - 7}
                   </span>
                 </div>
@@ -506,16 +515,16 @@ export function DraftRoom({
               {teamSummary.length > 0 && (
                 <>
                   <div
-                    className="tbl-eyebrow"
-                    style={{ marginTop: 14, marginBottom: 8 }}
+                    className="fv2-section-head__title"
+                    style={{ marginTop: 18, marginBottom: 8 }}
                   >
                     By TBL Team
                   </div>
-                  <div className="fantasy-roster-teams">
+                  <div className="fv2-roster-teams">
                     {teamSummary.map((t) => (
-                      <div key={t.team} className="fantasy-roster-team">
-                        <span className="fantasy-roster-team__name">{t.team}</span>
-                        <span className="fantasy-roster-team__count">{t.count}</span>
+                      <div key={t.team} className="fv2-roster-team">
+                        <span className="fv2-roster-team__name">{t.team}</span>
+                        <span className="fv2-roster-team__count">{t.count}</span>
                       </div>
                     ))}
                   </div>
@@ -523,31 +532,34 @@ export function DraftRoom({
               )}
 
               {/* My picks list */}
-              <div className="tbl-eyebrow" style={{ marginTop: 14, marginBottom: 8 }}>
+              <div
+                className="fv2-section-head__title"
+                style={{ marginTop: 18, marginBottom: 8 }}
+              >
                 Picks
               </div>
               {myPicks.length === 0 ? (
-                <div className="fantasy-empty" style={{ padding: 14, fontSize: 11 }}>
+                <div className="fv2-empty" style={{ padding: 14, fontSize: 11 }}>
                   No picks yet. Wait for your turn.
                 </div>
               ) : (
-                <div className="fantasy-pick-log">
+                <div className="fv2-pick-log">
                   {myPicks
                     .slice()
                     .reverse()
                     .map((p) => (
                       <div
                         key={p.pickNumber}
-                        className="fantasy-pick-log__row"
+                        className="fv2-pick-log__row"
                       >
-                        <div className="fantasy-pick-log__num">
+                        <div className="fv2-pick-log__num">
                           R{p.round}·#{p.pickNumber}
                         </div>
                         <div>
-                          <div className="fantasy-pick-log__name">
+                          <div className="fv2-pick-log__name">
                             {p.fighter.name}
                           </div>
-                          <div className="fantasy-pick-log__meta">
+                          <div className="fv2-pick-log__meta">
                             {p.fighter.city} · {p.fighter.weightClass}
                           </div>
                         </div>
@@ -557,30 +569,32 @@ export function DraftRoom({
               )}
             </section>
 
-            <section className="fantasy-section">
-              <div className="tbl-section-rule">
-                <span>Recent Picks · All Teams</span>
+            <section className="fv2-section">
+              <div className="fv2-section-head">
+                <span className="fv2-section-head__title">
+                  Recent picks · all teams
+                </span>
               </div>
               {picks.length === 0 ? (
-                <div className="fantasy-empty" style={{ padding: 14, fontSize: 11 }}>
+                <div className="fv2-empty" style={{ padding: 14, fontSize: 11 }}>
                   Draft hasn&apos;t started.
                 </div>
               ) : (
-                <div className="fantasy-pick-log">
+                <div className="fv2-pick-log">
                   {picks
                     .slice()
                     .reverse()
                     .slice(0, 12)
                     .map((p) => (
-                      <div key={p.pickNumber} className="fantasy-pick-log__row">
-                        <div className="fantasy-pick-log__num">
+                      <div key={p.pickNumber} className="fv2-pick-log__row">
+                        <div className="fv2-pick-log__num">
                           R{p.round}·#{p.pickNumber}
                         </div>
                         <div>
-                          <div className="fantasy-pick-log__name">
+                          <div className="fv2-pick-log__name">
                             {p.fighter.name}
                           </div>
-                          <div className="fantasy-pick-log__meta">
+                          <div className="fv2-pick-log__meta">
                             {p.team} · {p.fighter.weightClass}
                           </div>
                         </div>
@@ -594,43 +608,41 @@ export function DraftRoom({
 
         {/* Complete state */}
         {phase === 'complete' && (
-          <section className="fantasy-section">
-            <div className="fantasy-cta-card">
-              <div className="tbl-eyebrow">Mock Draft Complete</div>
-              <div className="tbl-display" style={{ fontSize: 28, lineHeight: 1 }}>
-                Roster locked
-              </div>
-              <p className="fantasy-cta-card__copy">
+          <section className="fv2-section">
+            <div className="fv2-card" style={{ padding: 22 }}>
+              <div className="fv2-card__eyebrow">Mock draft complete</div>
+              <div className="fv2-card__title">Roster locked</div>
+              <p className="fv2-card__sub">
                 You drafted {myFighters.length} fighters across{' '}
                 {teamSummary.length} TBL clubs.{' '}
                 {saveStatus === 'saving' && <strong>Saving roster…</strong>}
                 {saveStatus === 'saved' && (
-                  <strong style={{ color: 'var(--tbl-green)' }}>
+                  <strong style={{ color: 'var(--fv2-positive)' }}>
                     ✓ Roster saved.
                   </strong>
                 )}
                 {saveStatus === 'error' && (
-                  <strong style={{ color: 'var(--tbl-red)' }}>
+                  <strong style={{ color: 'var(--fv2-negative)' }}>
                     ⚠ {saveError ?? 'Save failed.'} You can still preview your
                     team but the next reload will re-roll.
                   </strong>
                 )}
               </p>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
                 {saveStatus === 'saved' && (
                   <Link
                     href="/fantasy/team"
-                    className="fantasy-btn fantasy-btn--primary"
+                    className="fv2-btn fv2-btn--primary"
                   >
                     Open my team →
                   </Link>
                 )}
                 <button
                   type="button"
-                  className={`fantasy-btn ${
+                  className={`fv2-btn ${
                     saveStatus === 'saved'
-                      ? 'fantasy-btn--ghost'
-                      : 'fantasy-btn--primary'
+                      ? 'fv2-btn--ghost'
+                      : 'fv2-btn--primary'
                   }`}
                   onClick={() => {
                     setPicks([]);
@@ -647,6 +659,6 @@ export function DraftRoom({
           </section>
         )}
       </div>
-    </>
+    </div>
   );
 }
