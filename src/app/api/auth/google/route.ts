@@ -9,8 +9,18 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 
+// Only allow same-origin path redirects so a crafted ?next= can't bounce
+// the user off-site after auth.
+function safeNextPath(raw: string | null): string | null {
+  if (!raw) return null;
+  if (!raw.startsWith('/')) return null;
+  if (raw.startsWith('//')) return null;
+  return raw;
+}
+
 export async function GET(request: NextRequest) {
-  const { origin } = new URL(request.url);
+  const { origin, searchParams } = new URL(request.url);
+  const next = safeNextPath(searchParams.get('next'));
   const captured: { name: string; value: string; options?: CookieOptions }[] = [];
 
   const supabase = createServerClient(
@@ -28,13 +38,20 @@ export async function GET(request: NextRequest) {
     }
   );
 
+  // Forward ?next= into the OAuth callback so the user lands on the page
+  // they were trying to reach (e.g. /fantasy/team).
+  const callbackPath = next
+    ? `/auth/callback?next=${encodeURIComponent(next)}`
+    : '/auth/callback';
+  const errorPath = next?.startsWith('/fantasy') ? '/fantasy/login' : '/login';
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: `${origin}/auth/callback` },
+    options: { redirectTo: `${origin}${callbackPath}` },
   });
 
   if (error || !data?.url) {
-    return NextResponse.redirect(`${origin}/login?error=oauth_init_failed`);
+    return NextResponse.redirect(`${origin}${errorPath}?error=oauth_init_failed`);
   }
 
   const response = NextResponse.redirect(data.url);

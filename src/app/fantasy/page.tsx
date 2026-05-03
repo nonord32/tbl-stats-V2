@@ -1,12 +1,14 @@
 // src/app/fantasy/page.tsx
 // Fantasy lobby — v2 redesign (dark, dense, mobile-first sports-app).
-// Wrapped in .fv2 to scope dark tokens; siblings (other fantasy pages
-// still on v1) keep working until Phase B migrates them.
+// Shows the user's team name (from fantasy_rosters.team_name) and is
+// structured to filter by league when multi-league lands; for now
+// every user has exactly one league (solo vs AI) so no picker renders.
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { getAllData } from '@/lib/data';
 import { ensureResolved } from '@/lib/resolve-on-read';
 import { safeGetUser } from '@/lib/supabase/safe';
+import { LobbyLeaguePicker, type MyLeague } from './LobbyLeaguePicker';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,18 +19,21 @@ interface SeasonSummary {
   totalPoints: number;
   weeksPlayed: number;
   hasRoster: boolean;
+  teamName: string | null;
   lastResolvedWeek: number | null;
   lastResult: 'W' | 'L' | 'T' | null;
   lastUserPts: number | null;
   lastOppPts: number | null;
 }
 
+const DEFAULT_TEAM_NAME = 'My Team';
+
 async function loadSeasonSummary(userId: string): Promise<SeasonSummary> {
   const supabase = await createClient();
   const [{ data: roster }, { data: weeks }] = await Promise.all([
     supabase
       .from('fantasy_rosters')
-      .select('user_id')
+      .select('user_id, team_name')
       .eq('user_id', userId)
       .maybeSingle(),
     supabase
@@ -63,6 +68,11 @@ async function loadSeasonSummary(userId: string): Promise<SeasonSummary> {
     }
   });
 
+  const teamName =
+    roster && typeof roster.team_name === 'string' && roster.team_name.length > 0
+      ? roster.team_name
+      : null;
+
   return {
     wins,
     losses,
@@ -70,6 +80,7 @@ async function loadSeasonSummary(userId: string): Promise<SeasonSummary> {
     totalPoints,
     weeksPlayed: wins + losses + ties,
     hasRoster: !!roster,
+    teamName,
     lastResolvedWeek,
     lastResult,
     lastUserPts,
@@ -87,6 +98,21 @@ export default async function FantasyLobbyPage() {
   }
 
   const summary = user ? await loadSeasonSummary(user.id) : null;
+
+  // Build the user's league list. Today every user has exactly one
+  // (solo vs AI). When multi-league ships in Stage 1, this list grows
+  // and the LobbyLeaguePicker switches into dropdown mode.
+  const myLeagues: MyLeague[] = summary?.hasRoster
+    ? [
+        {
+          id: 'solo',
+          label: 'Solo · vs AI',
+          teamName: summary.teamName ?? DEFAULT_TEAM_NAME,
+        },
+      ]
+    : [];
+  const activeLeague = myLeagues[0] ?? null;
+  const heroTitle = activeLeague?.teamName ?? DEFAULT_TEAM_NAME;
 
   const recordLine = summary
     ? `${summary.wins}-${summary.losses}${summary.ties ? `-${summary.ties}` : ''}`
@@ -122,157 +148,162 @@ export default async function FantasyLobbyPage() {
   ];
 
   return (
-    <div className="fv2">
-      <div className="fv2-body">
-        {/* Hero */}
-        <section className="fv2-hero">
-          <div className="fv2-hero__eyebrow">Solo vs AI · 2026 Season</div>
-          <div className="fv2-hero__title">Throwing Hands FC</div>
-          <div className="fv2-hero__sub">
-            {user ? (
-              recordLine ? (
-                <>
-                  <strong>{recordLine}</strong> · {summary!.totalPoints.toFixed(1)} pts ·{' '}
-                  {summary!.weeksPlayed} {summary!.weeksPlayed === 1 ? 'week' : 'weeks'}
-                </>
-              ) : summary?.hasRoster ? (
-                <>Roster saved — no resolved week yet</>
-              ) : (
-                <>No roster yet — run the mock draft to start</>
-              )
-            ) : (
-              <>Sign in to save a roster across reloads</>
-            )}
-          </div>
-          <div className="fv2-hero__actions">
-            {!user ? (
-              <Link href="/login?next=/fantasy" className="fv2-btn fv2-btn--primary">
-                Sign in
-              </Link>
-            ) : summary?.hasRoster ? (
+    <div className="fv2-body">
+      {/* League picker — only renders a dropdown when 2+ leagues. */}
+      {myLeagues.length > 0 && (
+        <LobbyLeaguePicker leagues={myLeagues} initialId={activeLeague!.id} />
+      )}
+
+      {/* Hero */}
+      <section className="fv2-hero">
+        <div className="fv2-hero__eyebrow">
+          {activeLeague ? activeLeague.label : 'Solo vs AI · 2026 Season'}
+        </div>
+        <div className="fv2-hero__title">{heroTitle}</div>
+        <div className="fv2-hero__sub">
+          {user ? (
+            recordLine ? (
               <>
-                <Link href="/fantasy/team" className="fv2-btn fv2-btn--primary">
-                  Set lineup
-                </Link>
-                <Link href="/fantasy/scoring" className="fv2-btn fv2-btn--ghost">
-                  View scoring
-                </Link>
+                <strong>{recordLine}</strong> · {summary!.totalPoints.toFixed(1)} pts ·{' '}
+                {summary!.weeksPlayed} {summary!.weeksPlayed === 1 ? 'week' : 'weeks'}
               </>
+            ) : summary?.hasRoster ? (
+              <>Roster saved — no resolved week yet</>
             ) : (
-              <Link href="/fantasy/draft" className="fv2-btn fv2-btn--primary">
-                Run mock draft
+              <>No roster yet — run the mock draft to start</>
+            )
+          ) : (
+            <>Sign in to save a roster across reloads</>
+          )}
+        </div>
+        <div className="fv2-hero__actions">
+          {!user ? (
+            <Link href="/fantasy/login?next=/fantasy" className="fv2-btn fv2-btn--primary">
+              Sign in
+            </Link>
+          ) : summary?.hasRoster ? (
+            <>
+              <Link href="/fantasy/team" className="fv2-btn fv2-btn--primary">
+                Set lineup
               </Link>
-            )}
-          </div>
-        </section>
+              <Link href="/fantasy/scoring" className="fv2-btn fv2-btn--ghost">
+                View scoring
+              </Link>
+            </>
+          ) : (
+            <Link href="/fantasy/draft" className="fv2-btn fv2-btn--primary">
+              Run mock draft
+            </Link>
+          )}
+        </div>
+      </section>
 
-        {/* Season stats */}
-        {summary?.hasRoster && summary.weeksPlayed > 0 && (
-          <section className="fv2-section">
-            <div className="fv2-section-head">
-              <span className="fv2-section-head__title">Your season</span>
-              <span className="fv2-section-head__meta">
-                Last week: Wk {summary.lastResolvedWeek}
-              </span>
-            </div>
-            <div className="fv2-stat-grid">
-              <div className="fv2-stat">
-                <div className="fv2-stat__label">Record</div>
-                <div className="fv2-stat__value">
-                  {summary.wins}-{summary.losses}
-                  {summary.ties ? `-${summary.ties}` : ''}
-                </div>
-              </div>
-              <div className="fv2-stat">
-                <div className="fv2-stat__label">Total pts</div>
-                <div className="fv2-stat__value">{summary.totalPoints.toFixed(1)}</div>
-              </div>
-              <div className="fv2-stat">
-                <div className="fv2-stat__label">Weeks</div>
-                <div className="fv2-stat__value">{summary.weeksPlayed}</div>
-              </div>
-              <div className="fv2-stat">
-                <div className="fv2-stat__label">Last result</div>
-                <div
-                  className={`fv2-stat__value ${
-                    summary.lastResult === 'W'
-                      ? 'fv2-stat__value--positive'
-                      : summary.lastResult === 'L'
-                      ? 'fv2-stat__value--negative'
-                      : ''
-                  }`}
-                >
-                  {summary.lastResult ?? '—'}
-                </div>
-                {summary.lastUserPts !== null && summary.lastOppPts !== null && (
-                  <div className="fv2-stat__hint">
-                    {summary.lastUserPts}–{summary.lastOppPts} vs AI
-                  </div>
-                )}
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* Empty / signed-in but no roster state */}
-        {user && !summary?.hasRoster && (
-          <section className="fv2-section">
-            <div className="fv2-empty">
-              No roster saved yet.{' '}
-              <Link href="/fantasy/draft" className="fv2-link">
-                <strong>Run the mock draft</strong>
-              </Link>{' '}
-              to draft your team — takes ~3 minutes against AI.
-            </div>
-          </section>
-        )}
-
-        {/* Quick actions */}
+      {/* Season stats */}
+      {summary?.hasRoster && summary.weeksPlayed > 0 && (
         <section className="fv2-section">
           <div className="fv2-section-head">
-            <span className="fv2-section-head__title">Quick actions</span>
+            <span className="fv2-section-head__title">Your season</span>
+            <span className="fv2-section-head__meta">
+              Last week: Wk {summary.lastResolvedWeek}
+            </span>
           </div>
-          <div className="fv2-quick-grid">
-            {QUICK_ACTIONS.map((q) => (
-              <Link
-                key={q.href}
-                href={q.href}
-                className="fv2-card fv2-card--interactive fv2-link"
+          <div className="fv2-stat-grid">
+            <div className="fv2-stat">
+              <div className="fv2-stat__label">Record</div>
+              <div className="fv2-stat__value">
+                {summary.wins}-{summary.losses}
+                {summary.ties ? `-${summary.ties}` : ''}
+              </div>
+            </div>
+            <div className="fv2-stat">
+              <div className="fv2-stat__label">Total pts</div>
+              <div className="fv2-stat__value">{summary.totalPoints.toFixed(1)}</div>
+            </div>
+            <div className="fv2-stat">
+              <div className="fv2-stat__label">Weeks</div>
+              <div className="fv2-stat__value">{summary.weeksPlayed}</div>
+            </div>
+            <div className="fv2-stat">
+              <div className="fv2-stat__label">Last result</div>
+              <div
+                className={`fv2-stat__value ${
+                  summary.lastResult === 'W'
+                    ? 'fv2-stat__value--positive'
+                    : summary.lastResult === 'L'
+                    ? 'fv2-stat__value--negative'
+                    : ''
+                }`}
               >
-                <div className="fv2-card__eyebrow">{q.eyebrow}</div>
-                <div className="fv2-card__title">{q.title}</div>
-                <div className="fv2-card__sub">{q.sub}</div>
-              </Link>
-            ))}
+                {summary.lastResult ?? '—'}
+              </div>
+              {summary.lastUserPts !== null && summary.lastOppPts !== null && (
+                <div className="fv2-stat__hint">
+                  {summary.lastUserPts}–{summary.lastOppPts} vs AI
+                </div>
+              )}
+            </div>
           </div>
         </section>
+      )}
 
-        {/* Coming soon — leagues teaser */}
+      {/* Empty / signed-in but no roster state */}
+      {user && !summary?.hasRoster && (
         <section className="fv2-section">
-          <div className="fv2-section-head">
-            <span className="fv2-section-head__title">Coming soon</span>
-            <span className="fv2-section-head__meta">Multi-user leagues</span>
-          </div>
-          <div className="fv2-quick-grid">
-            <div className="fv2-card" style={{ opacity: 0.65 }}>
-              <div className="fv2-card__eyebrow">League</div>
-              <div className="fv2-card__title">Invite friends</div>
-              <div className="fv2-card__sub">
-                Create a private league and invite friends with a single link.
-                Live snake draft with a clock, FAAB waivers, trades.
-              </div>
-            </div>
-            <div className="fv2-card" style={{ opacity: 0.65 }}>
-              <div className="fv2-card__eyebrow">Live</div>
-              <div className="fv2-card__title">In-progress scoring</div>
-              <div className="fv2-card__sub">
-                Lineup totals tick up during matches as the sheet updates,
-                not just after the match ends.
-              </div>
-            </div>
+          <div className="fv2-empty">
+            No roster saved yet.{' '}
+            <Link href="/fantasy/draft" className="fv2-link">
+              <strong>Run the mock draft</strong>
+            </Link>{' '}
+            to draft your team — takes ~3 minutes against AI.
           </div>
         </section>
-      </div>
+      )}
+
+      {/* Quick actions */}
+      <section className="fv2-section">
+        <div className="fv2-section-head">
+          <span className="fv2-section-head__title">Quick actions</span>
+        </div>
+        <div className="fv2-quick-grid">
+          {QUICK_ACTIONS.map((q) => (
+            <Link
+              key={q.href}
+              href={q.href}
+              className="fv2-card fv2-card--interactive fv2-link"
+            >
+              <div className="fv2-card__eyebrow">{q.eyebrow}</div>
+              <div className="fv2-card__title">{q.title}</div>
+              <div className="fv2-card__sub">{q.sub}</div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* Coming soon — leagues teaser */}
+      <section className="fv2-section">
+        <div className="fv2-section-head">
+          <span className="fv2-section-head__title">Coming soon</span>
+          <span className="fv2-section-head__meta">Multi-user leagues</span>
+        </div>
+        <div className="fv2-quick-grid">
+          <div className="fv2-card" style={{ opacity: 0.65 }}>
+            <div className="fv2-card__eyebrow">League</div>
+            <div className="fv2-card__title">Invite friends</div>
+            <div className="fv2-card__sub">
+              Create a private league and invite friends with a single link.
+              Live snake draft with a clock, FAAB waivers, trades.
+            </div>
+          </div>
+          <div className="fv2-card" style={{ opacity: 0.65 }}>
+            <div className="fv2-card__eyebrow">Live</div>
+            <div className="fv2-card__title">In-progress scoring</div>
+            <div className="fv2-card__sub">
+              Lineup totals tick up during matches as the sheet updates,
+              not just after the match ends.
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

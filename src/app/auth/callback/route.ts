@@ -24,8 +24,9 @@ export async function GET(request: NextRequest) {
       ? `https://${forwardedHost}${next}`
       : `${origin}${next}`;
 
+  const loginPath = next.startsWith('/fantasy') ? '/fantasy/login' : '/login';
   const failUrl = (msg: string) =>
-    `${origin}/login?error=${encodeURIComponent(msg)}`;
+    `${origin}${loginPath}?error=${encodeURIComponent(msg)}&next=${encodeURIComponent(next)}`;
 
   if (!code) {
     return NextResponse.redirect(failUrl('auth_callback_failed'));

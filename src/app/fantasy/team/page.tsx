@@ -20,7 +20,7 @@ export default async function FantasyTeamPage() {
   const supabase = await createClient();
   const user = await safeGetUser(supabase);
   if (!user) {
-    redirect('/login?next=/fantasy/team');
+    redirect('/fantasy/login?next=/fantasy/team');
   }
 
   const roster = await getMyRoster(user.id);

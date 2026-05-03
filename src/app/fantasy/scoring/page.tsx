@@ -21,7 +21,7 @@ export default async function FantasyScoringPage() {
   const supabase = await createClient();
   const user = await safeGetUser(supabase);
   if (!user) {
-    redirect('/login?next=/fantasy/scoring');
+    redirect('/fantasy/login?next=/fantasy/scoring');
   }
 
   const sheet = await getAllData();
