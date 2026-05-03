@@ -1,7 +1,7 @@
 // src/app/fantasy/page.tsx
-// Lobby — entry point for fantasy. For signed-in users with a saved
-// roster, shows a real solo-vs-AI season record card built from
-// fantasy_weeks. League join/create + standings stay mock for now.
+// Fantasy lobby — v2 redesign (dark, dense, mobile-first sports-app).
+// Wrapped in .fv2 to scope dark tokens; siblings (other fantasy pages
+// still on v1) keep working until Phase B migrates them.
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { getAllData } from '@/lib/data';
@@ -63,14 +63,12 @@ async function loadSeasonSummary(userId: string): Promise<SeasonSummary> {
     }
   });
 
-  const weeksPlayed = wins + losses + ties;
-
   return {
     wins,
     losses,
     ties,
     totalPoints,
-    weeksPlayed,
+    weeksPlayed: wins + losses + ties,
     hasRoster: !!roster,
     lastResolvedWeek,
     lastResult,
@@ -83,184 +81,198 @@ export default async function FantasyLobbyPage() {
   const supabase = await createClient();
   const user = await safeGetUser(supabase);
 
-  // Resolve any fantasy weeks now scorable from sheet state before reading
-  // the user's record. Idempotent + cheap when nothing's pending.
   if (user) {
     const sheetData = await getAllData();
     await ensureResolved(sheetData);
   }
 
-  const summary = user
-    ? await loadSeasonSummary(user.id)
-    : null;
+  const summary = user ? await loadSeasonSummary(user.id) : null;
 
   const recordLine = summary
-    ? `${summary.wins}-${summary.losses}${summary.ties ? `-${summary.ties}` : ''} · ${summary.totalPoints.toFixed(1)} pts`
-    : 'Sign in to start';
+    ? `${summary.wins}-${summary.losses}${summary.ties ? `-${summary.ties}` : ''}`
+    : null;
 
-  const lastWeekLabel = summary?.lastResolvedWeek
-    ? `Wk ${summary.lastResolvedWeek}: You ${summary.lastUserPts} — ${summary.lastOppPts} AI (${summary.lastResult})`
-    : summary?.hasRoster
-    ? 'No resolved week yet'
-    : 'Run the mock draft to start';
+  const QUICK_ACTIONS = [
+    {
+      href: '/fantasy/team',
+      eyebrow: summary?.hasRoster ? 'My Team' : 'Locked',
+      title: 'Lineup',
+      sub: summary?.hasRoster ? "Set this week's starters" : 'Draft first to unlock',
+    },
+    {
+      href: '/fantasy/draft',
+      eyebrow: summary?.hasRoster ? 'Roster saved' : 'Get started',
+      title: 'Draft',
+      sub: summary?.hasRoster ? 'Re-draft to roll a new roster' : 'Mock draft (~3 min)',
+    },
+    {
+      href: '/fantasy/waiver',
+      eyebrow: 'Free agents',
+      title: 'Waiver',
+      sub: 'Pick up undrafted fighters',
+    },
+    {
+      href: '/fantasy/scoring',
+      eyebrow: 'Box score',
+      title: 'Scoring',
+      sub: summary?.lastResolvedWeek
+        ? `Wk ${summary.lastResolvedWeek} · ${summary.lastUserPts}–${summary.lastOppPts}`
+        : 'No resolved week yet',
+    },
+  ];
 
   return (
-    <>
-      {/* Dark hero */}
-      <div className="fantasy-hero">
-        <div>
-          <div className="tbl-eyebrow" style={{ color: 'var(--tbl-accent-bright)' }}>
-            Solo vs AI · 2026 Season
+    <div className="fv2">
+      <div className="fv2-body">
+        {/* Hero */}
+        <section className="fv2-hero">
+          <div className="fv2-hero__eyebrow">Solo vs AI · 2026 Season</div>
+          <div className="fv2-hero__title">Throwing Hands FC</div>
+          <div className="fv2-hero__sub">
+            {user ? (
+              recordLine ? (
+                <>
+                  <strong>{recordLine}</strong> · {summary!.totalPoints.toFixed(1)} pts ·{' '}
+                  {summary!.weeksPlayed} {summary!.weeksPlayed === 1 ? 'week' : 'weeks'}
+                </>
+              ) : summary?.hasRoster ? (
+                <>Roster saved — no resolved week yet</>
+              ) : (
+                <>No roster yet — run the mock draft to start</>
+              )
+            ) : (
+              <>Sign in to save a roster across reloads</>
+            )}
           </div>
-          <div className="tbl-display fantasy-hero__title">Throwing Hands FC</div>
-          <div className="fantasy-hero__sub">{recordLine}</div>
-        </div>
-        <div className="fantasy-hero__actions">
-          {summary?.hasRoster ? (
-            <Link href="/fantasy/team" className="fantasy-btn fantasy-btn--primary">
-              Set lineup →
-            </Link>
-          ) : (
-            <Link href="/fantasy/draft" className="fantasy-btn fantasy-btn--primary">
-              Run mock draft →
-            </Link>
-          )}
-          <Link href="/fantasy/scoring" className="fantasy-btn fantasy-btn--ghost">
-            Scoring
-          </Link>
-        </div>
-      </div>
-
-      <div className="fantasy-body">
-        {/* Personal record card — replaces the mock standings table */}
-        <section className="fantasy-section">
-          <div className="tbl-section-rule">
-            <span>Your Solo Season</span>
-            <span>{user ? '@' + (user.email?.split('@')[0] ?? 'you') : 'Not signed in'}</span>
-          </div>
-          {!user ? (
-            <div className="fantasy-empty">
-              Fantasy needs you signed in to save your roster across reloads.{' '}
-              <Link
-                href="/login?next=/fantasy"
-                className="fantasy-btn fantasy-btn--primary fantasy-btn--small"
-                style={{ marginLeft: 8 }}
-              >
+          <div className="fv2-hero__actions">
+            {!user ? (
+              <Link href="/login?next=/fantasy" className="fv2-btn fv2-btn--primary">
                 Sign in
               </Link>
+            ) : summary?.hasRoster ? (
+              <>
+                <Link href="/fantasy/team" className="fv2-btn fv2-btn--primary">
+                  Set lineup
+                </Link>
+                <Link href="/fantasy/scoring" className="fv2-btn fv2-btn--ghost">
+                  View scoring
+                </Link>
+              </>
+            ) : (
+              <Link href="/fantasy/draft" className="fv2-btn fv2-btn--primary">
+                Run mock draft
+              </Link>
+            )}
+          </div>
+        </section>
+
+        {/* Season stats */}
+        {summary?.hasRoster && summary.weeksPlayed > 0 && (
+          <section className="fv2-section">
+            <div className="fv2-section-head">
+              <span className="fv2-section-head__title">Your season</span>
+              <span className="fv2-section-head__meta">
+                Last week: Wk {summary.lastResolvedWeek}
+              </span>
             </div>
-          ) : !summary?.hasRoster ? (
-            <div className="fantasy-empty">
-              No roster saved yet. Hit{' '}
-              <Link href="/fantasy/draft" style={{ color: 'var(--tbl-accent)' }}>
-                /fantasy/draft
-              </Link>{' '}
-              to draft your team — takes ~3 minutes against AI opponents.
-            </div>
-          ) : (
-            <div className="fantasy-summary-grid">
-              <div className="fantasy-summary-card">
-                <div className="fantasy-summary-card__label">Record</div>
-                <div className="fantasy-summary-card__value">
+            <div className="fv2-stat-grid">
+              <div className="fv2-stat">
+                <div className="fv2-stat__label">Record</div>
+                <div className="fv2-stat__value">
                   {summary.wins}-{summary.losses}
                   {summary.ties ? `-${summary.ties}` : ''}
                 </div>
               </div>
-              <div className="fantasy-summary-card">
-                <div className="fantasy-summary-card__label">Total Pts</div>
-                <div className="fantasy-summary-card__value">
-                  {summary.totalPoints.toFixed(1)}
-                </div>
+              <div className="fv2-stat">
+                <div className="fv2-stat__label">Total pts</div>
+                <div className="fv2-stat__value">{summary.totalPoints.toFixed(1)}</div>
               </div>
-              <div className="fantasy-summary-card">
-                <div className="fantasy-summary-card__label">Weeks</div>
-                <div className="fantasy-summary-card__value">
-                  {summary.weeksPlayed}
-                </div>
+              <div className="fv2-stat">
+                <div className="fv2-stat__label">Weeks</div>
+                <div className="fv2-stat__value">{summary.weeksPlayed}</div>
               </div>
-              <div className="fantasy-summary-card">
-                <div className="fantasy-summary-card__label">Last Result</div>
+              <div className="fv2-stat">
+                <div className="fv2-stat__label">Last result</div>
                 <div
-                  className="fantasy-summary-card__value"
-                  style={{
-                    color:
-                      summary.lastResult === 'W'
-                        ? 'var(--tbl-green)'
-                        : summary.lastResult === 'L'
-                        ? 'var(--tbl-red)'
-                        : 'var(--tbl-ink)',
-                  }}
+                  className={`fv2-stat__value ${
+                    summary.lastResult === 'W'
+                      ? 'fv2-stat__value--positive'
+                      : summary.lastResult === 'L'
+                      ? 'fv2-stat__value--negative'
+                      : ''
+                  }`}
                 >
                   {summary.lastResult ?? '—'}
                 </div>
+                {summary.lastUserPts !== null && summary.lastOppPts !== null && (
+                  <div className="fv2-stat__hint">
+                    {summary.lastUserPts}–{summary.lastOppPts} vs AI
+                  </div>
+                )}
               </div>
             </div>
-          )}
-          <p
-            className="fantasy-cta-card__copy"
-            style={{ marginTop: 12, fontSize: 11 }}
-          >
-            {lastWeekLabel}
-          </p>
-        </section>
+          </section>
+        )}
 
-        {/* Quick links */}
-        <section className="fantasy-section">
-          <div className="tbl-section-rule">
-            <span>Quick Actions</span>
+        {/* Empty / signed-in but no roster state */}
+        {user && !summary?.hasRoster && (
+          <section className="fv2-section">
+            <div className="fv2-empty">
+              No roster saved yet.{' '}
+              <Link href="/fantasy/draft" className="fv2-link">
+                <strong>Run the mock draft</strong>
+              </Link>{' '}
+              to draft your team — takes ~3 minutes against AI.
+            </div>
+          </section>
+        )}
+
+        {/* Quick actions */}
+        <section className="fv2-section">
+          <div className="fv2-section-head">
+            <span className="fv2-section-head__title">Quick actions</span>
           </div>
-          <div className="fantasy-quick-grid">
-            {[
-              { href: '/fantasy/draft',   eyebrow: summary?.hasRoster ? 'Roster saved' : 'Get started', title: 'Draft', sub: summary?.hasRoster ? 'Re-draft to roll a new roster' : 'Run a mock draft (~3 min)' },
-              { href: '/fantasy/team',    eyebrow: 'My Team', title: 'Lineup', sub: summary?.hasRoster ? 'Set this week\'s starters' : 'Draft first to unlock' },
-              { href: '/fantasy/waiver',  eyebrow: 'Mock', title: 'Waiver', sub: 'Free agents (preview)' },
-              { href: '/fantasy/scoring', eyebrow: 'Scoreboard', title: 'Scoring', sub: lastWeekLabel },
-            ].map((q) => (
-              <Link key={q.href} href={q.href} className="fantasy-quick-card">
-                <div className="tbl-eyebrow">{q.eyebrow}</div>
-                <div
-                  className="tbl-display"
-                  style={{ fontSize: 28, lineHeight: 1, marginTop: 4 }}
-                >
-                  {q.title}
-                </div>
-                <div className="fantasy-quick-card__sub">{q.sub}</div>
+          <div className="fv2-quick-grid">
+            {QUICK_ACTIONS.map((q) => (
+              <Link
+                key={q.href}
+                href={q.href}
+                className="fv2-card fv2-card--interactive fv2-link"
+              >
+                <div className="fv2-card__eyebrow">{q.eyebrow}</div>
+                <div className="fv2-card__title">{q.title}</div>
+                <div className="fv2-card__sub">{q.sub}</div>
               </Link>
             ))}
           </div>
         </section>
 
-        {/* Future-features placeholder */}
-        <section className="fantasy-section">
-          <div className="tbl-section-rule">
-            <span>Coming Later</span>
-            <span>Multi-user leagues</span>
+        {/* Coming soon — leagues teaser */}
+        <section className="fv2-section">
+          <div className="fv2-section-head">
+            <span className="fv2-section-head__title">Coming soon</span>
+            <span className="fv2-section-head__meta">Multi-user leagues</span>
           </div>
-          <div className="fantasy-cta-grid">
-            <div className="fantasy-cta-card" style={{ opacity: 0.7 }}>
-              <div className="tbl-eyebrow">Join League</div>
-              <div className="tbl-display" style={{ fontSize: 28, lineHeight: 1, marginTop: 4 }}>
-                With friends
+          <div className="fv2-quick-grid">
+            <div className="fv2-card" style={{ opacity: 0.65 }}>
+              <div className="fv2-card__eyebrow">League</div>
+              <div className="fv2-card__title">Invite friends</div>
+              <div className="fv2-card__sub">
+                Create a private league and invite friends with a single link.
+                Live snake draft with a clock, FAAB waivers, trades.
               </div>
-              <p className="fantasy-cta-card__copy">
-                Invite-code league flow comes after solo-vs-AI proves the
-                scoring engine for the rest of the season. Trades + waivers
-                stay mock until then.
-              </p>
             </div>
-            <div className="fantasy-cta-card" style={{ opacity: 0.7 }}>
-              <div className="tbl-eyebrow">Create League</div>
-              <div className="tbl-display" style={{ fontSize: 28, lineHeight: 1, marginTop: 4 }}>
-                8-team commish
+            <div className="fv2-card" style={{ opacity: 0.65 }}>
+              <div className="fv2-card__eyebrow">Live</div>
+              <div className="fv2-card__title">In-progress scoring</div>
+              <div className="fv2-card__sub">
+                Lineup totals tick up during matches as the sheet updates,
+                not just after the match ends.
               </div>
-              <p className="fantasy-cta-card__copy">
-                Real 8-team draft room with multi-tab live drafting. Same
-                story — unlocks once the scoring loop is solid.
-              </p>
             </div>
           </div>
         </section>
       </div>
-    </>
+    </div>
   );
 }

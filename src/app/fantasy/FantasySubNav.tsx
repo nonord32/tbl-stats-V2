@@ -1,5 +1,6 @@
 'use client';
-// Fantasy sub-nav. Active tab is highlighted via usePathname.
+// Fantasy v2 sub-nav — sticky horizontal scroll on mobile, top-aligned
+// on desktop. Active tab is highlighted via usePathname.
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -15,12 +16,12 @@ const TABS: { label: string; href: string; match: (p: string) => boolean }[] = [
 export function FantasySubNav() {
   const pathname = usePathname() || '/fantasy';
   return (
-    <nav className="fantasy-subnav" aria-label="Fantasy sections">
+    <nav className="fv2-subnav" aria-label="Fantasy sections">
       {TABS.map((t) => (
         <Link
           key={t.href}
           href={t.href}
-          className={`fantasy-subnav__tab${t.match(pathname) ? ' is-active' : ''}`}
+          className={`fv2-subnav__tab${t.match(pathname) ? ' is-active' : ''}`}
         >
           {t.label}
         </Link>
