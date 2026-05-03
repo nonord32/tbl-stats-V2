@@ -4102,6 +4102,16 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
    of the site. Routes migrate one at a time; old .fantasy-* classes
    stay for unmigrated pages until Phase B finishes.
    ───────────────────────────────────────────────────────────────────── */
+
+/* Match html/body bg to the dark shell when any v2 fantasy page is on
+   screen, so iOS scroll-bounce and transitions don't flash the cream
+   site bg through. Modern :has() selector — supported in all current
+   evergreen browsers and iOS 17+. */
+html:has(.fv2),
+body:has(.fv2) {
+  background: #0a0c10;
+}
+
 .fv2 {
   --fv2-bg-0: #0a0c10;
   --fv2-bg-1: #14171d;

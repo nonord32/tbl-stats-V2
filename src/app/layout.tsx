@@ -5,10 +5,7 @@ import Script from 'next/script';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { ThemeProvider } from '@/components/ThemeProvider';
-import { TopStrip } from '@/components/chrome/TopStrip';
-import { TopNav } from '@/components/chrome/TopNav';
-import { MobileTabBar } from '@/components/chrome/MobileTabBar';
-import { GazetteFooter } from '@/components/chrome/GazetteFooter';
+import { SiteChrome } from '@/components/chrome/SiteChrome';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -59,11 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <ThemeProvider>
-          <TopStrip />
-          <TopNav />
-          <main>{children}</main>
-          <GazetteFooter />
-          <MobileTabBar />
+          <SiteChrome>{children}</SiteChrome>
         </ThemeProvider>
         <Analytics />
         <SpeedInsights />
