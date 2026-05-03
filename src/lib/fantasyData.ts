@@ -404,11 +404,12 @@ function poolToFighters(
 export async function getMyRoster(userId: string): Promise<{
   slugs: string[];
   fighters: FantasyFighter[];
+  teamName: string | null;
 } | null> {
   const supabase = await createServerSupabase();
   const { data, error } = await supabase
     .from('fantasy_rosters')
-    .select('fighter_slugs')
+    .select('fighter_slugs, team_name')
     .eq('user_id', userId)
     .maybeSingle();
   if (error) {
@@ -420,7 +421,11 @@ export async function getMyRoster(userId: string): Promise<{
   }
   const { pool } = await getFantasyData();
   const fighters = poolToFighters(data.fighter_slugs as string[], pool);
-  return { slugs: data.fighter_slugs as string[], fighters };
+  const teamName =
+    typeof data.team_name === 'string' && data.team_name.length > 0
+      ? data.team_name
+      : null;
+  return { slugs: data.fighter_slugs as string[], fighters, teamName };
 }
 
 /** Earliest kickoff time (UTC) across a week's schedule entries. Returns

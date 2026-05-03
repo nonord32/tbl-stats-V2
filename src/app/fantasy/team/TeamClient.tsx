@@ -1,11 +1,12 @@
 'use client';
 // My Team — v2 redesign with ESPN-style roster table.
-// Server passes enriched FantasyFighter rows (with opp / weekScore /
-// seasonFpts / lastFpts) plus the week's starter slugs + lock time.
-// Client handles starter swapping (subject to slot eligibility),
-// POSTs /api/fantasy/lineup, and ticks the lock countdown.
+// Server passes enriched FantasyFighter rows (with opp / matchStartUTC /
+// weekScore / seasonFpts / lastFpts) plus the week's starter slugs.
+// Client handles starter swapping with PER-FIGHTER locking — each
+// starter locks individually when their match kicks off, not the whole
+// lineup at once. Team name is user-editable inline.
 
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import {
   SLOT_LABELS,
   type FantasyFighter,
@@ -45,29 +46,28 @@ function slotEligible(slot: FantasySlot, f: FantasyFighter): boolean {
 }
 
 export interface RosterFighter extends FantasyFighter {
-  opp: string | null;        // opponent TBL team this week ("BYE" if null)
-  weekScore: number | null;  // actual fantasy points this week (null if no bout / unresolved)
-  seasonFpts: number;        // sum of fantasy points across season
-  lastFpts: number | null;   // most recent bout's fantasy points
+  opp: string | null;             // opponent TBL team this week ("BYE" if null)
+  matchStartUTC: string | null;   // ISO; null = no match this week
+  weekScore: number | null;
+  seasonFpts: number;
+  lastFpts: number | null;
 }
 
 interface TeamClientProps {
   roster: RosterFighter[];
   starterSlugs: string[];
   week: number;
-  locksAtISO: string;
+  teamName: string | null;
   resolved: boolean;
 }
 
-function formatCountdown(ms: number): string {
-  if (ms <= 0) return 'Locked';
-  const totalMin = Math.floor(ms / 60_000);
-  const days = Math.floor(totalMin / (60 * 24));
-  const hours = Math.floor((totalMin % (60 * 24)) / 60);
-  const minutes = totalMin % 60;
-  if (days > 0) return `${days}d ${hours}h`;
-  if (hours > 0) return `${hours}h ${String(minutes).padStart(2, '0')}m`;
-  return `${minutes}m`;
+const DEFAULT_TEAM_NAME = 'My Team';
+const MAX_TEAM_NAME = 32;
+
+function isLocked(f: RosterFighter | null, now: number): boolean {
+  if (!f) return false;
+  if (!f.matchStartUTC) return false;
+  return new Date(f.matchStartUTC).getTime() <= now;
 }
 
 function StatusPill({ status }: { status: FantasyFighter['status'] }) {
@@ -95,11 +95,23 @@ function formatDelta(delta: number | null): { text: string; cls: string } {
   return { text: '0.0', cls: '' };
 }
 
+function formatNextLock(ts: number, now: number): string {
+  const diff = ts - now;
+  if (diff <= 0) return 'now';
+  const totalMin = Math.floor(diff / 60_000);
+  const days = Math.floor(totalMin / (60 * 24));
+  const hours = Math.floor((totalMin % (60 * 24)) / 60);
+  const minutes = totalMin % 60;
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${String(minutes).padStart(2, '0')}m`;
+  return `${minutes}m`;
+}
+
 export function TeamClient({
   roster,
   starterSlugs: initialStarters,
   week,
-  locksAtISO,
+  teamName: initialTeamName,
   resolved,
 }: TeamClientProps) {
   const [starterSlugs, setStarterSlugs] = useState<string[]>(initialStarters);
@@ -108,14 +120,27 @@ export function TeamClient({
   const [openSlot, setOpenSlot] = useState<FantasySlot | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Team name state (inline edit)
+  const [teamName, setTeamName] = useState<string>(initialTeamName ?? DEFAULT_TEAM_NAME);
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState(teamName);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [nameSaving, setNameSaving] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Tick clock every 30s for lock countdowns. We re-render so the lock
+  // state of each slot can flip in real time as kickoffs pass.
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(t);
   }, []);
 
-  const locksAt = new Date(locksAtISO).getTime();
-  const msUntilLock = locksAt - now;
-  const isLocked = msUntilLock <= 0 || resolved;
+  useEffect(() => {
+    if (editingName) {
+      nameInputRef.current?.focus();
+      nameInputRef.current?.select();
+    }
+  }, [editingName]);
 
   const rosterById = useMemo(() => {
     const m = new Map<string, RosterFighter>();
@@ -130,6 +155,18 @@ export function TeamClient({
   const startedIds = new Set(starterSlugs.filter(Boolean));
   const bench = roster.filter((f) => !startedIds.has(f.id));
 
+  // Per-slot lock = the starter currently in that slot has kicked off.
+  const slotLocked = lineup.map((row) => isLocked(row.fighter, now));
+  const lockedCount = slotLocked.filter(Boolean).length;
+  const allLocked = lockedCount === 7 || resolved;
+
+  // Next future kickoff among the unlocked starters (for "Next lock in …").
+  const nextLockMs = lineup
+    .filter((r) => r.fighter?.matchStartUTC)
+    .map((r) => new Date(r.fighter!.matchStartUTC!).getTime())
+    .filter((ts) => ts > now)
+    .sort((a, b) => a - b)[0];
+
   const totalProjected = lineup.reduce(
     (sum, row) => sum + (row.fighter?.projected ?? 0),
     0
@@ -138,7 +175,10 @@ export function TeamClient({
     (sum, row) => sum + (row.fighter?.weekScore ?? 0),
     0
   );
-  const anyScored = lineup.some((row) => row.fighter?.weekScore !== null && row.fighter?.weekScore !== undefined);
+  const anyScored = lineup.some(
+    (row) =>
+      row.fighter?.weekScore !== null && row.fighter?.weekScore !== undefined
+  );
   const totalFpts = lineup.reduce((sum, row) => sum + (row.fighter?.seasonFpts ?? 0), 0);
   const totalAvg = lineup.reduce((sum, row) => sum + (row.fighter?.avg ?? 0), 0);
 
@@ -155,7 +195,6 @@ export function TeamClient({
   }
 
   async function handleSwap(slot: FantasySlot, newFighterId: string) {
-    if (isLocked) return;
     setSavingSlot(slot);
     setError(null);
     const slotIdx = SLOT_ORDER.indexOf(slot);
@@ -177,30 +216,187 @@ export function TeamClient({
     }
   }
 
+  function startEditName() {
+    setNameInput(teamName);
+    setNameError(null);
+    setEditingName(true);
+  }
+  function cancelEditName() {
+    setEditingName(false);
+    setNameInput(teamName);
+    setNameError(null);
+  }
+  async function commitTeamName() {
+    const trimmed = nameInput.trim().replace(/\s+/g, ' ');
+    if (trimmed.length === 0) {
+      setNameError('Name required');
+      return;
+    }
+    if (trimmed.length > MAX_TEAM_NAME) {
+      setNameError(`Max ${MAX_TEAM_NAME} chars`);
+      return;
+    }
+    if (trimmed === teamName) {
+      setEditingName(false);
+      return;
+    }
+    setNameSaving(true);
+    setNameError(null);
+    try {
+      const res = await fetch('/api/fantasy/team-name', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ team_name: trimmed }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setNameError(json.error ?? 'Save failed');
+        return;
+      }
+      setTeamName(trimmed);
+      setEditingName(false);
+    } catch {
+      setNameError('Network error');
+    } finally {
+      setNameSaving(false);
+    }
+  }
+
   return (
     <div className="fv2-body">
       {/* Hero */}
       <section className="fv2-hero">
         <div className="fv2-hero__eyebrow">My Team · Week {week}</div>
-        <div className="fv2-hero__title">Throwing Hands FC</div>
+
+        {/* Editable team name */}
+        {editingName ? (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              ref={nameInputRef}
+              className="fv2-input"
+              style={{ fontSize: 24, fontWeight: 700, padding: '8px 12px', minWidth: 280 }}
+              value={nameInput}
+              maxLength={MAX_TEAM_NAME}
+              disabled={nameSaving}
+              onChange={(e) => setNameInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitTeamName();
+                if (e.key === 'Escape') cancelEditName();
+              }}
+              onBlur={() => {
+                // Defer so click on Save button registers first.
+                setTimeout(() => {
+                  if (editingName) commitTeamName();
+                }, 100);
+              }}
+              aria-label="Team name"
+            />
+            <button
+              type="button"
+              className="fv2-btn fv2-btn--primary fv2-btn--sm"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={commitTeamName}
+              disabled={nameSaving}
+            >
+              {nameSaving ? 'Saving' : 'Save'}
+            </button>
+            <button
+              type="button"
+              className="fv2-btn fv2-btn--ghost fv2-btn--sm"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={cancelEditName}
+              disabled={nameSaving}
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={startEditName}
+            title="Click to rename"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              padding: 0,
+              margin: 0,
+              color: 'inherit',
+              cursor: 'pointer',
+              textAlign: 'left',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+            className="fv2-hero__title"
+          >
+            {teamName}
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ opacity: 0.4 }}
+              aria-hidden
+            >
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+          </button>
+        )}
+        {nameError && (
+          <div style={{ fontSize: 11, color: 'var(--fv2-negative)', marginTop: 6 }}>
+            {nameError}
+          </div>
+        )}
+
         <div className="fv2-hero__sub">
-          {isLocked ? (
-            resolved ? (
-              <>Week {week} resolved — see <strong>Scoring</strong></>
-            ) : (
-              <>Lineup locked at <strong>{new Date(locksAt).toLocaleString()}</strong></>
-            )
+          {resolved ? (
+            <>
+              Week {week} resolved — see <strong>Scoring</strong>
+            </>
+          ) : allLocked ? (
+            <>
+              All <strong>7 of 7</strong> starters locked
+            </>
+          ) : lockedCount > 0 ? (
+            <>
+              <strong>
+                {lockedCount} of 7
+              </strong>{' '}
+              starters locked
+              {nextLockMs && (
+                <>
+                  {' '}
+                  · next lock in <strong>{formatNextLock(nextLockMs, now)}</strong>
+                </>
+              )}
+            </>
+          ) : nextLockMs ? (
+            <>
+              First kickoff in <strong>{formatNextLock(nextLockMs, now)}</strong>
+            </>
           ) : (
-            <>Lineup locks in <strong>{formatCountdown(msUntilLock)}</strong></>
+            <>No matches this week</>
           )}
         </div>
+
         <div style={{ display: 'flex', gap: 10, marginTop: 22, flexWrap: 'wrap' }}>
           <span
             className={`fv2-lock-pill ${
-              isLocked ? 'fv2-lock-pill--locked' : 'fv2-lock-pill--open'
+              allLocked
+                ? 'fv2-lock-pill--locked'
+                : lockedCount > 0
+                ? ''
+                : 'fv2-lock-pill--open'
             }`}
           >
-            {isLocked ? '🔒 Locked' : `Locks in ${formatCountdown(msUntilLock)}`}
+            {allLocked
+              ? '🔒 Fully locked'
+              : `${lockedCount}/7 locked`}
           </span>
         </div>
       </section>
@@ -242,7 +438,9 @@ export function TeamClient({
         <div className="fv2-section-head">
           <span className="fv2-section-head__title">Starters · 7 slots</span>
           <span className="fv2-section-head__meta">
-            {isLocked ? 'Locked' : 'Tap Swap to change a starter'}
+            {allLocked
+              ? 'All locked'
+              : 'Tap Swap to change an unlocked starter'}
           </span>
         </div>
 
@@ -269,12 +467,16 @@ export function TeamClient({
               </tr>
             </thead>
             <tbody>
-              {lineup.map((row) => {
+              {lineup.map((row, idx) => {
                 const slot = row.slot;
                 const f = row.fighter;
-                const eligibleBench = bench.filter((b) => slotEligible(slot, b));
                 const isOpen = openSlot === slot;
                 const isSaving = savingSlot === slot;
+                const locked = slotLocked[idx];
+                // Eligible bench fighters whose own match also hasn't kicked off.
+                const eligibleBench = bench.filter((b) => slotEligible(slot, b));
+                const swappableBench = eligibleBench.filter((b) => !isLocked(b, now));
+                const canSwap = !resolved && !locked && swappableBench.length > 0;
                 const delta =
                   f && f.weekScore !== null
                     ? Number((f.weekScore - f.projected).toFixed(1))
@@ -297,8 +499,14 @@ export function TeamClient({
                             {f ? initials(f.name) : '—'}
                           </div>
                           <div className="fv2-roster__player-info">
-                            <div className="fv2-roster__player-name">
+                            <div
+                              className="fv2-roster__player-name"
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                            >
                               {f ? f.name : 'Empty'}
+                              {locked && (
+                                <span title="Match has started" aria-label="Locked" style={{ fontSize: 11 }}>🔒</span>
+                              )}
                             </div>
                             <div className="fv2-roster__player-meta">
                               {f
@@ -314,12 +522,25 @@ export function TeamClient({
                           className={`fv2-action-btn${
                             isOpen ? ' fv2-action-btn--active' : ''
                           }`}
-                          disabled={
-                            isLocked || isSaving || eligibleBench.length === 0
-                          }
+                          disabled={!canSwap || isSaving}
                           onClick={() => setOpenSlot(isOpen ? null : slot)}
+                          title={
+                            resolved
+                              ? 'Week resolved'
+                              : locked
+                              ? `${f?.name ?? 'Slot'} has kicked off`
+                              : swappableBench.length === 0
+                              ? 'No eligible bench fighters'
+                              : undefined
+                          }
                         >
-                          {isSaving ? 'Saving' : isOpen ? 'Close' : 'Swap'}
+                          {isSaving
+                            ? 'Saving'
+                            : locked
+                            ? 'Locked'
+                            : isOpen
+                            ? 'Close'
+                            : 'Swap'}
                         </button>
                       </td>
                       <td>{f?.opp ?? 'BYE'}</td>
@@ -341,15 +562,19 @@ export function TeamClient({
                           <div className="fv2-swap-tray">
                             <div className="fv2-swap-tray__head">
                               Eligible bench fighters
+                              {eligibleBench.length !== swappableBench.length && (
+                                <span style={{ marginLeft: 8, color: 'var(--fv2-text-3)', fontWeight: 400 }}>
+                                  · {eligibleBench.length - swappableBench.length} locked (already kicked off)
+                                </span>
+                              )}
                             </div>
-                            {eligibleBench.length === 0 ? (
+                            {swappableBench.length === 0 ? (
                               <div className="fv2-empty" style={{ padding: 14 }}>
-                                No bench fighters fit this slot. Draft someone or
-                                claim a free agent.
+                                No swappable bench fighters fit this slot.
                               </div>
                             ) : (
                               <div className="fv2-swap-grid">
-                                {eligibleBench
+                                {swappableBench
                                   .slice()
                                   .sort((a, b) => b.projected - a.projected)
                                   .map((b) => (
@@ -429,30 +654,45 @@ export function TeamClient({
                 {bench
                   .slice()
                   .sort((a, b) => b.projected - a.projected)
-                  .map((b) => (
-                    <tr key={b.id}>
-                      <td className="fv2-col-left">
-                        <div className="fv2-roster__player">
-                          <div className="fv2-roster__avatar">{initials(b.name)}</div>
-                          <div className="fv2-roster__player-info">
-                            <div className="fv2-roster__player-name">{b.name}</div>
-                            <div className="fv2-roster__player-meta">
-                              {b.team} · {b.weightClass}
+                  .map((b) => {
+                    const benchLocked = isLocked(b, now);
+                    return (
+                      <tr key={b.id}>
+                        <td className="fv2-col-left">
+                          <div className="fv2-roster__player">
+                            <div className="fv2-roster__avatar">{initials(b.name)}</div>
+                            <div className="fv2-roster__player-info">
+                              <div
+                                className="fv2-roster__player-name"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                              >
+                                {b.name}
+                                {benchLocked && (
+                                  <span title="Match has started" aria-label="Locked" style={{ fontSize: 11 }}>🔒</span>
+                                )}
+                              </div>
+                              <div className="fv2-roster__player-meta">
+                                {b.team} · {b.weightClass}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </td>
-                      <td>{b.opp ?? 'BYE'}</td>
-                      <td>
-                        <StatusPill status={b.status} />
-                      </td>
-                      <td>{b.projected.toFixed(1)}</td>
-                      <td>{b.weekScore !== null ? b.weekScore.toFixed(1) : '—'}</td>
-                      <td>{b.seasonFpts.toFixed(1)}</td>
-                      <td>{b.avg.toFixed(1)}</td>
-                      <td>{b.lastFpts !== null ? b.lastFpts.toFixed(1) : '—'}</td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td>{b.opp ?? 'BYE'}</td>
+                        <td>
+                          <StatusPill status={b.status} />
+                        </td>
+                        <td>{b.projected.toFixed(1)}</td>
+                        <td>
+                          {b.weekScore !== null ? b.weekScore.toFixed(1) : '—'}
+                        </td>
+                        <td>{b.seasonFpts.toFixed(1)}</td>
+                        <td>{b.avg.toFixed(1)}</td>
+                        <td>
+                          {b.lastFpts !== null ? b.lastFpts.toFixed(1) : '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
               </tbody>
             </table>
           </div>

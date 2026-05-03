@@ -11,6 +11,7 @@ import { safeGetUser } from '@/lib/supabase/safe';
 import { getAllData } from '@/lib/data';
 import { getCurrentWeek, getDisplayedCurrentWeek } from '@/lib/week';
 import { getMyRoster, getOrCreateWeek, methodToPoints } from '@/lib/fantasyData';
+import { getGameStartUTC } from '@/lib/gameTime';
 import { TeamClient, type RosterFighter } from './TeamClient';
 
 export const dynamic = 'force-dynamic';
@@ -49,10 +50,9 @@ export default async function FantasyTeamPage() {
     if (s.matchIndex != null) matchIndexToWeek.set(s.matchIndex, Number(s.week));
   });
 
-  // For each fighter, look up this week's opponent from the schedule
-  // (the OTHER TBL team in their team's match), plus season totals from
-  // their bout history, plus this week's actual score (if their team's
-  // match this week has resolved into the sheet).
+  // For each fighter, look up this week's opponent + that match's exact
+  // kickoff (UTC ISO) so the client can lock per-slot, plus season +
+  // last + week score from bout history.
   const enriched: RosterFighter[] = roster.fighters.map((f) => {
     const history = sheet.fighterHistory[f.id] ?? [];
     let seasonFpts = 0;
@@ -66,7 +66,6 @@ export default async function FantasyTeamPage() {
       }
     });
     if (history.length > 0) {
-      // history is sorted desc by date inside getAllData
       lastFpts = methodToPoints(history[0].result, history[0].resultMethod);
     }
 
@@ -80,8 +79,19 @@ export default async function FantasyTeamPage() {
         ? teamMatchThisWeek.team2
         : teamMatchThisWeek.team1
       : null;
+    const matchStart = teamMatchThisWeek
+      ? getGameStartUTC(
+          teamMatchThisWeek.date,
+          teamMatchThisWeek.time,
+          teamMatchThisWeek.venueCity
+        )
+      : null;
+    const matchStartUTC =
+      matchStart && !isNaN(matchStart.getTime())
+        ? matchStart.toISOString()
+        : null;
 
-    return { ...f, opp, weekScore, seasonFpts, lastFpts };
+    return { ...f, opp, matchStartUTC, weekScore, seasonFpts, lastFpts };
   });
 
   return (
@@ -89,7 +99,7 @@ export default async function FantasyTeamPage() {
       roster={enriched}
       starterSlugs={weekRow.starterSlugs}
       week={week}
-      locksAtISO={weekRow.locksAt}
+      teamName={roster.teamName}
       resolved={!!weekRow.resolvedAt}
     />
   );

@@ -1,9 +1,13 @@
 // src/app/api/fantasy/lineup/route.ts
-// Update the user's starting 7 for a given fantasy week. Rejected once
-// the week has locked (locks_at = first kickoff of the week).
+// Update the user's starting 7 for a given fantasy week. Lock is now
+// PER-FIGHTER, not whole-lineup: a slot is rejected only if the fighter
+// being removed OR the fighter being added has already kicked off their
+// match this week. Fighters who haven't fought yet are still swappable.
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { safeGetUser } from '@/lib/supabase/safe';
+import { getAllData } from '@/lib/data';
+import { getGameStartUTC } from '@/lib/gameTime';
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -33,10 +37,9 @@ export async function POST(request: Request) {
     );
   }
 
-  // Look up the row; we need locks_at + ownership for sanity.
   const existing = await supabase
     .from('fantasy_weeks')
-    .select('id, locks_at, resolved_at')
+    .select('id, starter_slugs, resolved_at')
     .eq('user_id', user.id)
     .eq('week', week)
     .maybeSingle();
@@ -47,12 +50,8 @@ export async function POST(request: Request) {
   if (existing.data.resolved_at) {
     return NextResponse.json({ error: 'Week already resolved — lineup is final' }, { status: 403 });
   }
-  if (new Date(existing.data.locks_at as string).getTime() <= Date.now()) {
-    return NextResponse.json({ error: 'Lineup locked — first kickoff has passed' }, { status: 403 });
-  }
 
-  // Confirm every starter slug is on the user's roster (no smuggling
-  // free agents into your lineup via crafted requests).
+  // Roster ownership check — every starter must be on the user's roster.
   const roster = await supabase
     .from('fantasy_rosters')
     .select('fighter_slugs')
@@ -67,6 +66,59 @@ export async function POST(request: Request) {
         { error: `Fighter not on your roster: ${s}` },
         { status: 400 }
       );
+    }
+  }
+
+  // Per-fighter lock: figure out which slots changed, then reject if
+  // either side of any swap has already kicked off.
+  const oldSlugs = (existing.data.starter_slugs as string[]) ?? [];
+  const changed: { oldSlug: string | null; newSlug: string }[] = [];
+  for (let i = 0; i < 7; i++) {
+    const o = oldSlugs[i] ?? null;
+    const n = slugs[i];
+    if (o !== n) changed.push({ oldSlug: o, newSlug: n });
+  }
+
+  if (changed.length > 0) {
+    const sheet = await getAllData();
+    const matchStartBySlug = new Map<string, number>();
+    // Build slug → match-start UTC ms map (only for fighters whose team
+    // plays this week). Fighters with no match this week have no lock.
+    const fightersBySlug = new Map(sheet.fighters.map((f) => [f.slug, f]));
+    for (const entry of sheet.schedule) {
+      if (Number(entry.week) !== week) continue;
+      const start = getGameStartUTC(entry.date, entry.time, entry.venueCity);
+      if (!start || isNaN(start.getTime())) continue;
+      // Both teams' fighters have this kickoff time.
+      sheet.fighters.forEach((f) => {
+        if (f.team === entry.team1 || f.team === entry.team2) {
+          matchStartBySlug.set(f.slug, start.getTime());
+        }
+      });
+    }
+
+    const now = Date.now();
+    for (const { oldSlug, newSlug } of changed) {
+      // Old fighter (being removed): if their match has started, reject.
+      if (oldSlug) {
+        const ts = matchStartBySlug.get(oldSlug);
+        if (ts !== undefined && ts <= now) {
+          const f = fightersBySlug.get(oldSlug);
+          return NextResponse.json(
+            { error: `${f?.name ?? oldSlug} has already kicked off — can't bench` },
+            { status: 403 }
+          );
+        }
+      }
+      // New fighter (being started): same rule.
+      const tsNew = matchStartBySlug.get(newSlug);
+      if (tsNew !== undefined && tsNew <= now) {
+        const f = fightersBySlug.get(newSlug);
+        return NextResponse.json(
+          { error: `${f?.name ?? newSlug} has already kicked off — can't add` },
+          { status: 403 }
+        );
+      }
     }
   }
 

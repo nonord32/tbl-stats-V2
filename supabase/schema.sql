@@ -123,9 +123,11 @@ order by total_points desc, exact_picks desc;
 create table public.fantasy_rosters (
   user_id uuid references public.profiles(id) on delete cascade primary key,
   fighter_slugs text[] not null default '{}',
+  team_name text,                    -- user-editable display name; null falls back to "My Team"
   created_at timestamptz default now() not null,
   updated_at timestamptz default now() not null
 );
+-- For existing installs: alter table public.fantasy_rosters add column if not exists team_name text;
 
 alter table public.fantasy_rosters enable row level security;
 
