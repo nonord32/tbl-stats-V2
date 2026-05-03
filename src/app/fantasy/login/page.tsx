@@ -216,7 +216,7 @@ function FantasyLoginForm() {
           }}
         >
           <Link
-            href={`/signup?next=${encodeURIComponent(next)}`}
+            href={`/fantasy/signup?next=${encodeURIComponent(next)}`}
             className="fv2-link"
             style={{
               fontFamily: 'var(--fv2-font-mono)',
@@ -228,7 +228,7 @@ function FantasyLoginForm() {
             Create account
           </Link>
           <Link
-            href="/forgot-password"
+            href="/fantasy/forgot-password"
             className="fv2-link"
             style={{
               fontFamily: 'var(--fv2-font-mono)',

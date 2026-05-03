@@ -1,13 +1,20 @@
 'use client';
 // Client wrapper that decides whether to render the fantasy banner +
-// sub-nav. Hidden on the login surface so /fantasy/login feels like a
-// standalone auth page (no nav around the form).
+// sub-nav. Hidden on auth surfaces (login / signup / forgot-password /
+// reset-password) so those feel like standalone pages, not tabs.
 import { usePathname } from 'next/navigation';
 import { FantasySubNav } from './FantasySubNav';
 
+const AUTH_PATHS = new Set([
+  '/fantasy/login',
+  '/fantasy/signup',
+  '/fantasy/forgot-password',
+  '/fantasy/reset-password',
+]);
+
 export function FantasyShellChrome() {
   const pathname = usePathname();
-  if (pathname === '/fantasy/login') return null;
+  if (pathname && AUTH_PATHS.has(pathname)) return null;
 
   return (
     <>
