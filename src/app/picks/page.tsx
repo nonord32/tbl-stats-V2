@@ -2,6 +2,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getAllData } from '@/lib/data';
+import { ensureResolved } from '@/lib/resolve-on-read';
 import { getGameStartUTC, isPickOpen } from '@/lib/gameTime';
 import { getCurrentWeek } from '@/lib/week';
 import { safeGetUser, safeQuery } from '@/lib/supabase/safe';
@@ -18,18 +19,20 @@ export default async function PicksPage() {
     redirect('/login');
   }
 
-  const [sheetData, picks] = await Promise.all([
-    getAllData(),
-    safeQuery<UserPick[]>(
-      supabase
-        .from('picks')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('match_index', { ascending: true }),
-      [],
-      'picks.list'
-    ),
-  ]);
+  const sheetData = await getAllData();
+  // Lazy resolve any picks/fantasy weeks now scorable from sheet state.
+  // Idempotent + cheap when nothing is pending.
+  await ensureResolved(sheetData);
+
+  const picks = await safeQuery<UserPick[]>(
+    supabase
+      .from('picks')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('match_index', { ascending: true }),
+    [],
+    'picks.list'
+  );
 
   // Current active week (earliest week still taking picks)
   const currentWeek = getCurrentWeek(sheetData.schedule);

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createServiceClient, type SupabaseClient } from '@supabase/supabase-js';
 import { getAllData } from '@/lib/data';
+import { ensureResolved } from '@/lib/resolve-on-read';
 import { safeGetUser, safeQuery } from '@/lib/supabase/safe';
 import { LeaderboardClient } from './LeaderboardClient';
 
@@ -39,7 +40,12 @@ export default async function LeaderboardPage() {
     console.error('[leaderboard] service client construction failed:', err);
   }
 
-  const [picksData, profilesData, sheetData] = await Promise.all([
+  const sheetData = await getAllData();
+  // Score any newly-completed matches before reading totals so the
+  // leaderboard reflects the latest sheet state without an admin call.
+  await ensureResolved(sheetData);
+
+  const [picksData, profilesData] = await Promise.all([
     service
       ? safeQuery<PickRow[]>(
           service
@@ -57,7 +63,6 @@ export default async function LeaderboardPage() {
           'leaderboard.profiles'
         )
       : Promise.resolve<ProfileRow[]>([]),
-    getAllData(),
   ]);
   const picksRes = { data: picksData };
   const profilesRes = { data: profilesData };

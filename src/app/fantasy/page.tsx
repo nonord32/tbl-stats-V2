@@ -4,6 +4,8 @@
 // fantasy_weeks. League join/create + standings stay mock for now.
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import { getAllData } from '@/lib/data';
+import { ensureResolved } from '@/lib/resolve-on-read';
 import { safeGetUser } from '@/lib/supabase/safe';
 
 export const dynamic = 'force-dynamic';
@@ -80,6 +82,14 @@ async function loadSeasonSummary(userId: string): Promise<SeasonSummary> {
 export default async function FantasyLobbyPage() {
   const supabase = await createClient();
   const user = await safeGetUser(supabase);
+
+  // Resolve any fantasy weeks now scorable from sheet state before reading
+  // the user's record. Idempotent + cheap when nothing's pending.
+  if (user) {
+    const sheetData = await getAllData();
+    await ensureResolved(sheetData);
+  }
+
   const summary = user
     ? await loadSeasonSummary(user.id)
     : null;
