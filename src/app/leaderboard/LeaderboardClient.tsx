@@ -99,13 +99,28 @@ export function LeaderboardClient({
 }: LeaderboardClientProps) {
   const [scope, setScope] = useState<'season' | number>('season');
 
-  const entries = scope === 'season' ? allTimeEntries : (weekEntries[scope] ?? []);
+  // Local override of the signed-in user's handle so the rename UI can update
+  // optimistically without forcing a full server refetch.
+  const [myUsernameOverride, setMyUsernameOverride] = useState<string | null>(null);
+
+  const overrideRows = (rows: LeaderRow[]): LeaderRow[] => {
+    if (!currentUserId || !myUsernameOverride) return rows;
+    return rows.map((r) =>
+      r.user_id === currentUserId ? { ...r, username: myUsernameOverride } : r
+    );
+  };
+  const entries =
+    scope === 'season'
+      ? overrideRows(allTimeEntries)
+      : overrideRows(weekEntries[scope] ?? []);
   const visible = entries.slice(0, ROW_LIMIT);
 
   const me = useMemo(() => {
     if (!currentUserId) return null;
-    return allTimeEntries.find((e) => e.user_id === currentUserId) ?? null;
-  }, [currentUserId, allTimeEntries]);
+    const base = allTimeEntries.find((e) => e.user_id === currentUserId) ?? null;
+    if (base && myUsernameOverride) return { ...base, username: myUsernameOverride };
+    return base;
+  }, [currentUserId, allTimeEntries, myUsernameOverride]);
   const leader = allTimeEntries[0] ?? null;
   const gapFromLeader = me && leader ? me.total_points - leader.total_points : null;
 
@@ -140,12 +155,6 @@ export function LeaderboardClient({
           </div>
         </div>
         <div className="lb-header__controls">
-          <label className="lb-control">
-            <span className="lb-control__label">Pool</span>
-            <span className="lb-control__static">
-              Public · {totalEntrants.toLocaleString()}
-            </span>
-          </label>
           <label className="lb-control">
             <span className="lb-control__label">Scope</span>
             <select
@@ -266,6 +275,7 @@ export function LeaderboardClient({
                 me={me}
                 gapFromLeader={gapFromLeader}
                 totalEntrants={totalEntrants}
+                onRename={setMyUsernameOverride}
               />
             ) : (
               <SignedOutPanel />
@@ -293,11 +303,47 @@ function YourPosition({
   me,
   gapFromLeader,
   totalEntrants,
+  onRename,
 }: {
   me: LeaderRow;
   gapFromLeader: number | null;
   totalEntrants: number;
+  onRename: (next: string) => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(me.username);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function startEdit() {
+    setDraft(me.username);
+    setError(null);
+    setEditing(true);
+  }
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/profile/username', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: draft.trim() }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(json.error ?? 'Could not update username.');
+        return;
+      }
+      onRename(json.username);
+      setEditing(false);
+    } catch {
+      setError('Network error. Try again.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="lb-you">
       <div className="lb-you__head">
@@ -320,6 +366,54 @@ function YourPosition({
           {gapFromLeader === 0 && ' · Leading'}
         </div>
       </div>
+
+      {/* Editable handle row */}
+      <div className="lb-handle">
+        {!editing ? (
+          <>
+            <span className="lb-handle__value">@{me.username}</span>
+            <button
+              type="button"
+              className="lb-handle__edit"
+              onClick={startEdit}
+              aria-label="Edit username"
+            >
+              Edit
+            </button>
+          </>
+        ) : (
+          <form onSubmit={save} className="lb-handle__form">
+            <span className="lb-handle__at">@</span>
+            <input
+              autoFocus
+              className="lb-handle__input"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              maxLength={20}
+              disabled={saving}
+              spellCheck={false}
+              autoCapitalize="off"
+              autoComplete="off"
+            />
+            <button type="submit" className="lb-handle__save" disabled={saving}>
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+            <button
+              type="button"
+              className="lb-handle__cancel"
+              onClick={() => setEditing(false)}
+              disabled={saving}
+            >
+              Cancel
+            </button>
+          </form>
+        )}
+        {error && <div className="lb-handle__error">{error}</div>}
+        {editing && !error && (
+          <div className="lb-handle__hint">3–20 chars · letters, numbers, underscore</div>
+        )}
+      </div>
+
       <div className="lb-you__stats">
         <Stat label="This Week" value={String(me.last_week_points)} />
         <Stat
