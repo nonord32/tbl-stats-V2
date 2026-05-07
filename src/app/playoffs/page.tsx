@@ -222,8 +222,7 @@ function TBDMatch() {
 function FinalMatch() {
   return (
     <div className="po-match po-match--final">
-      <div className="po-final__crown">★</div>
-      <div className="po-final__line">League Final</div>
+      <div className="po-final__line">MegaBrawl IV</div>
       <div className="po-tbd">TBD</div>
       <div className="po-match__rule">vs</div>
       <div className="po-tbd">TBD</div>

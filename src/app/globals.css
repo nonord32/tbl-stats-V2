@@ -5771,11 +5771,6 @@ body:has(.fv2) {
   color: rgba(20, 17, 11, 0.22);
 }
 .po-match--final .po-tbd { color: rgba(244, 237, 224, 0.4); }
-.po-final__crown {
-  font-size: 22px;
-  color: var(--tbl-accent-bright);
-  margin-bottom: 6px;
-}
 .po-final__line {
   font-family: var(--tbl-font-serif);
   font-weight: 900;
