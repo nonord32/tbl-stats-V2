@@ -87,7 +87,6 @@ export default async function PlayoffsPage() {
             </div>
           </div>
           <div className="po-header__legend">
-            <span className="po-legend__chip po-legend__chip--high">Higher seed hosts</span>
             <Link href="/teams" className="po-legend__link">
               Full standings →
             </Link>
@@ -106,7 +105,7 @@ export default async function PlayoffsPage() {
           {/* Semifinals — top half */}
           <div className="po-col po-col--sf">
             <div className="po-round-rule">Semifinal</div>
-            <TBDMatch label="Top of Bracket" />
+            <TBDMatch />
           </div>
 
           {/* Final */}
@@ -118,7 +117,7 @@ export default async function PlayoffsPage() {
           {/* Semifinals — bottom half */}
           <div className="po-col po-col--sf po-col--sf-bottom">
             <div className="po-round-rule">Semifinal</div>
-            <TBDMatch label="Bottom of Bracket" />
+            <TBDMatch />
           </div>
 
           {/* Quarterfinals — bottom half */}
@@ -210,13 +209,12 @@ function SeedRow({ seed, highlight }: { seed: Seed; highlight?: boolean }) {
   );
 }
 
-function TBDMatch({ label }: { label?: string }) {
+function TBDMatch() {
   return (
     <div className="po-match po-match--tbd">
       <div className="po-tbd">TBD</div>
       <div className="po-match__rule">vs</div>
       <div className="po-tbd">TBD</div>
-      {label && <div className="po-tbd__label">{label}</div>}
     </div>
   );
 }

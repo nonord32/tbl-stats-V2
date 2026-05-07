@@ -275,6 +275,11 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
           eyebrow="The League"
           title="Standings"
           subtitle={`${teams.length} Clubs · Sorted by Wins`}
+          right={
+            <Link href="/playoffs" className="teams-playoffs-link">
+              Playoff Picture →
+            </Link>
+          }
         />
       </div>
       <div className="teams-mobile-list">
@@ -325,16 +330,30 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
       </div>
 
       <div className="container teams-desktop-only">
-        <div className="page-header">
-          <h1>Team Standings</h1>
-          <div className="subtitle">
-            Team Rankings · 2026 TBL Season
-            {formattedUpdate && (
-              <span style={{ marginLeft: 10, fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>
-                · Updated {formattedUpdate}
-              </span>
-            )}
+        <div
+          className="page-header"
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-end',
+            gap: 16,
+            flexWrap: 'wrap',
+          }}
+        >
+          <div>
+            <h1>Team Standings</h1>
+            <div className="subtitle">
+              Team Rankings · 2026 TBL Season
+              {formattedUpdate && (
+                <span style={{ marginLeft: 10, fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>
+                  · Updated {formattedUpdate}
+                </span>
+              )}
+            </div>
           </div>
+          <Link href="/playoffs" className="teams-playoffs-link">
+            Playoff Picture →
+          </Link>
         </div>
         {seoText && <p className="page-intro">{seoText}</p>}
 
