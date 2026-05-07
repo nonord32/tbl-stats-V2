@@ -182,7 +182,7 @@ function Match({
   return (
     <div className="po-match">
       <SeedRow seed={host} highlight={!!hostHigh} />
-      <div className="po-match__rule">at</div>
+      <div className="po-match__rule">vs</div>
       <SeedRow seed={visitor} />
     </div>
   );
