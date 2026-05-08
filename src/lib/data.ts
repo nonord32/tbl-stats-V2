@@ -1,6 +1,7 @@
 // src/lib/data.ts
 // All data fetching & parsing — column names matched to actual sheet headers.
 
+import { cache } from 'react';
 import Papa from 'papaparse';
 import type {
   FighterStat,
@@ -661,7 +662,12 @@ function parseAwards(rows: string[][]): AwardEntry[] {
 }
 
 // ─── Main export ───────────────────────────────────────────────────────────────
-export async function getAllData(): Promise<ParsedSheetData> {
+// Wrapped in React cache so multiple call sites within a single request tree
+// (e.g. layout + page + an internal API hop) reuse one fetch+parse pass
+// instead of re-running the whole pipeline. Cache is per-request, not shared
+// across users — Vercel ISR + the per-fetch revalidate window handle the
+// across-request caching.
+export const getAllData = cache(async (): Promise<ParsedSheetData> => {
   // Each CSV fetch has its own fallback so one bad source (rename, network,
   // rate limit) can't take down every page that uses getAllData.
   const emptyRows: string[][] = [];
@@ -767,7 +773,7 @@ export async function getAllData(): Promise<ParsedSheetData> {
   });
 
   return { fighters, teams, teamMatches, fighterHistory, schedule, highlights, awards, lastUpdated };
-}
+});
 
 export async function getFighterBySlug(slug: string) {
   const data = await getAllData();

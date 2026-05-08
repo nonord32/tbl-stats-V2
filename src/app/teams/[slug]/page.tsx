@@ -16,7 +16,6 @@ import { RosterTable } from './RosterTable';
 import type { TeamMatch, ScheduleEntry } from '@/types';
 
 export const revalidate = 300;
-export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({
   params,

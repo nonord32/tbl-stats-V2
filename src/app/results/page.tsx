@@ -16,7 +16,6 @@ export const metadata: Metadata = {
 };
 
 export const revalidate = 300;
-export const dynamic = 'force-dynamic';
 
 export default async function ResultsPage() {
   const data = await getAllData();

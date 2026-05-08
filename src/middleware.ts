@@ -3,17 +3,6 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
-  // Skip middleware entirely on auth routes. The route handlers there
-  // (/auth/callback, /api/auth/*, /auth/signout) own the full cookie
-  // lifecycle for that request — having the middleware also call
-  // supabase.auth.getUser() and potentially write cookies on the same
-  // response was racing with the route handler's Set-Cookie headers and
-  // leaving Safari without a usable session after Google OAuth.
-  const { pathname } = request.nextUrl;
-  if (pathname.startsWith('/auth/') || pathname.startsWith('/api/auth/')) {
-    return NextResponse.next();
-  }
-
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -47,15 +36,22 @@ export async function middleware(request: NextRequest) {
   return supabaseResponse;
 }
 
+// Auth-only allow-list. Public ISR pages (home, teams, fighters, schedule,
+// results, rankings, awards, playoffs, matches/*) skip middleware entirely
+// so Vercel's edge can serve cached HTML without booting a function.
+// /auth/* and /api/auth/* are intentionally absent — those routes own their
+// own cookie lifecycle and we previously had to early-return for them.
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization)
-     * - favicon.ico
-     * - public folder files (images, icons, etc.)
-     */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js)$).*)',
+    '/picks/:path*',
+    '/admin/:path*',
+    '/leaderboard/:path*',
+    '/fantasy/:path*',
+    '/api/picks/:path*',
+    '/api/resolve/:path*',
+    '/api/whoami/:path*',
+    '/api/profile/:path*',
+    '/api/fantasy/:path*',
+    '/api/admin/:path*',
   ],
 };
