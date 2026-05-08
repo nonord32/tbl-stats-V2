@@ -358,12 +358,14 @@ export default async function FighterPage({
                     : `R${h.round}`;
                   return (
                     <div key={i} className="gz-fighter-history-row">
-                      <div
-                        className={`gz-fighter-history-row__badge${
-                          isWin ? ' is-win' : ' is-loss'
-                        }`}
-                      >
-                        <span>{h.result}</span>
+                      <div className="gz-fighter-history-row__result">
+                        <div
+                          className={`gz-fighter-history-row__badge${
+                            isWin ? ' is-win' : ' is-loss'
+                          }`}
+                        >
+                          {h.result}
+                        </div>
                         {h.resultMethod && (
                           <span className="gz-fighter-history-row__method">
                             {h.resultMethod}
