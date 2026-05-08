@@ -10,7 +10,6 @@ import { getLastCompletedWeek } from '@/lib/week';
 import { sortStandings, getH2HTiebreakerWinners } from '@/lib/standings';
 import type { TeamStanding } from '@/types';
 
-export const dynamic = 'force-dynamic';
 export const revalidate = 300;
 
 export const metadata: Metadata = {

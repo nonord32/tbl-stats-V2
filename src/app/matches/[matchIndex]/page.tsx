@@ -10,7 +10,6 @@ import { SectionRule } from '@/components/chrome/SectionRule';
 import { HighlightsSection } from '@/components/HighlightsSection';
 
 export const revalidate = 300;
-export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({
   params,
