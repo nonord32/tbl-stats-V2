@@ -121,6 +121,12 @@ export default async function PlayoffsPage() {
               <Match key={`qf-bot-${i}`} a={p[0]} b={p[1]} hostHigh h2hWinners={h2hWinners} />
             ))}
           </div>
+
+          {/* Mobile-only summary in place of the empty SF/F columns */}
+          <div className="po-bracket__mobile-tbd" aria-hidden="true">
+            <span className="po-bracket__mobile-tbd-label">Semifinals · MegaBrawl IV</span>
+            <span className="po-bracket__mobile-tbd-text">Filled in as winners advance</span>
+          </div>
         </div>
 
         {/* Seed list + bubble */}

@@ -273,7 +273,17 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
                   }}
                 />
                 <div className="teams-mobile-row__body">
-                  <div className="teams-mobile-row__name">{getFullTeamName(t.slug)}</div>
+                  <div className="teams-mobile-row__name">
+                    {getFullTeamName(t.slug)}
+                    {h2hWinners.has(t.slug) && (
+                      <span
+                        className="teams-mobile-row__h2h"
+                        aria-label={`Wins tiebreaker over ${h2hWinners.get(t.slug)!.join(', ')} via head-to-head record`}
+                      >
+                        *
+                      </span>
+                    )}
+                  </div>
                   <div className="teams-mobile-row__meta">
                     {getCityName(t.team)}
                     {streak && <> · <span className={streak.startsWith('W') ? 'teams-mobile-row__streak is-win' : 'teams-mobile-row__streak is-loss'}>{streak}</span></>}
@@ -296,6 +306,18 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
             </React.Fragment>
           );
         })}
+        {h2hWinners.size > 0 && (
+          <div className="teams-mobile-h2h-note">
+            {Array.from(h2hWinners.entries()).map(([slug, beaten]) => {
+              const winnerTeam = teams.find((t) => t.slug === slug)?.team ?? slug;
+              return (
+                <div key={slug}>
+                  <span className="teams-mobile-h2h-note__star">*</span> {winnerTeam} wins tiebreaker over {beaten.join(', ')} via head-to-head record
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div className="container teams-desktop-only">
