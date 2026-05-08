@@ -332,6 +332,11 @@ export default async function FighterPage({
       {/* Body: Fight History */}
       <div>
         <div style={{ padding: '24px 32px' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
+            <Link href={`/compare?a=${fighter.slug}`} className="cmp-link">
+              Compare →
+            </Link>
+          </div>
           <SectionRule
             left="Fight History · 2026 Season"
             right={`${history.length} ${history.length === 1 ? 'bout' : 'bouts'} shown`}
@@ -363,7 +368,12 @@ export default async function FighterPage({
                           isWin ? ' is-win' : ' is-loss'
                         }`}
                       >
-                        {h.result}
+                        <span>{h.result}</span>
+                        {h.resultMethod && (
+                          <span className="gz-fighter-history-row__method">
+                            {h.resultMethod}
+                          </span>
+                        )}
                       </div>
                       {oppLogo && (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -383,6 +393,7 @@ export default async function FighterPage({
                         </Link>
                         <div className="gz-fighter-history-row__meta">
                           {h.date} · {roundLabel}
+                          {h.roundPhase ? ` · ${h.roundPhase}` : ''}
                         </div>
                       </div>
                       <div
@@ -481,7 +492,12 @@ export default async function FighterPage({
                           </Link>
                         </td>
                         <td style={{ padding: '10px 6px', textAlign: 'right' }}>
-                          {String(h.round).startsWith('R') ? h.round : `R${h.round}`}
+                          <div>{String(h.round).startsWith('R') ? h.round : `R${h.round}`}</div>
+                          {h.roundPhase && (
+                            <div style={{ fontSize: 10, color: 'var(--tbl-ink-soft)', marginTop: 2 }}>
+                              {h.roundPhase}
+                            </div>
+                          )}
                         </td>
                         <td style={{ padding: '10px 6px', textAlign: 'right' }}>
                           <span
@@ -498,6 +514,11 @@ export default async function FighterPage({
                           >
                             {h.result}
                           </span>
+                          {h.resultMethod && (
+                            <div style={{ fontSize: 10, color: 'var(--tbl-ink-soft)', marginTop: 2 }}>
+                              {h.resultMethod}
+                            </div>
+                          )}
                         </td>
                         <td
                           style={{
