@@ -5,7 +5,11 @@ import React, { useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import type { FighterStat, FightHistory, ScheduleEntry } from '@/types';
 import { calcFighterStreak, toSlug } from '@/lib/data';
-import { getFighterWeightClasses } from '@/lib/fighters';
+import {
+  getFighterWeightClasses,
+  getFighterWeightClassesOrdered,
+  getPrimaryWeightClass,
+} from '@/lib/fighters';
 import { getTeamColorByName, getTeamLogoPathByName, getCityName } from '@/lib/teams';
 import { PageHeader } from '@/components/chrome/PageHeader';
 
@@ -65,7 +69,9 @@ function FighterModal({
             </div>
             <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
               <span className="badge">{fighter.team}</span>
-              <span className="badge">{fighter.weightClass}</span>
+              <span className="badge">
+                {getFighterWeightClassesOrdered(fighter, history).join(', ') || fighter.weightClass}
+              </span>
               <span className="badge">{fighter.gender}</span>
               {streak && <StreakBadge streak={streak} />}
             </div>
@@ -194,11 +200,29 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
   }, [fighterHistory, matchIndexToWeek]);
 
   // Every weight class the fighter has competed in — listed class plus any
-  // classes from their bout history. Fighters who've gone up/down a class
-  // (common in TBL) should appear in every relevant filter.
+  // classes from their bout history. Used to populate the dropdown so a
+  // fighter who's gone up/down a class still surfaces under either option.
   const fighterWeightClasses = useCallback(
     (f: FighterStat): Set<string> =>
       getFighterWeightClasses(f, fighterHistory[f.slug] || []),
+    [fighterHistory]
+  );
+
+  // Primary class for ranking purposes: the one a fighter has competed in
+  // most often (ties → most recent). Drives the weight-class filter so a
+  // fighter who's mostly fought at Cruiserweight but has one Light-Heavy
+  // bout doesn't show up in the LHW list.
+  const primaryClassFor = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const f of fighters) {
+      map.set(f.slug, getPrimaryWeightClass(f, fighterHistory[f.slug] || []));
+    }
+    return map;
+  }, [fighters, fighterHistory]);
+
+  const orderedClassesFor = useCallback(
+    (f: FighterStat): string[] =>
+      getFighterWeightClassesOrdered(f, fighterHistory[f.slug] || []),
     [fighterHistory]
   );
 
@@ -288,10 +312,11 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
         // matches either gender for that class — except the three women's
         // classes (Bantam / Feather / Super Light), which only match the
         // men's bracket so the dropdown splits cleanly.
+        // Match against the fighter's PRIMARY class (most fought, ties →
+        // most recent) so a multi-class fighter is ranked under one bucket.
         const isFemaleOption = weightFilter.startsWith('Female ');
         const baseClass = isFemaleOption ? weightFilter.slice(7) : weightFilter;
-        const fClasses = fighterWeightClasses(f);
-        if (!fClasses.has(baseClass)) return false;
+        if (primaryClassFor.get(f.slug) !== baseClass) return false;
         if (isFemaleOption && f.gender !== 'Female') return false;
         if (!isFemaleOption && FEMALE_CLASSES.has(baseClass) && f.gender === 'Female') return false;
       }
@@ -304,7 +329,7 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
       if (minRounds > 0 && f.rounds < minRounds) return false;
       return true;
     });
-  }, [displayedFighters, search, weightFilter, teamFilter, genderFilter, weekFilter, minRoundsFilter, fighterWeightClasses, fighterHistory, matchIndexToWeek, FEMALE_CLASSES]);
+  }, [displayedFighters, search, weightFilter, teamFilter, genderFilter, weekFilter, minRoundsFilter, primaryClassFor, fighterHistory, matchIndexToWeek, FEMALE_CLASSES]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -404,7 +429,7 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
               <div className="fighters-mobile-row__body">
                 <div className="fighters-mobile-row__name">{f.name}</div>
                 <div className="fighters-mobile-row__meta">
-                  {f.weightClass} · {f.record} · WAR {f.war.toFixed(2)}
+                  {orderedClassesFor(f).join(', ') || f.weightClass} · {f.record} · WAR {f.war.toFixed(2)}
                 </div>
               </div>
               <div className="fighters-mobile-row__value">
@@ -556,7 +581,7 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
                           {f.team}
                         </div>
                       </td>
-                      <td className="col-hide-mobile" style={{ fontSize: 12 }}>{f.weightClass}</td>
+                      <td className="col-hide-mobile" style={{ fontSize: 12 }}>{orderedClassesFor(f).join(', ') || f.weightClass}</td>
                       <td className="col-hide-mobile" style={{ fontSize: 12 }}>{f.gender}</td>
                       <td className="num-cell mono col-record">{f.record}</td>
                       <td className="num-cell mono col-war" style={{ color: f.netPts >= 0 ? 'var(--result-w)' : 'var(--result-l)' }}>

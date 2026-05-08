@@ -7,12 +7,12 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { FighterStat, FightHistory } from '@/types';
 import { compareWeightClass } from '@/lib/weightClasses';
+import { getPrimaryWeightClass, getFighterWeightClasses } from '@/lib/fighters';
 import { PageHeader } from '@/components/chrome/PageHeader';
 import { getTeamLogoPathByName, getCityName } from '@/lib/teams';
 
 interface Props {
   fighters: FighterStat[];
-  // Accepted but currently unused; kept for future per-weight computation.
   fighterHistory: Record<string, FightHistory[]>;
   lastUpdated: string;
 }
@@ -37,38 +37,40 @@ const CATEGORIES: Category[] = [
   { key: 'winPct', label: 'Win Percentage',         format: (v) => (v * 100).toFixed(0) + '%' },
 ];
 
-export function RankingsClient({ fighters, lastUpdated }: Props) {
+export function RankingsClient({ fighters, fighterHistory, lastUpdated }: Props) {
   const [gender, setGender] = useState<Gender>('All');
   const [weightClass, setWeightClass] = useState<string>('All');
 
-  // Expand combined strings like "Light Heavyweight, Cruiserweight" into the
-  // underlying classes so a fighter at two weights shows up in both filter
-  // options instead of as a third "combined" entry in the dropdown.
-  const splitClasses = (raw: string): string[] =>
-    raw
-      .split(/[,/]/)
-      .map((s) => s.trim())
-      .filter(Boolean);
+  // Each fighter is ranked under their *primary* class (most fights, ties →
+  // most recent). Fighters who've moved up or down still show up in the
+  // dropdown for every class they've competed in, but the rankings table
+  // only places them under the one they belong to most.
+  const primaryClassFor = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const f of fighters) {
+      map.set(f.slug, getPrimaryWeightClass(f, fighterHistory[f.slug] ?? []));
+    }
+    return map;
+  }, [fighters, fighterHistory]);
 
   const weightClasses = useMemo(() => {
     const set = new Set<string>();
     fighters.forEach((f) => {
-      splitClasses(f.weightClass).forEach((c) => set.add(c));
+      getFighterWeightClasses(f, fighterHistory[f.slug] ?? []).forEach((c) => set.add(c));
     });
     return Array.from(set).sort(compareWeightClass);
-  }, [fighters]);
+  }, [fighters, fighterHistory]);
 
   const filtered = useMemo(() => {
     return fighters.filter((f) => {
       if (f.rounds < MIN_ROUNDS) return false;
       if (gender !== 'All' && f.gender !== gender) return false;
       if (weightClass !== 'All') {
-        const classes = splitClasses(f.weightClass);
-        if (!classes.includes(weightClass)) return false;
+        if (primaryClassFor.get(f.slug) !== weightClass) return false;
       }
       return true;
     });
-  }, [fighters, gender, weightClass]);
+  }, [fighters, gender, weightClass, primaryClassFor]);
 
   const filterSlot = (
     <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
