@@ -3,7 +3,6 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import Script from 'next/script';
 import { Analytics } from '@vercel/analytics/react';
-import { SpeedInsights } from '@vercel/speed-insights/next';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { SiteChrome } from '@/components/chrome/SiteChrome';
 
@@ -59,7 +58,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <SiteChrome>{children}</SiteChrome>
         </ThemeProvider>
         <Analytics />
-        <SpeedInsights />
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-2G5HV9RKGS"
           strategy="afterInteractive"

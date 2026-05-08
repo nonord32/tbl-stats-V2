@@ -10,7 +10,7 @@ import { getLastCompletedWeek } from '@/lib/week';
 import { sortStandings, getH2HTiebreakerWinners } from '@/lib/standings';
 import type { TeamStanding } from '@/types';
 
-export const revalidate = 300;
+export const revalidate = 1800;
 
 export const metadata: Metadata = {
   title: 'Playoff Picture — TBL Stats',

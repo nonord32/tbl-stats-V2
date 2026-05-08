@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   },
 };
 
-export const revalidate = 300;
+export const revalidate = 1800;
 
 const SITE_URL = 'https://tblstats.com';
 

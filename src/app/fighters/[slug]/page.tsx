@@ -11,7 +11,7 @@ import {
 } from '@/lib/teams';
 import { SectionRule } from '@/components/chrome/SectionRule';
 
-export const revalidate = 300;
+export const revalidate = 1800;
 
 export async function generateMetadata({
   params,
