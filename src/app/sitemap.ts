@@ -34,7 +34,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/results`,       lastModified: new Date(), changeFrequency: 'daily',  priority: 0.8 },
     { url: `${base}/schedule`,      lastModified: new Date(), changeFrequency: 'daily',  priority: 0.8 },
     { url: `${base}/awards`,        lastModified: new Date(), changeFrequency: 'monthly', priority: 0.6 },
-    { url: `${base}/compare`,       lastModified: new Date(), changeFrequency: 'weekly',  priority: 0.5 },
     ...fighterUrls,
     ...teamUrls,
     ...matchUrls,
