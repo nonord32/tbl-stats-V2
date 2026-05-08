@@ -60,7 +60,10 @@ export interface H2HWinnerInfo {
 }
 
 // Map of winnerSlug → info about which team(s) they out-ranked via H2H.
-// Only populated for two-team ties at the same (wins, losses) where H2H decides.
+// Only populated for two-team ties at the same (wins, losses) where H2H
+// actually changes the order — i.e. the H2H winner has a lower point
+// differential than the team they beat. If their diff is already higher,
+// they'd rank ahead anyway and the asterisk would be redundant.
 export function getH2HTiebreakerWinners(
   teams: TeamStanding[],
   teamMatches: Record<string, TeamMatch[]>
@@ -74,11 +77,11 @@ export function getH2HTiebreakerWinners(
       if (a.wins !== b.wins || a.losses !== b.losses) continue;
       if ((tieGroupSize.get(a.slug) ?? 0) !== 2) continue;
       const h = getH2HResult(a, b, teamMatches);
-      if (h < 0) {
+      if (h < 0 && a.diff < b.diff) {
         const arr = map.get(a.slug) ?? [];
         arr.push(b.team);
         map.set(a.slug, arr);
-      } else if (h > 0) {
+      } else if (h > 0 && b.diff < a.diff) {
         const arr = map.get(b.slug) ?? [];
         arr.push(a.team);
         map.set(b.slug, arr);
