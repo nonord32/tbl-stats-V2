@@ -3171,36 +3171,44 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
 }
 .gz-fighter-history-row {
   display: grid;
-  grid-template-columns: 36px 22px 1fr auto;
+  grid-template-columns: 56px 22px 1fr auto;
   align-items: center;
-  gap: 12px;
+  column-gap: 10px;
   padding: 12px 2px;
   border-bottom: 1px dotted rgba(20, 17, 11, 0.3);
 }
 .gz-fighter-history-row:last-child { border-bottom: none; }
-.gz-fighter-history-row__badge {
-  min-width: 32px;
-  padding: 3px 6px;
+.gz-fighter-history-row__result {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.gz-fighter-history-row__badge {
+  width: 36px;
+  height: 28px;
+  display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--tbl-font-serif);
   font-weight: 900;
-  font-size: 15px;
-  line-height: 1.05;
+  font-size: 16px;
+  line-height: 1;
   color: #fff;
 }
 .gz-fighter-history-row__badge.is-win { background: var(--tbl-green); }
 .gz-fighter-history-row__badge.is-loss { background: var(--tbl-red); }
 .gz-fighter-history-row__method {
-  margin-top: 2px;
   font-family: var(--tbl-font-mono);
   font-weight: 700;
-  font-size: 9px;
-  letter-spacing: 0.04em;
+  font-size: 8px;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
-  opacity: 0.85;
+  color: var(--tbl-ink-soft);
+  white-space: nowrap;
+  text-align: center;
+  line-height: 1.1;
 }
 .gz-fighter-history-row__logo {
   width: 22px;
