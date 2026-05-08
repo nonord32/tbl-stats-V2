@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getAllData, extractUniqueMatches } from '@/lib/data';
 import { getCurrentWeek, getDisplayedCurrentWeek, scheduleForWeek } from '@/lib/week';
+import { sortStandings } from '@/lib/standings';
 import { getGameStartUTC } from '@/lib/gameTime';
 import { getFullTeamName, getTeamLogoPathByName, getCityName } from '@/lib/teams';
 import { HallOfChampions } from '@/components/home/HallOfChampions';
@@ -1227,17 +1228,9 @@ export default async function HomePage() {
     return fromMatch ?? fightersByNetPts[0] ?? null;
   })();
 
-  // Tiebreakers (in order): wins ↓, losses ↑, point differential ↓, points for ↓,
-  // then name asc as a stable final key. Mirrors the Teams page logic so the home
-  // snippet and the full standings agree row-for-row.
-  const topTeams = [...teams].sort(
-    (a, b) =>
-      b.wins - a.wins ||
-      a.losses - b.losses ||
-      b.diff - a.diff ||
-      b.pf - a.pf ||
-      a.team.localeCompare(b.team)
-  );
+  // Use the shared standings sorter so the home snippet matches the Teams page
+  // row-for-row, including the head-to-head tiebreaker for two-team ties.
+  const topTeams = sortStandings(teams, teamMatches);
 
   // Map each completed match back to its schedule week so result cards can
   // show "Week 3" etc. instead of the boxScore's scoring-phase label.
