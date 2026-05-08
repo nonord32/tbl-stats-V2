@@ -6,6 +6,7 @@ import Link from 'next/link';
 import type { TeamStanding, TeamMatch, BoxScoreRound } from '@/types';
 import { calcTeamStreak, toSlug } from '@/lib/data';
 import { getTeamColor, getTeamLogoPath, getFullTeamName, getCityName } from '@/lib/teams';
+import { sortStandings, getH2HTiebreakerWinners } from '@/lib/standings';
 import { PageHeader } from '@/components/chrome/PageHeader';
 
 type SortKey = 'record' | 'pf' | 'pa' | 'diff' | 'streak';
@@ -180,15 +181,6 @@ function BoxScoreModal({
   );
 }
 
-function getH2HResult(a: TeamStanding, b: TeamStanding, teamMatches: Record<string, TeamMatch[]>): number {
-  const aMatches = (teamMatches[a.team] || []).filter((m) => toSlug(m.opponent) === b.slug);
-  const aWins = aMatches.filter((m) => m.result === 'W').length;
-  const aLosses = aMatches.filter((m) => m.result === 'L').length;
-  if (aWins > aLosses) return -1; // a ranks higher
-  if (aLosses > aWins) return 1;  // b ranks higher
-  return 0;
-}
-
 function streakVal(s: string): number {
   if (!s) return 0;
   const n = parseInt(s.slice(1)) || 0;
@@ -215,10 +207,17 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
     }
   };
 
+  const recordSorted = useMemo(
+    () => sortStandings(teams, teamMatches),
+    [teams, teamMatches]
+  );
+
   const sorted = useMemo(() => {
+    if (sortKey === 'record') {
+      return sortDir === 'desc' ? recordSorted : [...recordSorted].reverse();
+    }
     const base = (a: TeamStanding, b: TeamStanding): number => {
       switch (sortKey) {
-        case 'record': return b.wins - a.wins || a.losses - b.losses || b.diff - a.diff || getH2HResult(a, b, teamMatches);
         case 'pf':     return b.pf - a.pf;
         case 'pa':     return a.pa - b.pa;
         case 'diff':   return b.diff - a.diff;
@@ -227,45 +226,15 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
       }
     };
     return [...teams].sort((a, b) => sortDir === 'desc' ? base(a, b) : -base(a, b));
-  }, [teams, sortKey, sortDir, teamMatches]);
+  }, [teams, sortKey, sortDir, recordSorted]);
 
-  // Determine which teams won a H2H tiebreaker and who they beat (for asterisk + tooltip).
-  const h2hWinners = useMemo(() => {
-    const map = new Map<string, string[]>();
-    for (let i = 0; i < teams.length; i++) {
-      for (let j = i + 1; j < teams.length; j++) {
-        const a = teams[i];
-        const b = teams[j];
-        const tied = a.wins === b.wins && a.losses === b.losses && a.diff === b.diff;
-        if (!tied) continue;
-        const h2h = getH2HResult(a, b, teamMatches);
-        if (h2h < 0) {
-          const arr = map.get(a.slug) ?? [];
-          arr.push(b.team);
-          map.set(a.slug, arr);
-        } else if (h2h > 0) {
-          const arr = map.get(b.slug) ?? [];
-          arr.push(a.team);
-          map.set(b.slug, arr);
-        }
-      }
-    }
-    return map;
-  }, [teams, teamMatches]);
+  const h2hWinners = useMemo(
+    () => getH2HTiebreakerWinners(teams, teamMatches),
+    [teams, teamMatches]
+  );
 
-  // Sort by wins (natural order) for the mobile card list — the mobile layout
-  // does not expose column sorting, so always show the league table as "Sorted
-  // by Wins" to match the Gazette treatment on the home page.
-  const sortedByWins = useMemo(() => {
-    return [...teams].sort(
-      (a, b) =>
-        b.wins - a.wins ||
-        a.losses - b.losses ||
-        b.diff - a.diff ||
-        b.pf - a.pf ||
-        a.team.localeCompare(b.team)
-    );
-  }, [teams]);
+  // Mobile card list mirrors the desktop "record" sort.
+  const sortedByWins = recordSorted;
 
   return (
     <div className="page teams-page">
@@ -402,9 +371,9 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
               <tbody>
                 {(() => {
                   const PLAYOFF_SPOTS = 8;
-                  // Games back always relative to natural standings (wins-based), regardless of current sort
-                  const byWins = [...teams].sort((a, b) => b.wins - a.wins || a.losses - b.losses || b.diff - a.diff || getH2HResult(a, b, teamMatches));
-                  const cutoffTeam = byWins[PLAYOFF_SPOTS - 1]; // 8th place in wins order
+                  // Games back always relative to natural standings (record-based), regardless of current sort
+                  const byWins = recordSorted;
+                  const cutoffTeam = byWins[PLAYOFF_SPOTS - 1]; // 8th place in record order
                   // Positive = games ahead of cutoff (in playoffs), negative = games behind
                   const calcGB = (t: typeof teams[0]) => {
                     if (!cutoffTeam) return 0;

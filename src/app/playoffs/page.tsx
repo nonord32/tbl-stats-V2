@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { getAllData } from '@/lib/data';
 import { getFullTeamName, getTeamLogoPathByName } from '@/lib/teams';
 import { getLastCompletedWeek } from '@/lib/week';
+import { sortStandings, getH2HTiebreakerWinners } from '@/lib/standings';
 import type { TeamStanding } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -44,16 +45,10 @@ function shortAbbr(slug: string, fallback: string): string {
 }
 
 export default async function PlayoffsPage() {
-  const { teams, schedule } = await getAllData();
+  const { teams, teamMatches, schedule } = await getAllData();
 
-  const standings = [...teams].sort(
-    (a, b) =>
-      b.wins - a.wins ||
-      a.losses - b.losses ||
-      b.diff - a.diff ||
-      b.pf - a.pf ||
-      a.team.localeCompare(b.team)
-  );
+  const standings = sortStandings(teams, teamMatches);
+  const h2hWinners = getH2HTiebreakerWinners(teams, teamMatches);
 
   const seeds: Seed[] = standings.slice(0, PLAYOFF_SPOTS).map((team, i) => ({
     seed: i + 1,
@@ -98,7 +93,7 @@ export default async function PlayoffsPage() {
           <div className="po-col po-col--qf">
             <div className="po-round-rule">Quarterfinals</div>
             {qfPairs.slice(0, 2).map((p, i) => (
-              <Match key={`qf-top-${i}`} a={p[0]} b={p[1]} hostHigh />
+              <Match key={`qf-top-${i}`} a={p[0]} b={p[1]} hostHigh h2hWinners={h2hWinners} />
             ))}
           </div>
 
@@ -124,7 +119,7 @@ export default async function PlayoffsPage() {
           <div className="po-col po-col--qf po-col--qf-bottom">
             <div className="po-round-rule">Quarterfinals</div>
             {qfPairs.slice(2, 4).map((p, i) => (
-              <Match key={`qf-bot-${i}`} a={p[0]} b={p[1]} hostHigh />
+              <Match key={`qf-bot-${i}`} a={p[0]} b={p[1]} hostHigh h2hWinners={h2hWinners} />
             ))}
           </div>
         </div>
@@ -136,7 +131,7 @@ export default async function PlayoffsPage() {
               <span>The Field · 1 through {PLAYOFF_SPOTS}</span>
               <span>{seeds.length === PLAYOFF_SPOTS ? 'Locked positions' : 'Provisional'}</span>
             </div>
-            <SeedTable seeds={seeds} />
+            <SeedTable seeds={seeds} h2hWinners={h2hWinners} />
           </section>
 
           <section className="po-card">
@@ -153,10 +148,24 @@ export default async function PlayoffsPage() {
                   team,
                 }))}
                 bubble
+                h2hWinners={h2hWinners}
               />
             )}
           </section>
         </div>
+
+        {h2hWinners.size > 0 && (
+          <div className="po-h2h-note">
+            {Array.from(h2hWinners.entries()).map(([slug, beaten]) => {
+              const winnerTeam = teams.find((t) => t.slug === slug)?.team ?? slug;
+              return (
+                <div key={slug}>
+                  <span className="po-h2h-note__star">*</span> {winnerTeam} wins tiebreaker over {beaten.join(', ')} via head-to-head record
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </main>
   );
@@ -167,10 +176,12 @@ function Match({
   a,
   b,
   hostHigh,
+  h2hWinners,
 }: {
   a: Seed | undefined;
   b: Seed | undefined;
   hostHigh?: boolean;
+  h2hWinners: Map<string, string[]>;
 }) {
   if (!a || !b) {
     return <TBDMatch />;
@@ -180,16 +191,25 @@ function Match({
   const visitor = a.seed < b.seed ? b : a;
   return (
     <div className="po-match">
-      <SeedRow seed={host} highlight={!!hostHigh} />
+      <SeedRow seed={host} highlight={!!hostHigh} h2hWinners={h2hWinners} />
       <div className="po-match__rule">vs</div>
-      <SeedRow seed={visitor} />
+      <SeedRow seed={visitor} h2hWinners={h2hWinners} />
     </div>
   );
 }
 
-function SeedRow({ seed, highlight }: { seed: Seed; highlight?: boolean }) {
+function SeedRow({
+  seed,
+  highlight,
+  h2hWinners,
+}: {
+  seed: Seed;
+  highlight?: boolean;
+  h2hWinners: Map<string, string[]>;
+}) {
   const logo = getTeamLogoPathByName(seed.team.team);
   const name = getFullTeamName(seed.team.slug);
+  const beaten = h2hWinners.get(seed.team.slug);
   return (
     <Link
       href={`/teams/${seed.team.slug}`}
@@ -201,7 +221,17 @@ function SeedRow({ seed, highlight }: { seed: Seed; highlight?: boolean }) {
         <img src={logo} alt="" className="po-seed__logo" />
       )}
       <span className="po-seed__body">
-        <span className="po-seed__name">{name}</span>
+        <span className="po-seed__name">
+          {name}
+          {beaten && (
+            <span
+              className="po-seed__h2h"
+              title={`Wins tiebreaker over ${beaten.join(', ')} via head-to-head record`}
+            >
+              *
+            </span>
+          )}
+        </span>
         <span className="po-seed__abbr">{shortAbbr(seed.team.slug, seed.team.team)}</span>
         <span className="po-seed__rec">{seed.team.record}</span>
       </span>
@@ -231,7 +261,15 @@ function FinalMatch() {
 }
 
 // ── Seed list / bubble table ─────────────────────────────────────────────────
-function SeedTable({ seeds, bubble }: { seeds: Seed[]; bubble?: boolean }) {
+function SeedTable({
+  seeds,
+  bubble,
+  h2hWinners,
+}: {
+  seeds: Seed[];
+  bubble?: boolean;
+  h2hWinners: Map<string, string[]>;
+}) {
   return (
     <div className="po-table">
       <div className="po-table__head">
@@ -245,6 +283,7 @@ function SeedTable({ seeds, bubble }: { seeds: Seed[]; bubble?: boolean }) {
         const logo = getTeamLogoPathByName(s.team.team);
         const name = getFullTeamName(s.team.slug);
         const isWStreak = (s.team.streak || '').startsWith('W');
+        const beaten = h2hWinners.get(s.team.slug);
         return (
           <Link key={s.team.slug} href={`/teams/${s.team.slug}`} className="po-table__row">
             <span className="po-table__seed">{s.seed}</span>
@@ -253,7 +292,17 @@ function SeedTable({ seeds, bubble }: { seeds: Seed[]; bubble?: boolean }) {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={logo} alt="" className="po-table__logo" />
               )}
-              <span className="po-table__name">{name}</span>
+              <span className="po-table__name">
+                {name}
+                {beaten && (
+                  <span
+                    className="po-seed__h2h"
+                    title={`Wins tiebreaker over ${beaten.join(', ')} via head-to-head record`}
+                  >
+                    *
+                  </span>
+                )}
+              </span>
             </span>
             <span className="po-table__num">{s.team.record}</span>
             <span
