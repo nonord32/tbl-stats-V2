@@ -4,7 +4,7 @@ import { getAllData, extractUniqueMatches } from '@/lib/data';
 import { getDisplayedCurrentWeek } from '@/lib/week';
 import { ScheduleClient } from './ScheduleClient';
 
-export const revalidate = 1800;
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: 'Schedule',

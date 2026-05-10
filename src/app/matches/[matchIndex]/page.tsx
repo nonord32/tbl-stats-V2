@@ -9,7 +9,7 @@ import { getFullTeamName, getTeamLogoPathByName } from '@/lib/teams';
 import { SectionRule } from '@/components/chrome/SectionRule';
 import { HighlightsSection } from '@/components/HighlightsSection';
 
-export const revalidate = 1800;
+export const revalidate = 300;
 
 export async function generateMetadata({
   params,
