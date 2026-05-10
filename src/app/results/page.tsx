@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   },
 };
 
-export const revalidate = 1800;
+export const revalidate = 300;
 
 export default async function ResultsPage() {
   const data = await getAllData();

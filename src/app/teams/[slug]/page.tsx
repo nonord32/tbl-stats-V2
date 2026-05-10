@@ -15,7 +15,7 @@ import { HighlightsSection } from '@/components/HighlightsSection';
 import { RosterTable } from './RosterTable';
 import type { TeamMatch, ScheduleEntry } from '@/types';
 
-export const revalidate = 1800;
+export const revalidate = 300;
 
 export async function generateMetadata({
   params,
