@@ -2,12 +2,18 @@
 //
 // Shared ranking logic for the league standings and the playoff picture.
 //
-// Tiebreaker rules when teams share the same (wins, losses):
-//   • Exactly 2 teams tied → head-to-head record decides; if H2H is split,
-//     fall back to point differential. The H2H winner is flagged with an
-//     asterisk in the UI.
-//   • 3 or more teams tied → point differential decides (no asterisk).
-//   • Final fallbacks: points-for, then team name (stable, deterministic).
+// Tiebreaker rule for teams sharing the same (wins, losses):
+//   • If exactly one team in the tied group has a winning H2H record
+//     against EVERY other tied team (a "sweep"), that team ranks first.
+//     Recurse on the rest.
+//   • Otherwise (no sweep, cycles, partial samples where tied teams
+//     haven't played each other), fall back to point differential,
+//     then points-for, then team name (stable, deterministic).
+//   • An asterisk is shown next to a team only when the sweep actually
+//     changed the order vs point differential alone.
+//
+// The 2-team case is a special case of the same rule: a team "sweeps" by
+// having a winning H2H record against the one other tied team.
 
 import type { TeamStanding, TeamMatch } from '@/types';
 import { toSlug } from '@/lib/data';
@@ -25,68 +31,106 @@ export function getH2HResult(
   return 0;
 }
 
-function buildTieGroupSizes(teams: TeamStanding[]): Map<string, number> {
-  const counts = new Map<string, number>();
-  for (const t of teams) {
-    const key = `${t.wins}-${t.losses}`;
-    counts.set(key, (counts.get(key) ?? 0) + 1);
+// Returns the team in `group` that has a winning H2H record against
+// every other team in the group (a sweep), or null if no such team exists.
+// At most one team can satisfy this — if A swept B and B swept A, that's a
+// contradiction.
+function findSweeper(
+  group: TeamStanding[],
+  teamMatches: Record<string, TeamMatch[]>
+): TeamStanding | null {
+  for (const candidate of group) {
+    const sweepsAll = group.every(
+      (other) => other.slug === candidate.slug || getH2HResult(candidate, other, teamMatches) === -1
+    );
+    if (sweepsAll) return candidate;
   }
-  const map = new Map<string, number>();
-  for (const t of teams) {
-    map.set(t.slug, counts.get(`${t.wins}-${t.losses}`) ?? 1);
-  }
-  return map;
+  return null;
+}
+
+function pointDiffSort(group: TeamStanding[]): TeamStanding[] {
+  return [...group].sort(
+    (a, b) => b.diff - a.diff || b.pf - a.pf || a.team.localeCompare(b.team)
+  );
+}
+
+function rankTiedGroup(
+  group: TeamStanding[],
+  teamMatches: Record<string, TeamMatch[]>
+): TeamStanding[] {
+  if (group.length <= 1) return group;
+  const sweeper = findSweeper(group, teamMatches);
+  if (!sweeper) return pointDiffSort(group);
+  const rest = group.filter((t) => t.slug !== sweeper.slug);
+  return [sweeper, ...rankTiedGroup(rest, teamMatches)];
 }
 
 export function sortStandings(
   teams: TeamStanding[],
   teamMatches: Record<string, TeamMatch[]>
 ): TeamStanding[] {
-  const tieGroupSize = buildTieGroupSizes(teams);
-  return [...teams].sort((a, b) => {
-    if (b.wins !== a.wins) return b.wins - a.wins;
-    if (a.losses !== b.losses) return a.losses - b.losses;
-    const size = tieGroupSize.get(a.slug) ?? 1;
-    if (size === 2) {
-      const h = getH2HResult(a, b, teamMatches);
-      if (h !== 0) return h;
-    }
-    return b.diff - a.diff || b.pf - a.pf || a.team.localeCompare(b.team);
+  // Group by (wins, losses), then resolve each group, then concatenate
+  // in record order. Using a Map keeps insertion order; we sort keys
+  // by wins desc, losses asc before iterating.
+  const groups = new Map<string, TeamStanding[]>();
+  for (const t of teams) {
+    const key = `${t.wins}-${t.losses}`;
+    const arr = groups.get(key) ?? [];
+    arr.push(t);
+    groups.set(key, arr);
+  }
+  const orderedKeys = [...groups.keys()].sort((a, b) => {
+    const [aw, al] = a.split('-').map(Number);
+    const [bw, bl] = b.split('-').map(Number);
+    return bw - aw || al - bl;
   });
+  const result: TeamStanding[] = [];
+  for (const key of orderedKeys) {
+    const group = groups.get(key)!;
+    result.push(...rankTiedGroup(group, teamMatches));
+  }
+  return result;
 }
 
 export interface H2HWinnerInfo {
   beaten: string[];
 }
 
-// Map of winnerSlug → info about which team(s) they out-ranked via H2H.
-// Only populated for two-team ties at the same (wins, losses) where H2H
-// actually changes the order — i.e. the H2H winner has a lower point
-// differential than the team they beat. If their diff is already higher,
-// they'd rank ahead anyway and the asterisk would be redundant.
+// Map of sweeperSlug → list of team names the sweeper beat via H2H.
+// Only populated when the sweep actually changed the order — i.e. the
+// sweeper has a lower point differential than at least one of the teams
+// they swept. If their diff was already higher, they'd rank first
+// anyway and the asterisk would be redundant.
 export function getH2HTiebreakerWinners(
   teams: TeamStanding[],
   teamMatches: Record<string, TeamMatch[]>
 ): Map<string, string[]> {
-  const tieGroupSize = buildTieGroupSizes(teams);
   const map = new Map<string, string[]>();
-  for (let i = 0; i < teams.length; i++) {
-    for (let j = i + 1; j < teams.length; j++) {
-      const a = teams[i];
-      const b = teams[j];
-      if (a.wins !== b.wins || a.losses !== b.losses) continue;
-      if ((tieGroupSize.get(a.slug) ?? 0) !== 2) continue;
-      const h = getH2HResult(a, b, teamMatches);
-      if (h < 0 && a.diff < b.diff) {
-        const arr = map.get(a.slug) ?? [];
-        arr.push(b.team);
-        map.set(a.slug, arr);
-      } else if (h > 0 && b.diff < a.diff) {
-        const arr = map.get(b.slug) ?? [];
-        arr.push(a.team);
-        map.set(b.slug, arr);
-      }
-    }
+
+  // Group by (wins, losses).
+  const groups = new Map<string, TeamStanding[]>();
+  for (const t of teams) {
+    const key = `${t.wins}-${t.losses}`;
+    const arr = groups.get(key) ?? [];
+    arr.push(t);
+    groups.set(key, arr);
   }
+
+  // For each tied group of size >= 2, find the sweeper (if any) and
+  // record the names of teams they swept whose point diff is higher
+  // than the sweeper's (i.e., where H2H is what's putting the sweeper
+  // ahead).
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    const sweeper = findSweeper(group, teamMatches);
+    if (!sweeper) continue;
+    const flippedOver: string[] = [];
+    for (const other of group) {
+      if (other.slug === sweeper.slug) continue;
+      if (other.diff > sweeper.diff) flippedOver.push(other.team);
+    }
+    if (flippedOver.length > 0) map.set(sweeper.slug, flippedOver);
+  }
+
   return map;
 }
