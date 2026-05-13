@@ -504,10 +504,11 @@ export default async function MatchPage({
                 {[
                   { label: 'Round', align: 'left' as const },
                   { label: 'Weight', align: 'left' as const },
-                  { label: `${team1Abbr} Fighter`, align: 'left' as const },
+                  { label: `${team1Abbr} Fighter`, align: 'right' as const },
+                  { label: `${team1Abbr} Pts`, align: 'center' as const },
+                  { label: `${team2Abbr} Pts`, align: 'center' as const },
                   { label: `${team2Abbr} Fighter`, align: 'left' as const },
-                  { label: 'Result', align: 'center' as const },
-                  { label: 'Net Pts', align: 'right' as const },
+                  { label: 'Method', align: 'left' as const },
                 ].map((h) => (
                   <th
                     key={h.label}
@@ -533,14 +534,29 @@ export default async function MatchPage({
                 .map((row, i) => {
                   const win1 = row.score1 > row.score2;
                   const win2 = row.score2 > row.score1;
-                  const net = row.score1 - row.score2;
-                  const resultLabel = win1 ? 'W' : win2 ? 'L' : 'D';
-                  const resultColor = win1
-                    ? 'var(--tbl-green)'
-                    : win2
-                    ? 'var(--tbl-red)'
-                    : 'var(--tbl-ink-soft)';
                   const stripe = i % 2 === 0 ? 'transparent' : 'rgba(20,17,11,0.025)';
+                  const scoreCellBase = {
+                    padding: '12px 8px',
+                    textAlign: 'center' as const,
+                    fontFamily: 'var(--tbl-font-serif)',
+                    fontSize: 18,
+                    fontWeight: 900,
+                    whiteSpace: 'nowrap' as const,
+                  };
+                  const winScoreStyle = {
+                    ...scoreCellBase,
+                    background: 'var(--tbl-green)',
+                    color: '#fff',
+                  };
+                  const loseScoreStyle = {
+                    ...scoreCellBase,
+                    background: 'var(--tbl-red)',
+                    color: '#fff',
+                  };
+                  const drawScoreStyle = {
+                    ...scoreCellBase,
+                    color: 'var(--tbl-ink-soft)',
+                  };
                   return (
                     <tr
                       key={i}
@@ -570,6 +586,7 @@ export default async function MatchPage({
                       <td
                         style={{
                           padding: '12px 8px',
+                          textAlign: 'right',
                           fontFamily: 'var(--tbl-font-serif)',
                           fontSize: 15,
                           fontWeight: 700,
@@ -582,6 +599,12 @@ export default async function MatchPage({
                         >
                           {row.fighter1}
                         </Link>
+                      </td>
+                      <td style={win1 ? winScoreStyle : win2 ? loseScoreStyle : drawScoreStyle}>
+                        {row.score1.toFixed(1)}
+                      </td>
+                      <td style={win2 ? winScoreStyle : win1 ? loseScoreStyle : drawScoreStyle}>
+                        {row.score2.toFixed(1)}
                       </td>
                       <td
                         style={{
@@ -599,41 +622,26 @@ export default async function MatchPage({
                           {row.fighter2}
                         </Link>
                       </td>
-                      <td style={{ padding: '12px 8px', textAlign: 'center' }}>
-                        <span
-                          style={{
-                            display: 'inline-block',
-                            minWidth: 28,
-                            padding: '2px 10px',
-                            background: resultColor,
-                            color: '#fff',
-                            fontFamily: 'var(--tbl-font-serif)',
-                            fontWeight: 900,
-                            fontSize: 13,
-                          }}
-                        >
-                          {resultLabel}
-                        </span>
-                      </td>
                       <td
                         style={{
                           padding: '12px 8px',
-                          textAlign: 'right',
-                          fontFamily: 'var(--tbl-font-serif)',
-                          fontSize: 15,
+                          fontFamily: 'var(--tbl-font-mono)',
+                          fontSize: 11,
+                          letterSpacing: '0.12em',
+                          textTransform: 'uppercase',
+                          color: 'var(--tbl-ink-soft)',
                           fontWeight: 700,
-                          color: net > 0 ? 'var(--tbl-green)' : net < 0 ? 'var(--tbl-red)' : 'var(--tbl-ink-soft)',
+                          whiteSpace: 'nowrap',
                         }}
                       >
-                        {net > 0 ? '+' : ''}
-                        {net.toFixed(1)}
+                        {row.method || '—'}
                       </td>
                     </tr>
                   );
                 })}
               <tr style={{ background: 'var(--tbl-ink)', color: 'var(--tbl-bg)' }}>
                 <td
-                  colSpan={5}
+                  colSpan={3}
                   style={{
                     padding: '14px 8px',
                     fontFamily: 'var(--tbl-font-mono)',
@@ -648,10 +656,37 @@ export default async function MatchPage({
                 <td
                   style={{
                     padding: '14px 8px',
-                    textAlign: 'right',
+                    textAlign: 'center',
                     fontFamily: 'var(--tbl-font-serif)',
                     fontWeight: 900,
                     fontSize: 18,
+                    whiteSpace: 'nowrap',
+                    color: team1Won ? 'var(--tbl-accent-bright)' : 'inherit',
+                  }}
+                >
+                  {totalA.toFixed(1)}
+                </td>
+                <td
+                  style={{
+                    padding: '14px 8px',
+                    textAlign: 'center',
+                    fontFamily: 'var(--tbl-font-serif)',
+                    fontWeight: 900,
+                    fontSize: 18,
+                    whiteSpace: 'nowrap',
+                    color: team2Won ? 'var(--tbl-accent-bright)' : 'inherit',
+                  }}
+                >
+                  {totalB.toFixed(1)}
+                </td>
+                <td
+                  colSpan={2}
+                  style={{
+                    padding: '14px 8px',
+                    textAlign: 'left',
+                    fontFamily: 'var(--tbl-font-serif)',
+                    fontWeight: 900,
+                    fontSize: 16,
                     whiteSpace: 'nowrap',
                     color: team1Won
                       ? 'var(--tbl-accent-bright)'

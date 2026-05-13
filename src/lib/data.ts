@@ -414,7 +414,7 @@ function parseMatchData(rows: string[][]): {
       if (isWin1) wins1++;
       else if (isLoss1) wins2++;
 
-      boxScore.push({ round: roundNum, phase, fighter1, fighter2, score1: pts1, score2: pts2, winner, weightClass });
+      boxScore.push({ round: roundNum, phase, fighter1, fighter2, score1: pts1, score2: pts2, winner, weightClass, method: resultMethod || undefined });
 
       // Add to fighter history
       const r1: 'W' | 'L' | 'D' = isWin1 ? 'W' : isLoss1 ? 'L' : 'D';
