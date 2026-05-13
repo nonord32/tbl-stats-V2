@@ -443,10 +443,10 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
                             </div>
                           </td>
                           <td className="num-cell mono col-result">{t.record}</td>
-                          <td className="num-cell mono col-hide-mobile">{t.pf.toFixed(1)}</td>
-                          <td className="num-cell mono col-hide-mobile">{t.pa.toFixed(1)}</td>
+                          <td className="num-cell mono col-hide-mobile">{t.pf.toFixed(0)}</td>
+                          <td className="num-cell mono col-hide-mobile">{t.pa.toFixed(0)}</td>
                           <td className="num-cell mono col-diff" style={{ color: t.diff >= 0 ? 'var(--result-w)' : 'var(--result-l)', fontWeight: 600 }}>
-                            {t.diff >= 0 ? '+' : ''}{t.diff.toFixed(1)}
+                            {t.diff >= 0 ? '+' : ''}{t.diff.toFixed(0)}
                           </td>
                           <td className="num-cell mono col-hide-mobile" style={{
                             color: gb > 0 ? 'var(--result-w)' : gb < 0 ? 'var(--result-l)' : 'var(--text-muted)',

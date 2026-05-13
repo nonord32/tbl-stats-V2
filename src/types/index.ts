@@ -67,6 +67,7 @@ export interface BoxScoreRound {
   score2: number;
   winner: string;
   weightClass?: string;
+  method?: string;
 }
 
 export interface TeamMatch {
