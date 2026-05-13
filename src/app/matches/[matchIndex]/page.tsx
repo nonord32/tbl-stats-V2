@@ -545,13 +545,12 @@ export default async function MatchPage({
                   };
                   const winScoreStyle = {
                     ...scoreCellBase,
-                    background: 'var(--tbl-green)',
-                    color: '#fff',
+                    background: 'var(--tbl-accent)',
+                    color: 'var(--tbl-paper)',
                   };
                   const loseScoreStyle = {
                     ...scoreCellBase,
-                    background: 'var(--tbl-red)',
-                    color: '#fff',
+                    color: 'var(--tbl-ink-mute)',
                   };
                   const drawScoreStyle = {
                     ...scoreCellBase,
