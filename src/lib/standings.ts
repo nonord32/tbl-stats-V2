@@ -18,6 +18,10 @@
 import type { TeamStanding, TeamMatch } from '@/types';
 import { toSlug } from '@/lib/data';
 
+// Number of teams that make the postseason field. Shared by the
+// standings page, playoff picture page, and clinch math.
+export const PLAYOFF_SPOTS = 8;
+
 export function getH2HResult(
   a: TeamStanding,
   b: TeamStanding,

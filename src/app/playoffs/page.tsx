@@ -7,7 +7,8 @@ import Link from 'next/link';
 import { getAllData } from '@/lib/data';
 import { getFullTeamName, getTeamLogoPathByName } from '@/lib/teams';
 import { getLastCompletedWeek } from '@/lib/week';
-import { sortStandings, getH2HTiebreakerWinners } from '@/lib/standings';
+import { sortStandings, getH2HTiebreakerWinners, PLAYOFF_SPOTS } from '@/lib/standings';
+import { computeClinchStatus, type ClinchStatus } from '@/lib/clinch';
 import type { TeamStanding } from '@/types';
 
 export const revalidate = 300;
@@ -18,7 +19,40 @@ export const metadata: Metadata = {
     'A live bracket projection: if the TBL playoffs started today, here is what the field would look like.',
 };
 
-const PLAYOFF_SPOTS = 8;
+const CLINCH_LABEL: Record<Exclude<ClinchStatus, null>, string> = {
+  x: 'Clinched playoff berth',
+  z: 'Clinched #1 seed',
+  e: 'Eliminated from playoff contention',
+};
+
+function ClinchBadge({ status }: { status: ClinchStatus }) {
+  if (!status) return null;
+  const color =
+    status === 'z' ? 'var(--tbl-gold, #d4a82c)' :
+    status === 'x' ? 'var(--tbl-green)' :
+                     'var(--text-muted)';
+  return (
+    <span
+      title={CLINCH_LABEL[status]}
+      aria-label={CLINCH_LABEL[status]}
+      style={{
+        marginLeft: 6,
+        fontFamily: 'IBM Plex Mono, monospace',
+        fontSize: 10,
+        fontWeight: 700,
+        color,
+        border: `1px solid ${color}`,
+        borderRadius: 3,
+        padding: '0 4px',
+        lineHeight: '14px',
+        display: 'inline-block',
+        verticalAlign: 'middle',
+      }}
+    >
+      {status}
+    </span>
+  );
+}
 
 interface Seed {
   seed: number;
@@ -48,6 +82,7 @@ export default async function PlayoffsPage() {
 
   const standings = sortStandings(teams, teamMatches);
   const h2hWinners = getH2HTiebreakerWinners(teams, teamMatches);
+  const clinch = computeClinchStatus(teams, schedule);
 
   const seeds: Seed[] = standings.slice(0, PLAYOFF_SPOTS).map((team, i) => ({
     seed: i + 1,
@@ -92,7 +127,7 @@ export default async function PlayoffsPage() {
           <div className="po-col po-col--qf">
             <div className="po-round-rule">Quarterfinals</div>
             {qfPairs.slice(0, 2).map((p, i) => (
-              <Match key={`qf-top-${i}`} a={p[0]} b={p[1]} hostHigh h2hWinners={h2hWinners} />
+              <Match key={`qf-top-${i}`} a={p[0]} b={p[1]} hostHigh h2hWinners={h2hWinners} clinch={clinch} />
             ))}
           </div>
 
@@ -118,7 +153,7 @@ export default async function PlayoffsPage() {
           <div className="po-col po-col--qf po-col--qf-bottom">
             <div className="po-round-rule">Quarterfinals</div>
             {qfPairs.slice(2, 4).map((p, i) => (
-              <Match key={`qf-bot-${i}`} a={p[0]} b={p[1]} hostHigh h2hWinners={h2hWinners} />
+              <Match key={`qf-bot-${i}`} a={p[0]} b={p[1]} hostHigh h2hWinners={h2hWinners} clinch={clinch} />
             ))}
           </div>
 
@@ -136,7 +171,7 @@ export default async function PlayoffsPage() {
               <span>The Field · 1 through {PLAYOFF_SPOTS}</span>
               <span>{seeds.length === PLAYOFF_SPOTS ? 'Locked positions' : 'Provisional'}</span>
             </div>
-            <SeedTable seeds={seeds} h2hWinners={h2hWinners} />
+            <SeedTable seeds={seeds} h2hWinners={h2hWinners} clinch={clinch} />
           </section>
 
           <section className="po-card">
@@ -154,6 +189,7 @@ export default async function PlayoffsPage() {
                 }))}
                 bubble
                 h2hWinners={h2hWinners}
+                clinch={clinch}
               />
             )}
           </section>
@@ -182,11 +218,13 @@ function Match({
   b,
   hostHigh,
   h2hWinners,
+  clinch,
 }: {
   a: Seed | undefined;
   b: Seed | undefined;
   hostHigh?: boolean;
   h2hWinners: Map<string, string[]>;
+  clinch: Map<string, ClinchStatus>;
 }) {
   if (!a || !b) {
     return <TBDMatch />;
@@ -196,9 +234,9 @@ function Match({
   const visitor = a.seed < b.seed ? b : a;
   return (
     <div className="po-match">
-      <SeedRow seed={host} highlight={!!hostHigh} h2hWinners={h2hWinners} />
+      <SeedRow seed={host} highlight={!!hostHigh} h2hWinners={h2hWinners} clinch={clinch} />
       <div className="po-match__rule">vs</div>
-      <SeedRow seed={visitor} h2hWinners={h2hWinners} />
+      <SeedRow seed={visitor} h2hWinners={h2hWinners} clinch={clinch} />
     </div>
   );
 }
@@ -207,10 +245,12 @@ function SeedRow({
   seed,
   highlight,
   h2hWinners,
+  clinch,
 }: {
   seed: Seed;
   highlight?: boolean;
   h2hWinners: Map<string, string[]>;
+  clinch: Map<string, ClinchStatus>;
 }) {
   const logo = getTeamLogoPathByName(seed.team.team);
   const name = getFullTeamName(seed.team.slug);
@@ -236,6 +276,7 @@ function SeedRow({
               *
             </span>
           )}
+          <ClinchBadge status={clinch.get(seed.team.slug) ?? null} />
         </span>
         <span className="po-seed__abbr">{shortAbbr(seed.team.slug, seed.team.team)}</span>
         <span className="po-seed__rec">{seed.team.record}</span>
@@ -270,10 +311,12 @@ function SeedTable({
   seeds,
   bubble,
   h2hWinners,
+  clinch,
 }: {
   seeds: Seed[];
   bubble?: boolean;
   h2hWinners: Map<string, string[]>;
+  clinch: Map<string, ClinchStatus>;
 }) {
   return (
     <div className="po-table">
@@ -307,6 +350,7 @@ function SeedTable({
                     *
                   </span>
                 )}
+                <ClinchBadge status={clinch.get(s.team.slug) ?? null} />
               </span>
             </span>
             <span className="po-table__num">{s.team.record}</span>

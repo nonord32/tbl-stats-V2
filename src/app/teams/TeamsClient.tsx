@@ -3,10 +3,11 @@
 
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
-import type { TeamStanding, TeamMatch, BoxScoreRound } from '@/types';
+import type { TeamStanding, TeamMatch, BoxScoreRound, ScheduleEntry } from '@/types';
 import { calcTeamStreak, toSlug } from '@/lib/data';
 import { getTeamColor, getTeamLogoPath, getFullTeamName, getCityName } from '@/lib/teams';
-import { sortStandings, getH2HTiebreakerWinners } from '@/lib/standings';
+import { sortStandings, getH2HTiebreakerWinners, PLAYOFF_SPOTS } from '@/lib/standings';
+import { computeClinchStatus, type ClinchStatus } from '@/lib/clinch';
 import { PageHeader } from '@/components/chrome/PageHeader';
 
 type SortKey = 'record' | 'pf' | 'pa' | 'diff' | 'streak';
@@ -14,8 +15,44 @@ type SortKey = 'record' | 'pf' | 'pa' | 'diff' | 'streak';
 interface Props {
   teams: TeamStanding[];
   teamMatches: Record<string, TeamMatch[]>;
+  schedule: ScheduleEntry[];
   seoText?: string;
   lastUpdated?: string;
+}
+
+const CLINCH_LABEL: Record<Exclude<ClinchStatus, null>, string> = {
+  x: 'Clinched playoff berth',
+  z: 'Clinched #1 seed',
+  e: 'Eliminated from playoff contention',
+};
+
+function ClinchBadge({ status }: { status: ClinchStatus }) {
+  if (!status) return null;
+  const color =
+    status === 'z' ? 'var(--tbl-gold, #d4a82c)' :
+    status === 'x' ? 'var(--tbl-green)' :
+                     'var(--text-muted)';
+  return (
+    <span
+      title={CLINCH_LABEL[status]}
+      aria-label={CLINCH_LABEL[status]}
+      style={{
+        marginLeft: 6,
+        fontFamily: 'IBM Plex Mono, monospace',
+        fontSize: 10,
+        fontWeight: 700,
+        color,
+        border: `1px solid ${color}`,
+        borderRadius: 3,
+        padding: '0 4px',
+        lineHeight: '14px',
+        display: 'inline-block',
+        verticalAlign: 'middle',
+      }}
+    >
+      {status}
+    </span>
+  );
 }
 
 function StreakBadge({ streak }: { streak: string }) {
@@ -192,7 +229,7 @@ function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; s
   return <span style={{ marginLeft: 3 }}>{sortDir === 'desc' ? '↓' : '↑'}</span>;
 }
 
-export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props) {
+export function TeamsClient({ teams, teamMatches, schedule, seoText, lastUpdated }: Props) {
   const formattedUpdate = lastUpdated || null;
   const [sortKey, setSortKey] = useState<SortKey>('record');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -231,6 +268,11 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
   const h2hWinners = useMemo(
     () => getH2HTiebreakerWinners(teams, teamMatches),
     [teams, teamMatches]
+  );
+
+  const clinchStatus = useMemo(
+    () => computeClinchStatus(teams, schedule),
+    [teams, schedule]
   );
 
   // Mobile card list mirrors the desktop "record" sort.
@@ -283,6 +325,7 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
                         *
                       </span>
                     )}
+                    <ClinchBadge status={clinchStatus.get(t.slug) ?? null} />
                   </div>
                   <div className="teams-mobile-row__meta">
                     {getCityName(t.team)}
@@ -357,6 +400,9 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
               { k: 'PA', v: 'Points Against' },
               { k: 'Diff', v: 'Point Differential' },
               { k: 'GB', v: 'Games from playoff cutoff (+ahead / behind)' },
+              { k: 'x', v: 'Clinched playoff berth' },
+              { k: 'z', v: 'Clinched #1 seed' },
+              { k: 'e', v: 'Eliminated' },
             ].map((s) => (
               <span key={s.k} style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)' }}>
                 <strong style={{ color: 'var(--text)' }}>{s.k}</strong> {s.v}
@@ -392,7 +438,6 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
               </thead>
               <tbody>
                 {(() => {
-                  const PLAYOFF_SPOTS = 8;
                   // Games back always relative to natural standings (record-based), regardless of current sort
                   const byWins = recordSorted;
                   const cutoffTeam = byWins[PLAYOFF_SPOTS - 1]; // 8th place in record order
@@ -439,6 +484,7 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
                                     *
                                   </span>
                                 )}
+                                <ClinchBadge status={clinchStatus.get(t.slug) ?? null} />
                               </Link>
                             </div>
                           </td>
