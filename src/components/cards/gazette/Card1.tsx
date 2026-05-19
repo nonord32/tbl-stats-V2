@@ -11,7 +11,7 @@ export default function GazetteCard1({ data }: { data: Card1Data }) {
     return (
       <GazetteFrame
         title={`Week ${data.week} · Top Performers`}
-        badge={`VOL. III · NO. ${data.week}`}
+        badge={`WK ${data.week}`}
       >
         <div style={{ fontFamily: gMono, fontSize: 11, color: G.inkSoft }}>
           No fighters this week.
@@ -22,7 +22,7 @@ export default function GazetteCard1({ data }: { data: Card1Data }) {
   return (
     <GazetteFrame
       title={`Week ${data.week} · Top Performers`}
-      badge={`VOL. III · NO. ${data.week}`}
+      badge={`WK ${data.week}`}
     >
       <div
         style={{

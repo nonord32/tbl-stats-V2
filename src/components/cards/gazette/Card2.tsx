@@ -10,23 +10,15 @@ export default function GazetteCard2({ data }: { data: Card2Data }) {
     .map((f) => ({ ...f, total: f.pts.reduce((a, b) => a + b, 0) }))
     .sort((a, b) => b.total - a.total);
   const maxAbs = Math.max(1, ...ranked.flatMap((f) => f.pts.map(Math.abs)));
-  const trend = (pts: number[]) => {
-    const e = (pts[0] + pts[1]) / 2;
-    const l = (pts[3] + pts[4]) / 2;
-    if (l > e + 0.3) return { sym: '↑', color: G.green };
-    if (l < e - 0.3) return { sym: '↓', color: G.red };
-    return { sym: '→', color: G.inkSoft };
-  };
   return (
-    <GazetteFrame title="Hot Streak · Last 5 Fights" badge="ROLLING">
+    <GazetteFrame title="Net Points · Last 5 Rounds" badge="ROLLING">
       {ranked.map((f, i) => {
-        const t = trend(f.pts);
         return (
           <div
             key={`${f.name}-${i}`}
             style={{
               display: 'grid',
-              gridTemplateColumns: '22px 1fr 72px auto auto',
+              gridTemplateColumns: '22px 1fr 72px auto',
               gap: 8,
               alignItems: 'center',
               padding: '5px 0',
@@ -101,19 +93,6 @@ export default function GazetteCard2({ data }: { data: Card2Data }) {
             >
               {Math.round(f.total) > 0 ? '+' : ''}
               {Math.round(f.total)}
-            </div>
-            <div
-              style={{
-                fontFamily: gSerif,
-                fontSize: 16,
-                fontWeight: 900,
-                color: t.color,
-                width: 14,
-                textAlign: 'center',
-                lineHeight: 1,
-              }}
-            >
-              {t.sym}
             </div>
           </div>
         );

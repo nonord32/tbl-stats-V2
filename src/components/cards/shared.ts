@@ -3,7 +3,7 @@
 // style sets accept the same props so the admin can swap them with a single
 // `style` switch.
 
-export type FinishMethod = 'KO' | 'TKO' | 'DEC';
+export type FinishMethod = 'KO' | 'TKO' | 'KD' | 'DEC';
 
 export interface Card1Fighter {
   name: string;

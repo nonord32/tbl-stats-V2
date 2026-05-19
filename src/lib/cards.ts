@@ -17,10 +17,13 @@ import type {
   FinishMethod,
 } from '@/components/cards/shared';
 
-// Normalize "Decision", "KO", "TKO", "Knockdown", etc → KO | TKO | DEC.
+// Normalize "Decision", "KO", "TKO", "Knockdown", etc → KO | TKO | KD | DEC.
+// Knockdown stays distinct from KO (the bout still went the distance — KO
+// would mean the fight ended on the knockdown).
 function normalizeMethod(raw: string | undefined): FinishMethod {
   const m = (raw || '').trim().toUpperCase();
-  if (m.startsWith('KO') || m === 'KNOCKDOWN') return 'KO';
+  if (m === 'KNOCKDOWN' || m.startsWith('KD')) return 'KD';
+  if (m.startsWith('KO')) return 'KO';
   if (m.startsWith('TKO') || m === 'RSC' || m === 'RTD') return 'TKO';
   return 'DEC';
 }
