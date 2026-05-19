@@ -3,7 +3,23 @@
 import React from 'react';
 import { GazetteFrame } from './Frame';
 import { G, gSerif, gMono } from './tokens';
+import { teamLogoPath } from '../teamLogo';
 import type { Card4Data, Card4Side } from '../shared';
+
+function TeamLogo({ team, size }: { team: string; size: number }) {
+  const src = teamLogoPath(team);
+  if (!src) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt=""
+      width={size}
+      height={size}
+      style={{ width: size, height: size, objectFit: 'contain', display: 'block' }}
+    />
+  );
+}
 
 function Side({ f, align }: { f: Card4Side; align: 'left' | 'right' }) {
   const first = f.name.split(' ')[0];
@@ -16,6 +32,7 @@ function Side({ f, align }: { f: Card4Side; align: 'left' | 'right' }) {
         alignItems: align === 'right' ? 'flex-end' : 'flex-start',
       }}
     >
+      <TeamLogo team={f.team} size={42} />
       <div
         style={{
           fontFamily: gMono,
@@ -24,6 +41,7 @@ function Side({ f, align }: { f: Card4Side; align: 'left' | 'right' }) {
           color: G.accent,
           fontWeight: 700,
           textTransform: 'uppercase',
+          marginTop: 6,
         }}
       >
         {f.team}

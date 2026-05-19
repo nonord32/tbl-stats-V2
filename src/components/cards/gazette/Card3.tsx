@@ -3,7 +3,23 @@
 import React from 'react';
 import { GazetteFrame } from './Frame';
 import { G, gSerif, gMono } from './tokens';
+import { teamLogoPath } from '../teamLogo';
 import type { Card3Data } from '../shared';
+
+function TeamLogo({ team, size }: { team: string; size: number }) {
+  const src = teamLogoPath(team);
+  if (!src) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt=""
+      width={size}
+      height={size}
+      style={{ width: size, height: size, objectFit: 'contain', display: 'block' }}
+    />
+  );
+}
 
 export default function GazetteCard3({ data }: { data: Card3Data }) {
   const ranked = [...data.fighters].sort((a, b) => b.finishRate - a.finishRate);
@@ -25,7 +41,7 @@ export default function GazetteCard3({ data }: { data: Card3Data }) {
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: '22px 1fr auto',
+                gridTemplateColumns: '22px 20px 1fr auto',
                 gap: 8,
                 alignItems: 'center',
               }}
@@ -40,6 +56,7 @@ export default function GazetteCard3({ data }: { data: Card3Data }) {
               >
                 {i + 1}.
               </div>
+              <TeamLogo team={f.team} size={20} />
               <div>
                 <div style={{ fontFamily: gSerif, fontWeight: 700, fontSize: 14, lineHeight: 1.05 }}>
                   {f.name}

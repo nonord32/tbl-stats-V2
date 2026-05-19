@@ -3,7 +3,23 @@
 import React from 'react';
 import { GazetteFrame } from './Frame';
 import { G, gSerif, gMono } from './tokens';
+import { teamLogoPath } from '../teamLogo';
 import type { Card1Data } from '../shared';
+
+function TeamLogo({ team, size }: { team: string; size: number }) {
+  const src = teamLogoPath(team);
+  if (!src) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt=""
+      width={size}
+      height={size}
+      style={{ width: size, height: size, objectFit: 'contain', display: 'block' }}
+    />
+  );
+}
 
 export default function GazetteCard1({ data }: { data: Card1Data }) {
   const [top, ...rest] = data.fighters;
@@ -30,7 +46,7 @@ export default function GazetteCard1({ data }: { data: Card1Data }) {
           color: G.bg,
           padding: '8px 12px',
           display: 'grid',
-          gridTemplateColumns: 'auto 1fr auto',
+          gridTemplateColumns: 'auto auto 1fr auto',
           gap: 10,
           alignItems: 'center',
           marginBottom: 8,
@@ -47,6 +63,7 @@ export default function GazetteCard1({ data }: { data: Card1Data }) {
         >
           1.
         </div>
+        <TeamLogo team={top.team} size={34} />
         <div>
           <div style={{ fontFamily: gSerif, fontWeight: 900, fontSize: 18, lineHeight: 1 }}>
             {top.name}
@@ -80,7 +97,7 @@ export default function GazetteCard1({ data }: { data: Card1Data }) {
           key={`${f.name}-${i}`}
           style={{
             display: 'grid',
-            gridTemplateColumns: '26px 1fr auto auto',
+            gridTemplateColumns: '26px 20px 1fr auto auto',
             gap: 8,
             alignItems: 'center',
             padding: '5px 0',
@@ -98,6 +115,7 @@ export default function GazetteCard1({ data }: { data: Card1Data }) {
           >
             {i + 2}.
           </div>
+          <TeamLogo team={f.team} size={20} />
           <div>
             <div style={{ fontFamily: gSerif, fontWeight: 700, fontSize: 15, lineHeight: 1.05 }}>
               {f.name}
