@@ -15,6 +15,7 @@ import type {
   Card4Data,
   Card4Side,
   FinishMethod,
+  HotStreakHistoryEntry,
 } from '@/components/cards/shared';
 
 // Normalize "Decision", "KO", "TKO", "Knockdown", etc → KO | TKO | KD | DEC.
@@ -140,36 +141,53 @@ export function computeTopPerformers(
   return { week, fighters: ranked.slice(0, count) };
 }
 
-// ─── Card 2 — Hot Streak (last 5 bouts, ranked by sum) ───────────────────────
-// Returns the full ranking so the admin UI can pick how many to display.
-export function computeHotStreakRanking(
+// ─── Card 2 — Hot Streak (last N rounds, ranked by sum) ──────────────────────
+// Returns each fighter's full recent net-points history (oldest first,
+// capped at MAX_HOTSTREAK_HISTORY) so the admin UI can slide the rounds
+// window without another fetch.
+const MAX_HOTSTREAK_HISTORY = 20;
+
+export function computeHotStreakHistory(
   fighters: FighterStat[],
   history: Record<string, FightHistory[]>
-): Card2Data['fighters'] {
-  type Row = { name: string; team: string; pts: number[]; total: number };
-  const rows: Row[] = [];
-
+): HotStreakHistoryEntry[] {
+  const rows: HotStreakHistoryEntry[] = [];
   for (const f of fighters) {
     const hist = history[f.slug] || [];
-    if (hist.length < 5) continue;
-    // history is pre-sorted desc; take the most recent 5 then reverse to
+    if (hist.length === 0) continue;
+    // history is desc by date — take the most recent N, reverse to
     // chronological order so the sparkline reads left→right oldest→newest.
-    const last5 = hist.slice(0, 5).reverse().map((h) => h.netPts);
-    const total = last5.reduce((s, n) => s + n, 0);
-    rows.push({ name: f.name, team: teamShort(f.team), pts: last5, total });
+    const allPts = hist
+      .slice(0, MAX_HOTSTREAK_HISTORY)
+      .reverse()
+      .map((h) => h.netPts);
+    rows.push({ name: f.name, team: teamShort(f.team), allPts });
   }
-
-  rows.sort((a, b) => b.total - a.total);
-  return rows.map(({ name, team, pts }) => ({ name, team, pts }));
+  return rows;
 }
 
-export function computeHotStreak(
-  fighters: FighterStat[],
-  history: Record<string, FightHistory[]>,
-  count = 6
+export function sliceHotStreak(
+  entries: HotStreakHistoryEntry[],
+  rounds: number,
+  count: number
 ): Card2Data {
+  const r = Math.max(1, rounds);
   return {
-    fighters: computeHotStreakRanking(fighters, history).slice(0, count),
+    rounds: r,
+    fighters: entries
+      .filter((e) => e.allPts.length >= r)
+      .map((e) => {
+        const pts = e.allPts.slice(-r);
+        return {
+          name: e.name,
+          team: e.team,
+          pts,
+          total: pts.reduce((s, n) => s + n, 0),
+        };
+      })
+      .sort((a, b) => b.total - a.total)
+      .slice(0, count)
+      .map(({ name, team, pts }) => ({ name, team, pts })),
   };
 }
 

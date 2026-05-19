@@ -27,7 +27,7 @@ const STYLE_KEY = 'admin-cards-style';
 const EMPTY: CardsPayload = {
   week: 1,
   card1: { week: 1, fighters: [] },
-  card2: { fighters: [] },
+  card2: { rounds: 5, fighters: [] },
   card3: { fighters: [] },
   card4: {
     week: 1,
@@ -37,8 +37,9 @@ const EMPTY: CardsPayload = {
   topPerformersByWeek: {},
   availableWeeks: [],
   card1Count: 6,
-  hotStreakRanking: [],
+  hotStreakHistory: [],
   card2Count: 6,
+  card2Rounds: 5,
 };
 
 export function CardsAdminClient() {
@@ -322,12 +323,31 @@ function CardsAdminBody({
           {activeCard === 2 && (
             <Card2Form
               count={data.card2Count}
+              rounds={data.card2Rounds}
+              maxRounds={Math.max(
+                1,
+                ...data.hotStreakHistory.map((e) => e.allPts.length)
+              )}
               setCount={(n) => {
-                const slice = data.hotStreakRanking.slice(0, n);
                 setData({
                   ...data,
                   card2Count: n,
-                  card2: { fighters: slice },
+                  card2: sliceHotStreakHistory(
+                    data.hotStreakHistory,
+                    data.card2Rounds,
+                    n
+                  ),
+                });
+              }}
+              setRounds={(r) => {
+                setData({
+                  ...data,
+                  card2Rounds: r,
+                  card2: sliceHotStreakHistory(
+                    data.hotStreakHistory,
+                    r,
+                    data.card2Count
+                  ),
                 });
               }}
             />
@@ -495,18 +515,66 @@ function Card1Form({
   );
 }
 
+// Client-side reslice of Card 2 — mirrors sliceHotStreak() in src/lib/cards.ts
+// so the UI doesn't need to refetch when the rounds window or list length
+// changes.
+function sliceHotStreakHistory(
+  entries: CardsPayload['hotStreakHistory'],
+  rounds: number,
+  count: number
+): CardsPayload['card2'] {
+  const r = Math.max(1, rounds);
+  return {
+    rounds: r,
+    fighters: entries
+      .filter((e) => e.allPts.length >= r)
+      .map((e) => {
+        const pts = e.allPts.slice(-r);
+        return {
+          name: e.name,
+          team: e.team,
+          pts,
+          total: pts.reduce((s, n) => s + n, 0),
+        };
+      })
+      .sort((a, b) => b.total - a.total)
+      .slice(0, count)
+      .map(({ name, team, pts }) => ({ name, team, pts })),
+  };
+}
+
 // Hot Streak is fully data-driven, same pattern as Top Performers — the
-// admin only chooses how many fighters to display; names, teams, and
-// per-round net points come from the live sheet.
+// admin chooses how many recent rounds to compare and how many fighters
+// to show; everything else comes from the live sheet.
 function Card2Form({
   count,
+  rounds,
+  maxRounds,
   setCount,
+  setRounds,
 }: {
   count: number;
+  rounds: number;
+  maxRounds: number;
   setCount: (n: number) => void;
+  setRounds: (n: number) => void;
 }) {
+  const cap = Math.max(rounds, maxRounds, 1);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div>
+        <span style={labelSm}># of past rounds to include</span>
+        <input
+          style={inputCss}
+          type="number"
+          min={1}
+          max={cap}
+          value={rounds}
+          onChange={(e) =>
+            setRounds(Math.max(1, Math.min(cap, Number(e.target.value) || 1)))
+          }
+        />
+      </div>
       <div>
         <span style={labelSm}># of fighters to display</span>
         <input
@@ -533,8 +601,8 @@ function Card2Form({
         }}
       >
         Fighters are pulled from the live sheet, ranked by net points across
-        their last 5 rounds. To edit them, change the underlying sheet and
-        click <strong>Pull latest week</strong>.
+        the selected number of recent rounds. Only fighters with at least
+        that many rounds are eligible.
       </div>
     </div>
   );

@@ -19,10 +19,19 @@ export interface Card1Data {
 export interface Card2Fighter {
   name: string;
   team: string;
-  pts: number[]; // length 5, most-recent-last
+  pts: number[]; // most-recent-last, length matches the rounds window
 }
 export interface Card2Data {
-  fighters: Card2Fighter[]; // expected length 6
+  rounds: number; // how many recent rounds the pts arrays represent
+  fighters: Card2Fighter[];
+}
+
+// Full chronological per-fighter net-points history (oldest first), used by
+// the admin UI to reslice Card 2 to any rounds window without refetching.
+export interface HotStreakHistoryEntry {
+  name: string;
+  team: string;
+  allPts: number[];
 }
 
 export interface Card3Fighter {
@@ -61,9 +70,11 @@ export interface CardsPayload {
   availableWeeks: number[];
   // Desired card 1 list length — admin can grow or shrink this freely.
   card1Count: number;
-  // Full hot-streak ranking + desired list length, same pattern as card 1.
-  hotStreakRanking: Card2Fighter[];
+  // Full per-fighter net-points history + desired rounds window + list
+  // length, same auto-populate pattern as card 1.
+  hotStreakHistory: HotStreakHistoryEntry[];
   card2Count: number;
+  card2Rounds: number;
 }
 
 export type CardStyle = 'A' | 'B'; // A = Gazette, B = Neon

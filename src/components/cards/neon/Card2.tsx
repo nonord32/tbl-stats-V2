@@ -10,8 +10,12 @@ export default function NeonCard2({ data }: { data: Card2Data }) {
     .map((f) => ({ ...f, total: f.pts.reduce((a, b) => a + b, 0) }))
     .sort((a, b) => b.total - a.total);
   const maxAbs = Math.max(1, ...ranked.flatMap((f) => f.pts.map(Math.abs)));
+  const sparkW = 72;
+  const sparkGap = 2;
+  const barCount = ranked[0]?.pts.length || 1;
+  const barW = Math.max(3, Math.floor((sparkW - (barCount - 1) * sparkGap) / barCount));
   return (
-    <NeonFrame title="Net Points · Last 5 Rounds" badge="ROLLING" glowColor={N.cyan}>
+    <NeonFrame title={`Net Points · Last ${data.rounds} Rounds`} badge="ROLLING" glowColor={N.cyan}>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       {ranked.map((f, i) => {
         return (
@@ -56,11 +60,11 @@ export default function NeonCard2({ data }: { data: Card2Data }) {
                 {f.team}
               </div>
             </div>
-            <div style={{ height: 24, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <div style={{ height: 24, display: 'flex', alignItems: 'center', gap: sparkGap }}>
               {f.pts.map((v, j) => {
                 const h = Math.max(2, (Math.abs(v) / maxAbs) * 11);
                 return (
-                  <div key={j} style={{ width: 11, height: 24, position: 'relative' }}>
+                  <div key={j} style={{ width: barW, height: 24, position: 'relative' }}>
                     <div
                       style={{
                         position: 'absolute',
