@@ -99,8 +99,8 @@ export default function GazetteCard2({ data }: { data: Card2Data }) {
                 textAlign: 'right',
               }}
             >
-              {f.total >= 0 ? '+' : ''}
-              {f.total.toFixed(1)}
+              {Math.round(f.total) > 0 ? '+' : ''}
+              {Math.round(f.total)}
             </div>
             <div
               style={{

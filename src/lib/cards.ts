@@ -9,6 +9,7 @@ import type {
 } from '@/types';
 import type {
   Card1Data,
+  Card1Fighter,
   Card2Data,
   Card3Data,
   Card4Data,
@@ -24,8 +25,11 @@ function normalizeMethod(raw: string | undefined): FinishMethod {
   return 'DEC';
 }
 
+// Whole-number formatting — top performers + hot streak totals are displayed
+// without decimals (e.g. "+24", "-3", "0").
 function fmtPts(n: number): string {
-  return (n >= 0 ? '+' : '') + n.toFixed(1);
+  const rounded = Math.round(n);
+  return (rounded > 0 ? '+' : '') + rounded;
 }
 
 function teamShort(team: string): string {
@@ -53,20 +57,27 @@ function teamShort(team: string): string {
 }
 
 // ─── Card 1 — Top Performers (current week) ──────────────────────────────────
-export function computeTopPerformers(
+// Returns the full ranking for the given week (every fighter who fought
+// that week, sorted by net points desc). The admin UI slices this to the
+// desired display count.
+export function computeTopPerformersForWeek(
   fighters: FighterStat[],
   history: Record<string, FightHistory[]>,
   schedule: ScheduleEntry[],
   week: number
-): Card1Data {
-  // Match indices that belong to this week.
+): Card1Fighter[] {
   const weekMatchIdx = new Set(
     schedule
       .filter((s) => Number(s.week) === week && s.matchIndex != null)
       .map((s) => Number(s.matchIndex))
   );
 
-  type Acc = { name: string; team: string; netPts: number; method: FinishMethod };
+  type Acc = {
+    name: string;
+    team: string;
+    netPts: number;
+    bouts: { roundId: number; method: FinishMethod }[];
+  };
   const acc = new Map<string, Acc>();
 
   for (const f of fighters) {
@@ -74,27 +85,56 @@ export function computeTopPerformers(
     const weekBouts = hist.filter((h) => weekMatchIdx.has(h.matchIndex));
     if (weekBouts.length === 0) continue;
     const total = weekBouts.reduce((s, h) => s + h.netPts, 0);
-    // Prefer a finish method if any bout was a finish; otherwise DEC.
-    let method: FinishMethod = 'DEC';
-    for (const b of weekBouts) {
-      const m = normalizeMethod(b.resultMethod);
-      if (m === 'KO') { method = 'KO'; break; }
-      if (m === 'TKO') method = 'TKO';
-    }
-    acc.set(f.slug, { name: f.name, team: f.team, netPts: total, method });
+    const bouts = weekBouts
+      // Display in fight order, oldest first, so "TKO/DEC" reads chronologically.
+      .slice()
+      .sort((a, b) => a.roundId - b.roundId)
+      .map((b) => ({ roundId: b.roundId, method: normalizeMethod(b.resultMethod) }));
+    acc.set(f.slug, { name: f.name, team: f.team, netPts: total, bouts });
   }
 
-  const top = [...acc.values()]
+  return [...acc.values()]
     .sort((a, b) => b.netPts - a.netPts)
-    .slice(0, 6)
     .map((a) => ({
       name: a.name,
       team: teamShort(a.team),
       pts: fmtPts(a.netPts),
-      method: a.method,
+      method: a.bouts.map((x) => x.method).join('/'),
     }));
+}
 
-  return { week, fighters: top };
+// Build a per-week ranking for every week that has any fight data, so the
+// admin can switch weeks client-side without another fetch.
+export function computeTopPerformersByWeek(
+  fighters: FighterStat[],
+  history: Record<string, FightHistory[]>,
+  schedule: ScheduleEntry[]
+): { byWeek: Record<number, Card1Fighter[]>; weeks: number[] } {
+  const weeks = Array.from(
+    new Set(
+      schedule
+        .filter((s) => Number(s.week) > 0 && s.matchIndex != null)
+        .map((s) => Number(s.week))
+    )
+  ).sort((a, b) => a - b);
+
+  const byWeek: Record<number, Card1Fighter[]> = {};
+  for (const w of weeks) {
+    const ranked = computeTopPerformersForWeek(fighters, history, schedule, w);
+    if (ranked.length > 0) byWeek[w] = ranked;
+  }
+  return { byWeek, weeks: weeks.filter((w) => byWeek[w]?.length) };
+}
+
+export function computeTopPerformers(
+  fighters: FighterStat[],
+  history: Record<string, FightHistory[]>,
+  schedule: ScheduleEntry[],
+  week: number,
+  count = 6
+): Card1Data {
+  const ranked = computeTopPerformersForWeek(fighters, history, schedule, week);
+  return { week, fighters: ranked.slice(0, count) };
 }
 
 // ─── Card 2 — Hot Streak (last 5 bouts, ranked by sum) ───────────────────────

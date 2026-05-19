@@ -16,13 +16,11 @@ import NeonCard2 from '@/components/cards/neon/Card2';
 import NeonCard3 from '@/components/cards/neon/Card3';
 import NeonCard4 from '@/components/cards/neon/Card4';
 import type {
-  Card1Data,
   Card2Data,
   Card3Data,
   Card4Data,
   CardsPayload,
   CardStyle,
-  FinishMethod,
 } from '@/components/cards/shared';
 
 const STYLE_KEY = 'admin-cards-style';
@@ -37,6 +35,9 @@ const EMPTY: CardsPayload = {
     a: { name: '', team: '', record: '0-0', netPts: 0, roundWinPct: 0, last3: [] },
     b: { name: '', team: '', record: '0-0', netPts: 0, roundWinPct: 0, last3: [] },
   },
+  topPerformersByWeek: {},
+  availableWeeks: [],
+  card1Count: 6,
 };
 
 export function CardsAdminClient() {
@@ -296,10 +297,25 @@ function CardsAdminBody({
 
           {activeCard === 1 && (
             <Card1Form
-              data={data.card1}
-              week={data.week}
-              setWeek={(w) => setData({ ...data, week: w, card1: { ...data.card1, week: w } })}
-              setData={(d) => setData({ ...data, card1: d })}
+              week={data.card1.week}
+              count={data.card1Count}
+              availableWeeks={data.availableWeeks}
+              setWeek={(w) => {
+                const slice = (data.topPerformersByWeek[w] || []).slice(0, data.card1Count);
+                setData({
+                  ...data,
+                  week: w,
+                  card1: { week: w, fighters: slice },
+                });
+              }}
+              setCount={(n) => {
+                const slice = (data.topPerformersByWeek[data.card1.week] || []).slice(0, n);
+                setData({
+                  ...data,
+                  card1Count: n,
+                  card1: { ...data.card1, fighters: slice },
+                });
+              }}
             />
           )}
           {activeCard === 2 && (
@@ -394,99 +410,76 @@ function CardRender({
 }
 
 // ─── Inline form panels ──────────────────────────────────────────────────────
+// Top Performers is fully data-driven from the latest pull — the admin
+// chooses a week and a list length, and the fighter rows are recomputed
+// from the precomputed per-week ranking server-side.
 function Card1Form({
-  data,
   week,
+  count,
+  availableWeeks,
   setWeek,
-  setData,
+  setCount,
 }: {
-  data: Card1Data;
   week: number;
+  count: number;
+  availableWeeks: number[];
   setWeek: (n: number) => void;
-  setData: (d: Card1Data) => void;
+  setCount: (n: number) => void;
 }) {
-  function updateFighter(i: number, patch: Partial<Card1Data['fighters'][number]>) {
-    const next = [...data.fighters];
-    next[i] = { ...next[i], ...patch };
-    setData({ ...data, fighters: next });
-  }
-  function addFighter() {
-    setData({
-      ...data,
-      fighters: [...data.fighters, { name: '', team: '', pts: '+0.0', method: 'DEC' }],
-    });
-  }
-  function removeFighter(i: number) {
-    const next = [...data.fighters];
-    next.splice(i, 1);
-    setData({ ...data, fighters: next });
-  }
   return (
-    <div>
-      <div style={{ marginBottom: 12 }}>
-        <span style={labelSm}>Week number</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div>
+        <span style={labelSm}>Week</span>
+        {availableWeeks.length > 0 ? (
+          <select
+            style={inputCss}
+            value={week}
+            onChange={(e) => setWeek(Number(e.target.value))}
+          >
+            {availableWeeks.map((w) => (
+              <option key={w} value={w}>
+                Week {w}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            style={inputCss}
+            type="number"
+            value={week}
+            onChange={(e) => setWeek(Number(e.target.value))}
+          />
+        )}
+      </div>
+      <div>
+        <span style={labelSm}># of fighters to display</span>
         <input
           style={inputCss}
           type="number"
-          value={week}
-          onChange={(e) => setWeek(Number(e.target.value))}
+          min={1}
+          max={20}
+          value={count}
+          onChange={(e) =>
+            setCount(Math.max(1, Math.min(20, Number(e.target.value) || 1)))
+          }
         />
       </div>
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: '24px 1fr 70px 70px 70px 24px',
-          gap: 6,
-          marginBottom: 6,
           fontFamily: 'IBM Plex Mono, monospace',
-          fontSize: 9,
+          fontSize: 10,
           color: '#8d8273',
-          letterSpacing: '0.14em',
-          textTransform: 'uppercase',
+          letterSpacing: '0.1em',
+          lineHeight: 1.6,
+          padding: 10,
+          border: '1px dashed #3a3328',
+          borderRadius: 6,
         }}
       >
-        <div>#</div>
-        <div>Name</div>
-        <div>Team</div>
-        <div>Pts</div>
-        <div>Method</div>
-        <div />
+        Fighter names, teams, points, and methods are pulled from the live
+        sheet for the selected week. To edit them, change the underlying
+        sheet and click <strong>Pull latest week</strong>.
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {data.fighters.map((f, i) => (
-          <div
-            key={i}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '24px 1fr 70px 70px 70px 24px',
-              gap: 6,
-              alignItems: 'center',
-            }}
-          >
-            <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: '#8d8273' }}>
-              {String(i + 1).padStart(2, '0')}
-            </div>
-            <input style={inputCss} value={f.name} onChange={(e) => updateFighter(i, { name: e.target.value })} />
-            <input style={inputCss} value={f.team} onChange={(e) => updateFighter(i, { team: e.target.value })} />
-            <input style={inputCss} value={f.pts} onChange={(e) => updateFighter(i, { pts: e.target.value })} />
-            <select
-              style={inputCss}
-              value={f.method}
-              onChange={(e) => updateFighter(i, { method: e.target.value as FinishMethod })}
-            >
-              <option value="KO">KO</option>
-              <option value="TKO">TKO</option>
-              <option value="DEC">DEC</option>
-            </select>
-            <button type="button" onClick={() => removeFighter(i)} style={removeBtn} title="Remove">
-              ×
-            </button>
-          </div>
-        ))}
-      </div>
-      <button type="button" onClick={addFighter} style={addBtn}>
-        + Add fighter
-      </button>
     </div>
   );
 }
