@@ -40,9 +40,6 @@ const EMPTY: CardsPayload = {
 };
 
 export function CardsAdminClient() {
-  const [secret, setSecret] = useState('');
-  const [authed, setAuthed] = useState(false);
-
   const [style, setStyle] = useState<CardStyle>('A');
   const [activeCard, setActiveCard] = useState<1 | 2 | 3 | 4>(1);
   const [data, setData] = useState<CardsPayload>(EMPTY);
@@ -67,10 +64,7 @@ export function CardsAdminClient() {
     setPulling(true);
     setFetchError(null);
     try {
-      const res = await fetch('/api/admin/cards/latest', {
-        headers: { Authorization: `Bearer ${secret}` },
-        cache: 'no-store',
-      });
+      const res = await fetch('/api/admin/cards/latest', { cache: 'no-store' });
       if (!res.ok) {
         const json = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(json.error || `Fetch failed (${res.status})`);
@@ -84,41 +78,14 @@ export function CardsAdminClient() {
     }
   }
 
-  function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    if (!secret.trim()) return;
-    setAuthed(true);
-    // Kick off the initial fetch right after auth.
-    setTimeout(() => pullLatest(), 0);
-  }
-
-  if (!authed) {
-    return (
-      <main style={loginWrap}>
-        <div style={loginCard}>
-          <h1 style={loginTitle}>Admin · Cards</h1>
-          <p style={loginSub}>Enter the admin secret to load the weekly cards.</p>
-          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <input
-              type="password"
-              placeholder="Admin secret"
-              value={secret}
-              onChange={(e) => setSecret(e.target.value)}
-              style={loginInput}
-              autoFocus
-            />
-            <button type="submit" style={btnPrimary}>
-              Enter
-            </button>
-          </form>
-        </div>
-      </main>
-    );
-  }
+  // Auto-populate on mount from the live Sheet data.
+  useEffect(() => {
+    pullLatest();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <CardsAdminBody
-      secret={secret}
       style={style}
       setStyle={setStyle}
       activeCard={activeCard}
@@ -148,7 +115,6 @@ function CardsAdminBody({
   exporting,
   setExporting,
 }: {
-  secret: string;
   style: CardStyle;
   setStyle: (s: CardStyle) => void;
   activeCard: 1 | 2 | 3 | 4;
@@ -886,43 +852,6 @@ const removeBtn: React.CSSProperties = {
   fontSize: 14,
   height: 28,
   padding: 0,
-};
-const loginWrap: React.CSSProperties = {
-  minHeight: '100vh',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: 24,
-  background: '#14110b',
-  color: '#f4ede0',
-};
-const loginCard: React.CSSProperties = {
-  width: '100%',
-  maxWidth: 360,
-  padding: 32,
-  background: '#0d0a06',
-  border: '1px solid #2a2418',
-  borderRadius: 12,
-};
-const loginTitle: React.CSSProperties = {
-  fontFamily: 'Inter, sans-serif',
-  fontSize: 20,
-  fontWeight: 800,
-  margin: 0,
-  marginBottom: 4,
-};
-const loginSub: React.CSSProperties = {
-  fontFamily: 'IBM Plex Mono, monospace',
-  fontSize: 11,
-  color: '#8d8273',
-  marginTop: 0,
-  marginBottom: 20,
-  letterSpacing: '0.1em',
-};
-const loginInput: React.CSSProperties = {
-  ...inputCss,
-  padding: '12px 14px',
-  fontSize: 14,
 };
 const errorBar: React.CSSProperties = {
   background: '#3a1410',

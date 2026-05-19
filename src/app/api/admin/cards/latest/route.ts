@@ -1,6 +1,7 @@
 // src/app/api/admin/cards/latest/route.ts
 // Compute the four weekly IG card payloads from the live Google Sheet data.
-// Gated behind the same RESOLVE_SECRET bearer used by the rest of /admin.
+// No auth gate — the underlying Sheet is published publicly, so this
+// endpoint only repackages what the rest of the site already shows.
 import { NextResponse } from 'next/server';
 import { getAllData } from '@/lib/data';
 import { getLastCompletedWeek, getDisplayedCurrentWeek } from '@/lib/week';
@@ -13,13 +14,7 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
-  const authHeader = request.headers.get('Authorization');
-  const secret = process.env.RESOLVE_SECRET;
-  if (!secret || authHeader !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+export async function GET() {
   const data = await getAllData();
   const { fighters, fighterHistory, schedule } = data;
 
