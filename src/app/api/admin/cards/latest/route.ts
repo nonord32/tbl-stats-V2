@@ -7,7 +7,7 @@ import { getAllData } from '@/lib/data';
 import { getLastCompletedWeek, getDisplayedCurrentWeek } from '@/lib/week';
 import {
   computeTopPerformersByWeek,
-  computeHotStreak,
+  computeHotStreakRanking,
   computeFinishRates,
   computeFeaturedMatchup,
 } from '@/lib/cards';
@@ -15,6 +15,7 @@ import {
 export const dynamic = 'force-dynamic';
 
 const DEFAULT_CARD1_COUNT = 6;
+const DEFAULT_CARD2_COUNT = 6;
 
 export async function GET() {
   const data = await getAllData();
@@ -38,7 +39,8 @@ export async function GET() {
     week,
     fighters: (topPerformersByWeek[week] || []).slice(0, DEFAULT_CARD1_COUNT),
   };
-  const card2 = computeHotStreak(fighters, fighterHistory);
+  const hotStreakRanking = computeHotStreakRanking(fighters, fighterHistory);
+  const card2 = { fighters: hotStreakRanking.slice(0, DEFAULT_CARD2_COUNT) };
   const card3 = computeFinishRates(fighters, fighterHistory);
   const card4 = computeFeaturedMatchup(fighters, fighterHistory, schedule, week);
 
@@ -51,5 +53,7 @@ export async function GET() {
     topPerformersByWeek,
     availableWeeks,
     card1Count: DEFAULT_CARD1_COUNT,
+    hotStreakRanking,
+    card2Count: DEFAULT_CARD2_COUNT,
   });
 }

@@ -141,10 +141,11 @@ export function computeTopPerformers(
 }
 
 // ─── Card 2 — Hot Streak (last 5 bouts, ranked by sum) ───────────────────────
-export function computeHotStreak(
+// Returns the full ranking so the admin UI can pick how many to display.
+export function computeHotStreakRanking(
   fighters: FighterStat[],
   history: Record<string, FightHistory[]>
-): Card2Data {
+): Card2Data['fighters'] {
   type Row = { name: string; team: string; pts: number[]; total: number };
   const rows: Row[] = [];
 
@@ -159,8 +160,16 @@ export function computeHotStreak(
   }
 
   rows.sort((a, b) => b.total - a.total);
+  return rows.map(({ name, team, pts }) => ({ name, team, pts }));
+}
+
+export function computeHotStreak(
+  fighters: FighterStat[],
+  history: Record<string, FightHistory[]>,
+  count = 6
+): Card2Data {
   return {
-    fighters: rows.slice(0, 6).map(({ name, team, pts }) => ({ name, team, pts })),
+    fighters: computeHotStreakRanking(fighters, history).slice(0, count),
   };
 }
 

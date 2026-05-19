@@ -61,6 +61,9 @@ export interface CardsPayload {
   availableWeeks: number[];
   // Desired card 1 list length — admin can grow or shrink this freely.
   card1Count: number;
+  // Full hot-streak ranking + desired list length, same pattern as card 1.
+  hotStreakRanking: Card2Fighter[];
+  card2Count: number;
 }
 
 export type CardStyle = 'A' | 'B'; // A = Gazette, B = Neon

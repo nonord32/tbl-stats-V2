@@ -16,7 +16,6 @@ import NeonCard2 from '@/components/cards/neon/Card2';
 import NeonCard3 from '@/components/cards/neon/Card3';
 import NeonCard4 from '@/components/cards/neon/Card4';
 import type {
-  Card2Data,
   Card3Data,
   Card4Data,
   CardsPayload,
@@ -38,6 +37,8 @@ const EMPTY: CardsPayload = {
   topPerformersByWeek: {},
   availableWeeks: [],
   card1Count: 6,
+  hotStreakRanking: [],
+  card2Count: 6,
 };
 
 export function CardsAdminClient() {
@@ -319,7 +320,17 @@ function CardsAdminBody({
             />
           )}
           {activeCard === 2 && (
-            <Card2Form data={data.card2} setData={(d) => setData({ ...data, card2: d })} />
+            <Card2Form
+              count={data.card2Count}
+              setCount={(n) => {
+                const slice = data.hotStreakRanking.slice(0, n);
+                setData({
+                  ...data,
+                  card2Count: n,
+                  card2: { fighters: slice },
+                });
+              }}
+            />
           )}
           {activeCard === 3 && (
             <Card3Form data={data.card3} setData={(d) => setData({ ...data, card3: d })} />
@@ -484,58 +495,47 @@ function Card1Form({
   );
 }
 
-function Card2Form({ data, setData }: { data: Card2Data; setData: (d: Card2Data) => void }) {
-  function updateFighter(i: number, patch: Partial<Card2Data['fighters'][number]>) {
-    const next = [...data.fighters];
-    next[i] = { ...next[i], ...patch };
-    setData({ ...data, fighters: next });
-  }
-  function updatePoint(i: number, j: number, value: string) {
-    const next = [...data.fighters];
-    const pts = [...next[i].pts];
-    pts[j] = Number(value);
-    next[i] = { ...next[i], pts };
-    setData({ ...data, fighters: next });
-  }
-  function addFighter() {
-    setData({
-      ...data,
-      fighters: [...data.fighters, { name: '', team: '', pts: [0, 0, 0, 0, 0] }],
-    });
-  }
-  function removeFighter(i: number) {
-    const next = [...data.fighters];
-    next.splice(i, 1);
-    setData({ ...data, fighters: next });
-  }
+// Hot Streak is fully data-driven, same pattern as Top Performers — the
+// admin only chooses how many fighters to display; names, teams, and
+// per-round net points come from the live sheet.
+function Card2Form({
+  count,
+  setCount,
+}: {
+  count: number;
+  setCount: (n: number) => void;
+}) {
   return (
-    <div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {data.fighters.map((f, i) => (
-          <div key={i} style={{ background: '#1f1a14', padding: 8, borderRadius: 6 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 24px', gap: 6, marginBottom: 6 }}>
-              <input style={inputCss} value={f.name} onChange={(e) => updateFighter(i, { name: e.target.value })} placeholder="Name" />
-              <input style={inputCss} value={f.team} onChange={(e) => updateFighter(i, { team: e.target.value })} placeholder="Team" />
-              <button type="button" onClick={() => removeFighter(i)} style={removeBtn}>×</button>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 4 }}>
-              {f.pts.map((v, j) => (
-                <input
-                  key={j}
-                  style={inputCss}
-                  type="number"
-                  step="0.1"
-                  value={v}
-                  onChange={(e) => updatePoint(i, j, e.target.value)}
-                />
-              ))}
-            </div>
-          </div>
-        ))}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div>
+        <span style={labelSm}># of fighters to display</span>
+        <input
+          style={inputCss}
+          type="number"
+          min={1}
+          max={20}
+          value={count}
+          onChange={(e) =>
+            setCount(Math.max(1, Math.min(20, Number(e.target.value) || 1)))
+          }
+        />
       </div>
-      <button type="button" onClick={addFighter} style={addBtn}>
-        + Add fighter
-      </button>
+      <div
+        style={{
+          fontFamily: 'IBM Plex Mono, monospace',
+          fontSize: 10,
+          color: '#8d8273',
+          letterSpacing: '0.1em',
+          lineHeight: 1.6,
+          padding: 10,
+          border: '1px dashed #3a3328',
+          borderRadius: 6,
+        }}
+      >
+        Fighters are pulled from the live sheet, ranked by net points across
+        their last 5 rounds. To edit them, change the underlying sheet and
+        click <strong>Pull latest week</strong>.
+      </div>
     </div>
   );
 }
