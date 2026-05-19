@@ -28,16 +28,19 @@ export default function GazetteCard2({ data }: { data: Card2Data }) {
   const maxAbs = Math.max(1, ...ranked.flatMap((f) => f.pts.map(Math.abs)));
   return (
     <GazetteFrame title="Net Points · Last 5 Rounds" badge="ROLLING">
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       {ranked.map((f, i) => {
         return (
           <div
             key={`${f.name}-${i}`}
             style={{
+              flex: 1,
               display: 'grid',
               gridTemplateColumns: '22px 20px 1fr 72px auto',
               gap: 8,
               alignItems: 'center',
-              padding: '5px 0',
+              padding: '4px 0',
+              minHeight: 0,
               borderBottom:
                 i === ranked.length - 1 ? 'none' : '1px dotted rgba(20,17,11,0.3)',
             }}
@@ -114,6 +117,7 @@ export default function GazetteCard2({ data }: { data: Card2Data }) {
           </div>
         );
       })}
+      </div>
     </GazetteFrame>
   );
 }

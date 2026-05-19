@@ -92,15 +92,18 @@ export default function GazetteCard1({ data }: { data: Card1Data }) {
           {top.pts}
         </div>
       </div>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       {rest.map((f, i) => (
         <div
           key={`${f.name}-${i}`}
           style={{
+            flex: 1,
             display: 'grid',
             gridTemplateColumns: '26px 20px 1fr auto auto',
             gap: 8,
             alignItems: 'center',
-            padding: '5px 0',
+            padding: '4px 0',
+            minHeight: 0,
             borderBottom:
               i === rest.length - 1 ? 'none' : '1px dotted rgba(20,17,11,0.3)',
           }}
@@ -159,6 +162,7 @@ export default function GazetteCard1({ data }: { data: Card1Data }) {
           </div>
         </div>
       ))}
+      </div>
     </GazetteFrame>
   );
 }

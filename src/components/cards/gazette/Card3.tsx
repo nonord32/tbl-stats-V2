@@ -26,6 +26,7 @@ export default function GazetteCard3({ data }: { data: Card3Data }) {
   const max = ranked[0]?.finishRate || 1;
   return (
     <GazetteFrame title="Finish Rate Leaders" badge="KO + TKO ÷ WINS">
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       {ranked.map((f, i) => {
         const pct = Math.round(f.finishRate * 100);
         const barW = max > 0 ? (f.finishRate / max) * 100 : 0;
@@ -33,6 +34,11 @@ export default function GazetteCard3({ data }: { data: Card3Data }) {
           <div
             key={`${f.name}-${i}`}
             style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              minHeight: 0,
               padding: '4px 0',
               borderBottom:
                 i === ranked.length - 1 ? 'none' : '1px dotted rgba(20,17,11,0.3)',
@@ -108,6 +114,7 @@ export default function GazetteCard3({ data }: { data: Card3Data }) {
           </div>
         );
       })}
+      </div>
     </GazetteFrame>
   );
 }

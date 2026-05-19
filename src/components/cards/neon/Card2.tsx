@@ -12,20 +12,22 @@ export default function NeonCard2({ data }: { data: Card2Data }) {
   const maxAbs = Math.max(1, ...ranked.flatMap((f) => f.pts.map(Math.abs)));
   return (
     <NeonFrame title="Net Points · Last 5 Rounds" badge="ROLLING" glowColor={N.cyan}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       {ranked.map((f, i) => {
         return (
           <div
             key={`${f.name}-${i}`}
             style={{
+              flex: 1,
               display: 'grid',
               gridTemplateColumns: '22px 1fr 72px auto',
               gap: 8,
               alignItems: 'center',
-              padding: '6px 6px',
+              padding: '4px 6px',
+              minHeight: 0,
               borderRadius: 8,
               background: i === 0 ? N.surface : 'transparent',
               borderLeft: i === 0 ? `2px solid ${N.pink}` : '2px solid transparent',
-              marginBottom: i === 0 ? 4 : 0,
             }}
           >
             <div
@@ -101,6 +103,7 @@ export default function NeonCard2({ data }: { data: Card2Data }) {
           </div>
         );
       })}
+      </div>
     </NeonFrame>
   );
 }

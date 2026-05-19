@@ -10,6 +10,7 @@ export default function NeonCard3({ data }: { data: Card3Data }) {
   const max = ranked[0]?.finishRate || 1;
   return (
     <NeonFrame title="Finish Rate Leaders" badge="KO+TKO" glowColor={N.yellow}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       {ranked.map((f, i) => {
         const pct = Math.round(f.finishRate * 100);
         const barW = max > 0 ? (f.finishRate / max) * 100 : 0;
@@ -17,11 +18,15 @@ export default function NeonCard3({ data }: { data: Card3Data }) {
           <div
             key={`${f.name}-${i}`}
             style={{
-              padding: '5px 8px',
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              minHeight: 0,
+              padding: '4px 8px',
               borderRadius: 8,
               background: i === 0 ? N.surface : 'transparent',
               borderLeft: i === 0 ? `2px solid ${N.yellow}` : '2px solid transparent',
-              marginBottom: 2,
             }}
           >
             <div
@@ -94,6 +99,7 @@ export default function NeonCard3({ data }: { data: Card3Data }) {
           </div>
         );
       })}
+      </div>
     </NeonFrame>
   );
 }
