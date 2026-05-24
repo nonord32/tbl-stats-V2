@@ -287,7 +287,12 @@ function SeedTable({
       {seeds.map((s) => {
         const logo = getTeamLogoPathByName(s.team.team);
         const name = getFullTeamName(s.team.slug);
-        const isWStreak = (s.team.streak || '').startsWith('W');
+        const streakStr = s.team.streak || '';
+        const streakColor = streakStr.startsWith('W')
+          ? 'var(--tbl-green)'
+          : streakStr.startsWith('D')
+          ? 'var(--tbl-ink-soft)'
+          : 'var(--tbl-red)';
         const beaten = h2hWinners.get(s.team.slug);
         return (
           <Link key={s.team.slug} href={`/teams/${s.team.slug}`} className="po-table__row">
@@ -319,7 +324,7 @@ function SeedTable({
             </span>
             <span
               className="po-table__num"
-              style={{ color: isWStreak ? 'var(--tbl-green)' : 'var(--tbl-red)' }}
+              style={{ color: streakColor }}
             >
               {s.team.streak || '—'}
             </span>

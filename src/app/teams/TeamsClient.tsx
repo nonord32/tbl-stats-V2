@@ -20,8 +20,12 @@ interface Props {
 
 function StreakBadge({ streak }: { streak: string }) {
   if (!streak) return null;
-  const isWin = streak.startsWith('W');
-  return <span className={`badge ${isWin ? 'badge-win' : 'badge-loss'}`}>{streak}</span>;
+  const cls = streak.startsWith('W')
+    ? 'badge-win'
+    : streak.startsWith('D')
+    ? 'badge-draw'
+    : 'badge-loss';
+  return <span className={`badge ${cls}`}>{streak}</span>;
 }
 
 function MatchScorecardRow({
@@ -184,7 +188,9 @@ function BoxScoreModal({
 function streakVal(s: string): number {
   if (!s) return 0;
   const n = parseInt(s.slice(1)) || 0;
-  return s.startsWith('W') ? n : -n;
+  if (s.startsWith('W')) return n;
+  if (s.startsWith('L')) return -n;
+  return 0; // draws sort between wins and losses
 }
 
 function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: 'asc' | 'desc' }) {
@@ -286,7 +292,22 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
                   </div>
                   <div className="teams-mobile-row__meta">
                     {getCityName(t.team)}
-                    {streak && <> · <span className={streak.startsWith('W') ? 'teams-mobile-row__streak is-win' : 'teams-mobile-row__streak is-loss'}>{streak}</span></>}
+                    {streak && (
+                      <>
+                        {' '}·{' '}
+                        <span
+                          className={`teams-mobile-row__streak ${
+                            streak.startsWith('W')
+                              ? 'is-win'
+                              : streak.startsWith('D')
+                              ? 'is-draw'
+                              : 'is-loss'
+                          }`}
+                        >
+                          {streak}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
                 <div className="teams-mobile-row__record">{t.record}</div>

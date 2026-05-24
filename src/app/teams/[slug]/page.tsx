@@ -222,7 +222,11 @@ export default async function TeamPage({
 
   const { team, matches, roster, nextMatch, highlights } = result;
   const streak = team.streak || calcTeamStreak(matches);
-  const isWStreak = streak.startsWith('W');
+  const streakHeroColor = streak.startsWith('W')
+    ? 'var(--tbl-accent-bright)'
+    : streak.startsWith('D')
+    ? 'rgba(244,237,224,0.85)'
+    : 'rgba(244,237,224,0.6)';
   const teamLogoPath = getTeamLogoPath(team.slug);
   const city = getCityName(team.team) || team.team;
   const fullName = getFullTeamName(team.slug) || team.team;
@@ -307,7 +311,7 @@ export default async function TeamPage({
                 {' · '}
                 <span
                   style={{
-                    color: isWStreak ? 'var(--tbl-accent-bright)' : 'rgba(244,237,224,0.6)',
+                    color: streakHeroColor,
                   }}
                 >
                   Streak {streak}

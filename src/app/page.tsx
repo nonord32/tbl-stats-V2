@@ -659,7 +659,11 @@ function StandingsTwoCol({ teams }: { teams: TeamStanding[] }) {
               {teams.slice(col * 6, col * 6 + 6).map((t, i) => {
                 const rank = col * 6 + i + 1;
                 const isTop = rank === 1;
-                const isWStreak = t.streak.startsWith('W');
+                const streakColor = t.streak.startsWith('W')
+                  ? 'var(--tbl-green)'
+                  : t.streak.startsWith('D')
+                  ? 'var(--tbl-ink-soft)'
+                  : 'var(--tbl-red)';
                 return (
                   <tr
                     key={t.slug}
@@ -720,7 +724,7 @@ function StandingsTwoCol({ teams }: { teams: TeamStanding[] }) {
                         padding: '9px 4px',
                         textAlign: 'right',
                         fontWeight: 700,
-                        color: isWStreak ? 'var(--tbl-green)' : 'var(--tbl-red)',
+                        color: streakColor,
                       }}
                     >
                       {t.streak}

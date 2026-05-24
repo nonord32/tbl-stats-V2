@@ -267,6 +267,7 @@ main {
 .badge-accent { background: var(--accent); color: #fff; }
 .badge-win { background: var(--streak-bg-w); color: var(--streak-text-w); }
 .badge-loss { background: var(--streak-bg-l); color: var(--streak-text-l); }
+.badge-draw { background: rgba(20,17,11,0.08); color: var(--tbl-ink-soft); }
 
 /* ─── Tables ──────────────────────────────────────────────────────────────── */
 .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -3085,6 +3086,7 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
 }
 .teams-mobile-row__streak.is-win { color: var(--tbl-green); font-weight: 700; }
 .teams-mobile-row__streak.is-loss { color: var(--tbl-red); font-weight: 700; }
+.teams-mobile-row__streak.is-draw { color: var(--tbl-ink-soft); font-weight: 700; }
 .teams-mobile-row__record {
   font-family: var(--tbl-font-mono);
   font-size: 13px;
