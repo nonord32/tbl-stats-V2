@@ -212,6 +212,10 @@ function parseFighters(rows: string[][]): { fighters: FighterStat[]; lastUpdated
     .map((r): FighterStat | null => {
       const name = pick(r, 'Fighter', 'Fighter Name').trim();
       if (!name || name === 'Fighter') return null;
+      // Skip placeholder rows ("N/A") used when a round was scratched or a
+      // forfeit awarded points to the opposing team — they're not real fighters
+      // and shouldn't appear in fighter stats / rosters.
+      if (name.toUpperCase() === 'N/A') return null;
       const recordStr = (pick(r, 'Record') || '0-0').trim();
       const parts = recordStr.split('-');
       const wins = safeInt(parts[0]);
@@ -427,7 +431,7 @@ function parseMatchData(rows: string[][]): {
         result: 'W' | 'L' | 'D',
         netPts: number
       ) => {
-        if (!fighter) return;
+        if (!fighter || fighter.trim().toUpperCase() === 'N/A') return;
         const slug = toSlug(fighter);
         if (!fighterHistory[slug]) fighterHistory[slug] = [];
         fighterHistory[slug].push({
