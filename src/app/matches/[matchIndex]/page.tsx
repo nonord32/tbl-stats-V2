@@ -543,8 +543,11 @@ export default async function MatchPage({
               {[...match.boxScore]
                 .sort((a, b) => a.round - b.round)
                 .map((row, i) => {
-                  const win1 = row.score1 > row.score2;
-                  const win2 = row.score2 > row.score1;
+                  const isNoContest =
+                    (!row.fighter1 || row.fighter1.trim().toUpperCase() === 'N/A') &&
+                    (!row.fighter2 || row.fighter2.trim().toUpperCase() === 'N/A');
+                  const win1 = !isNoContest && row.score1 > row.score2;
+                  const win2 = !isNoContest && row.score2 > row.score1;
                   const stripe = i % 2 === 0 ? 'transparent' : 'rgba(20,17,11,0.025)';
                   const scoreCellBase = {
                     padding: '12px 8px',
@@ -600,15 +603,19 @@ export default async function MatchPage({
                           fontFamily: 'var(--tbl-font-serif)',
                           fontSize: 15,
                           fontWeight: 700,
-                          color: win1 ? 'var(--tbl-accent)' : 'var(--tbl-ink)',
+                          color: win1 ? 'var(--tbl-accent)' : isNoContest ? 'var(--tbl-ink-soft)' : 'var(--tbl-ink)',
                         }}
                       >
-                        <Link
-                          href={`/fighters/${toSlug(row.fighter1)}`}
-                          style={{ color: 'inherit', textDecoration: 'none' }}
-                        >
-                          {row.fighter1}
-                        </Link>
+                        {isNoContest ? (
+                          row.fighter1 || '—'
+                        ) : (
+                          <Link
+                            href={`/fighters/${toSlug(row.fighter1)}`}
+                            style={{ color: 'inherit', textDecoration: 'none' }}
+                          >
+                            {row.fighter1}
+                          </Link>
+                        )}
                       </td>
                       <td style={win1 ? winScoreStyle : win2 ? loseScoreStyle : drawScoreStyle}>
                         {row.score1.toFixed(1)}
@@ -622,15 +629,19 @@ export default async function MatchPage({
                           fontFamily: 'var(--tbl-font-serif)',
                           fontSize: 15,
                           fontWeight: 700,
-                          color: win2 ? 'var(--tbl-accent)' : 'var(--tbl-ink)',
+                          color: win2 ? 'var(--tbl-accent)' : isNoContest ? 'var(--tbl-ink-soft)' : 'var(--tbl-ink)',
                         }}
                       >
-                        <Link
-                          href={`/fighters/${toSlug(row.fighter2)}`}
-                          style={{ color: 'inherit', textDecoration: 'none' }}
-                        >
-                          {row.fighter2}
-                        </Link>
+                        {isNoContest ? (
+                          row.fighter2 || '—'
+                        ) : (
+                          <Link
+                            href={`/fighters/${toSlug(row.fighter2)}`}
+                            style={{ color: 'inherit', textDecoration: 'none' }}
+                          >
+                            {row.fighter2}
+                          </Link>
+                        )}
                       </td>
                       <td
                         style={{
@@ -644,7 +655,7 @@ export default async function MatchPage({
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        {row.method || '—'}
+                        {isNoContest ? 'No Contest' : row.method || '—'}
                       </td>
                     </tr>
                   );

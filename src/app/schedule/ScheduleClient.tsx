@@ -110,8 +110,10 @@ function GameCard({ entry, score }: GameCardProps) {
         : 'D'
       : score.result
     : undefined;
-  const team1Won = resultForTeam1 === 'W';
-  const team2Won = resultForTeam1 === 'L';
+  // Equal totals are a draw, even if the upstream W/L flag disagrees.
+  const isDraw = resultForTeam1 === 'D' || (showScore && Math.abs(s1 - s2) < 0.0001);
+  const team1Won = !isDraw && resultForTeam1 === 'W';
+  const team2Won = !isDraw && resultForTeam1 === 'L';
 
   const body = (
     <div

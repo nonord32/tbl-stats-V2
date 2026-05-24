@@ -699,10 +699,10 @@ function StandingsTwoCol({ teams }: { teams: TeamStanding[] }) {
                       {t.record}
                     </td>
                     <td style={{ padding: '9px 4px', textAlign: 'right', color: 'var(--tbl-ink-soft)' }}>
-                      {t.pf.toFixed(1)}
+                      {Math.round(t.pf)}
                     </td>
                     <td style={{ padding: '9px 4px', textAlign: 'right', color: 'var(--tbl-ink-soft)' }}>
-                      {t.pa.toFixed(1)}
+                      {Math.round(t.pa)}
                     </td>
                     <td
                       style={{
@@ -713,7 +713,7 @@ function StandingsTwoCol({ teams }: { teams: TeamStanding[] }) {
                       }}
                     >
                       {t.diff >= 0 ? '+' : ''}
-                      {t.diff.toFixed(1)}
+                      {Math.round(t.diff)}
                     </td>
                     <td
                       style={{
@@ -786,7 +786,9 @@ function WeekendResults({ results }: { results: ResultCard[] }) {
         style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}
       >
         {results.slice(0, 6).map((r, i) => {
-          const team1Won = r.s1 > r.s2;
+          const isDraw = Math.abs(r.s1 - r.s2) < 0.0001;
+          const team1Won = !isDraw && r.s1 > r.s2;
+          const team2Won = !isDraw && r.s2 > r.s1;
           return (
             <Link
               key={`${i}-${r.team1}-${r.team2}`}
@@ -819,7 +821,7 @@ function WeekendResults({ results }: { results: ResultCard[] }) {
                       fontSize: 17,
                       lineHeight: 1.05,
                       fontWeight: team1Won ? 900 : 700,
-                      color: team1Won ? 'var(--tbl-ink)' : 'var(--tbl-ink-mute)',
+                      color: team1Won || isDraw ? 'var(--tbl-ink)' : 'var(--tbl-ink-mute)',
                     }}
                   >
                     <span className="gz-result-name-full">{getFullTeamName(teamSlug(r.team1))}</span>
@@ -846,7 +848,7 @@ function WeekendResults({ results }: { results: ResultCard[] }) {
                       width: 34,
                       height: 34,
                       objectFit: 'contain',
-                      opacity: team1Won ? 1 : 0.55,
+                      opacity: team1Won || isDraw ? 1 : 0.55,
                     }}
                   />
                 )}
@@ -876,7 +878,7 @@ function WeekendResults({ results }: { results: ResultCard[] }) {
                 >
                   —
                 </span>
-                <span style={{ color: !team1Won ? 'var(--tbl-accent)' : 'var(--tbl-ink)' }}>
+                <span style={{ color: team2Won ? 'var(--tbl-accent)' : 'var(--tbl-ink)' }}>
                   {r.s2.toFixed(1)}
                 </span>
               </div>
@@ -890,7 +892,7 @@ function WeekendResults({ results }: { results: ResultCard[] }) {
                       width: 34,
                       height: 34,
                       objectFit: 'contain',
-                      opacity: !team1Won ? 1 : 0.55,
+                      opacity: team2Won || isDraw ? 1 : 0.55,
                     }}
                   />
                 )}
@@ -900,8 +902,8 @@ function WeekendResults({ results }: { results: ResultCard[] }) {
                     style={{
                       fontSize: 17,
                       lineHeight: 1.05,
-                      fontWeight: !team1Won ? 900 : 700,
-                      color: !team1Won ? 'var(--tbl-ink)' : 'var(--tbl-ink-mute)',
+                      fontWeight: team2Won ? 900 : 700,
+                      color: team2Won || isDraw ? 'var(--tbl-ink)' : 'var(--tbl-ink-mute)',
                     }}
                   >
                     <span className="gz-result-name-full">{getFullTeamName(teamSlug(r.team2))}</span>
