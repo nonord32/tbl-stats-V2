@@ -105,9 +105,11 @@ function MatchCard({ match, hasHighlights }: { match: MatchResult; hasHighlights
   const team1Name = getFullTeamName(toSlug(match.team1));
   const team2Name = getFullTeamName(toSlug(match.team2));
 
-  const team1Won = match.result === 'W';
-  const team2Won = match.result === 'L';
-  const isDraw  = match.result === 'D';
+  // Equal totals are a draw, even when the upstream Match Result column
+  // disagrees — the scoreboard is the source of truth.
+  const isDraw  = match.result === 'D' || Math.abs(match.score1 - match.score2) < 0.0001;
+  const team1Won = !isDraw && match.result === 'W';
+  const team2Won = !isDraw && match.result === 'L';
 
   const formattedDate = (() => {
     try {

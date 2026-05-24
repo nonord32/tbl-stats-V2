@@ -95,11 +95,14 @@ export default async function MatchPage({
   const [team1Front, team1Back] = splitName(team1Full);
   const [team2Front, team2Back] = splitName(team2Full);
 
-  const team1Won = match.result === 'W';
-  const team2Won = match.result === 'L';
-
   const totalA = match.score1;
   const totalB = match.score2;
+
+  // Treat equal totals as a draw, regardless of whatever Match Result was
+  // recorded upstream — the scoreboard is the source of truth on the page.
+  const isDraw = match.result === 'D' || Math.abs(totalA - totalB) < 0.0001;
+  const team1Won = !isDraw && match.result === 'W';
+  const team2Won = !isDraw && match.result === 'L';
 
   // Phase breakdown for the Box Score strip (Qualifying / Rounds / Final / etc.)
   const phases = Array.from(new Set(match.boxScore.map((r) => r.phase).filter(Boolean)));
@@ -136,7 +139,7 @@ export default async function MatchPage({
   })();
 
   const heroStatus = [
-    team1Won || team2Won ? 'Final' : 'Scheduled',
+    team1Won || team2Won || isDraw ? 'Final' : 'Scheduled',
     scheduleEntry?.week ? `Week ${scheduleEntry.week}` : null,
     formattedDate,
     scheduleEntry?.venueName
@@ -271,10 +274,14 @@ export default async function MatchPage({
                   textTransform: 'uppercase',
                   fontWeight: 700,
                   marginTop: 6,
-                  color: team1Won ? 'var(--tbl-accent-bright)' : 'rgba(244,237,224,0.5)',
+                  color: team1Won
+                    ? 'var(--tbl-accent-bright)'
+                    : isDraw
+                    ? 'rgba(244,237,224,0.75)'
+                    : 'rgba(244,237,224,0.5)',
                 }}
               >
-                {team1Won ? 'Winner' : team2Won ? 'Loser' : ' '}
+                {team1Won ? 'Winner' : team2Won ? 'Loser' : isDraw ? 'Draw' : ' '}
               </div>
             </Link>
             {team1Logo && (
@@ -349,10 +356,14 @@ export default async function MatchPage({
                   textTransform: 'uppercase',
                   fontWeight: 700,
                   marginTop: 6,
-                  color: team2Won ? 'var(--tbl-accent-bright)' : 'rgba(244,237,224,0.5)',
+                  color: team2Won
+                    ? 'var(--tbl-accent-bright)'
+                    : isDraw
+                    ? 'rgba(244,237,224,0.75)'
+                    : 'rgba(244,237,224,0.5)',
                 }}
               >
-                {team2Won ? 'Winner' : team1Won ? 'Loser' : ' '}
+                {team2Won ? 'Winner' : team1Won ? 'Loser' : isDraw ? 'Draw' : ' '}
               </div>
             </Link>
           </div>
