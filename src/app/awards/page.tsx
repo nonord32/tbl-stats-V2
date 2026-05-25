@@ -2,6 +2,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getAllData, toSlug } from '@/lib/data';
+import { getCityName, getTeamLogoPathByName } from '@/lib/teams';
 import { DataUnavailable } from '@/components/DataUnavailable';
 import type { AwardEntry } from '@/types';
 
@@ -28,7 +29,22 @@ export const revalidate = 300;
 
 const BASE = 'https://tblstats.com';
 
-function AwardCard({
+// Team awards (the winner is a team, not a fighter). Anything in this list
+// renders with the city/team header treatment and skips the fighter link.
+const TEAM_AWARDS = new Set(['Team Championship', 'Champion', 'Champions']);
+
+// Display order for award categories. Anything not in the list is appended
+// after, alphabetically.
+const AWARD_ORDER = [
+  'Season MVP',
+  'MVP',
+  'Female Fighter of the Year',
+  'Rising Star',
+  'Rookie of the Year',
+  'Team Championship',
+];
+
+function AwardSection({
   award,
   entries,
   fighterSlugs,
@@ -38,47 +54,175 @@ function AwardCard({
   fighterSlugs: Set<string>;
 }) {
   const sorted = [...entries].sort((a, b) => b.season - a.season);
+  const latestSeason = sorted[0]?.season;
+  const isTeamAward = TEAM_AWARDS.has(award);
+
   return (
-    <div className="card" style={{ marginBottom: 24 }}>
-      <div className="card-header">
-        <span className="card-title">{award}</span>
+    <section style={{ marginBottom: 32 }}>
+      <div
+        style={{
+          borderTop: '1.5px solid var(--tbl-ink)',
+          display: 'flex',
+          alignItems: 'baseline',
+          justifyContent: 'space-between',
+          padding: '14px 4px 12px',
+          gap: 16,
+        }}
+      >
+        <h2 className="tbl-display" style={{ fontSize: 22, margin: 0, lineHeight: 1 }}>
+          {award}
+        </h2>
+        <span
+          style={{
+            fontFamily: 'var(--tbl-font-mono)',
+            fontSize: 10,
+            letterSpacing: '0.22em',
+            textTransform: 'uppercase',
+            color: 'var(--tbl-ink-soft)',
+            fontWeight: 700,
+          }}
+        >
+          {sorted.length} {sorted.length === 1 ? 'Season' : 'Seasons'}
+        </span>
       </div>
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th style={{ width: 72 }}>Season</th>
-              <th>Winner</th>
-              <th>Team</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((a) => {
-              const slug = toSlug(a.winner);
-              const linked = fighterSlugs.has(slug);
-              return (
-                <tr key={`${a.season}-${a.winner}`}>
-                  <td className="mono">{a.season}</td>
-                  <td>
-                    {linked ? (
-                      <Link
-                        href={`/fighters/${slug}`}
-                        style={{ color: 'var(--accent)', fontWeight: 600 }}
-                      >
-                        {a.winner}
-                      </Link>
-                    ) : (
-                      <span style={{ fontWeight: 600 }}>{a.winner}</span>
+
+      <div>
+        {sorted.map((a) => {
+          const isLatest = a.season === latestSeason;
+          const slug = toSlug(a.winner);
+          const linkable = !isTeamAward && fighterSlugs.has(slug);
+          const logo = getTeamLogoPathByName(a.team);
+          const city = getCityName(a.team) || a.team;
+
+          return (
+            <div
+              key={`${a.season}-${a.winner}`}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '72px 1fr auto',
+                alignItems: 'center',
+                gap: 16,
+                padding: '14px 12px',
+                background: isLatest ? 'rgba(20,17,11,0.04)' : 'transparent',
+                borderBottom: '1px dotted rgba(20,17,11,0.18)',
+              }}
+            >
+              {/* Season year */}
+              <div
+                className="tbl-mono"
+                style={{
+                  fontFamily: 'var(--tbl-font-mono)',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  letterSpacing: '0.05em',
+                  color: isLatest ? 'var(--tbl-accent)' : 'var(--tbl-ink-soft)',
+                }}
+              >
+                {a.season}
+              </div>
+
+              {/* Winner + LATEST badge */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                <span
+                  className="tbl-display"
+                  style={{
+                    fontSize: 19,
+                    fontWeight: isLatest ? 900 : 700,
+                    color: isLatest ? 'var(--tbl-ink)' : 'var(--tbl-ink-soft)',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {linkable ? (
+                    <Link
+                      href={`/fighters/${slug}`}
+                      style={{ color: 'inherit', textDecoration: 'none' }}
+                    >
+                      {a.winner}
+                    </Link>
+                  ) : isTeamAward && logo ? (
+                    <Link
+                      href={`/teams/${toSlug(a.team)}`}
+                      style={{ color: 'inherit', textDecoration: 'none' }}
+                    >
+                      {a.winner}
+                    </Link>
+                  ) : (
+                    a.winner
+                  )}
+                </span>
+                {isLatest && (
+                  <span
+                    style={{
+                      fontFamily: 'var(--tbl-font-mono)',
+                      fontSize: 9,
+                      letterSpacing: '0.18em',
+                      textTransform: 'uppercase',
+                      fontWeight: 700,
+                      background: 'var(--tbl-accent)',
+                      color: 'var(--tbl-paper)',
+                      padding: '3px 7px',
+                    }}
+                  >
+                    Latest
+                  </span>
+                )}
+              </div>
+
+              {/* Team logo + meta */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 14,
+                  fontFamily: 'var(--tbl-font-mono)',
+                  fontSize: 12,
+                  color: 'var(--tbl-ink-soft)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {!isTeamAward && (
+                  <Link
+                    href={`/teams/${toSlug(a.team)}`}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      color: 'var(--tbl-ink)',
+                      textDecoration: 'none',
+                      fontWeight: 700,
+                    }}
+                  >
+                    {logo && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={logo}
+                        alt=""
+                        style={{ width: 20, height: 20, objectFit: 'contain' }}
+                      />
                     )}
-                  </td>
-                  <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{a.team}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    <span>{city}</span>
+                  </Link>
+                )}
+                {isTeamAward && logo && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={logo}
+                    alt=""
+                    style={{ width: 20, height: 20, objectFit: 'contain' }}
+                  />
+                )}
+                {isTeamAward && (
+                  <span style={{ color: 'var(--tbl-ink)', fontWeight: 700 }}>{city}</span>
+                )}
+                {a.notes && <span>{a.notes}</span>}
+              </div>
+            </div>
+          );
+        })}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -92,7 +236,17 @@ export default async function AwardsPage() {
     if (!byAward.has(a.award)) byAward.set(a.award, []);
     byAward.get(a.award)!.push(a);
   }
-  const awardGroups = [...byAward.entries()].sort(([a], [b]) => a.localeCompare(b));
+
+  const awardOrderIndex = (name: string) => {
+    const idx = AWARD_ORDER.indexOf(name);
+    return idx === -1 ? AWARD_ORDER.length : idx;
+  };
+  const awardGroups = [...byAward.entries()].sort(([a], [b]) => {
+    const oa = awardOrderIndex(a);
+    const ob = awardOrderIndex(b);
+    if (oa !== ob) return oa - ob;
+    return a.localeCompare(b);
+  });
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -138,7 +292,7 @@ export default async function AwardsPage() {
             />
           ) : (
             awardGroups.map(([award, entries]) => (
-              <AwardCard
+              <AwardSection
                 key={award}
                 award={award}
                 entries={entries}
