@@ -1,9 +1,15 @@
 // src/components/home/HallOfChampions.tsx
-// Home-page card summarizing the most recent award winners. Full list lives
-// on /awards.
+// Home-page card summarizing the most recent winner of every season award.
+// One row per category, ordered to match the /awards page. Full history
+// lives on /awards.
 
 import Link from 'next/link';
 import { toSlug } from '@/lib/data';
+import {
+  TEAM_AWARDS,
+  awardOrderIndex,
+  normalizeAwardName,
+} from '@/lib/awards';
 import type { AwardEntry } from '@/types';
 
 interface Props {
@@ -11,15 +17,32 @@ interface Props {
   /** Slugs of fighters present in the current roster — winners not in this
    *  set render as plain text instead of a broken link. */
   fighterSlugs?: Set<string>;
-  /** Max rows to render. Defaults to 5. */
+  /** Max categories to render. Defaults to 5. */
   limit?: number;
 }
 
 export function HallOfChampions({ awards, fighterSlugs, limit = 5 }: Props) {
   if (awards.length === 0) return null;
 
-  const sorted = [...awards]
-    .sort((a, b) => b.season - a.season || a.award.localeCompare(b.award))
+  // Group by normalized category, then keep the most recent winner per group.
+  const byAward = new Map<string, AwardEntry[]>();
+  for (const a of awards) {
+    const key = normalizeAwardName(a.award);
+    if (!byAward.has(key)) byAward.set(key, []);
+    byAward.get(key)!.push(a);
+  }
+
+  const latestPerAward = [...byAward.entries()]
+    .map(([award, entries]) => {
+      const latest = [...entries].sort((a, b) => b.season - a.season)[0];
+      return { award, entry: latest };
+    })
+    .sort((a, b) => {
+      const oa = awardOrderIndex(a.award);
+      const ob = awardOrderIndex(b.award);
+      if (oa !== ob) return oa - ob;
+      return a.award.localeCompare(b.award);
+    })
     .slice(0, limit);
 
   return (
@@ -49,15 +72,17 @@ export function HallOfChampions({ awards, fighterSlugs, limit = 5 }: Props) {
             </tr>
           </thead>
           <tbody>
-            {sorted.map((a) => {
+            {latestPerAward.map(({ award, entry: a }) => {
+              const isTeamAward = TEAM_AWARDS.has(award);
               const slug = toSlug(a.winner);
-              const linked = !fighterSlugs || fighterSlugs.has(slug);
+              const linkable =
+                !isTeamAward && (!fighterSlugs || fighterSlugs.has(slug));
               return (
-                <tr key={`${a.season}-${a.award}-${a.winner}`}>
+                <tr key={`${award}-${a.season}-${a.winner}`}>
                   <td className="mono">{a.season}</td>
-                  <td className="mono">{a.award}</td>
+                  <td className="mono">{award}</td>
                   <td>
-                    {linked ? (
+                    {linkable ? (
                       <Link
                         href={`/fighters/${slug}`}
                         style={{ color: 'var(--accent)', fontWeight: 600 }}

@@ -465,9 +465,9 @@ function parseMatchData(rows: string[][]): {
     const mr1Raw = (team1AnyRow ? pick(team1AnyRow, 'Match Result') : '').trim().toUpperCase();
     const mr2Raw = (team2AnyRow ? pick(team2AnyRow, 'Match Result') : '').trim().toUpperCase();
 
-    const result1: 'W' | 'L' | 'D' = mr1Raw === 'W' ? 'W' : mr1Raw === 'L' ? 'L'
+    let result1: 'W' | 'L' | 'D' = mr1Raw === 'W' ? 'W' : mr1Raw === 'L' ? 'L'
       : (wins1 > wins2 ? 'W' : wins1 < wins2 ? 'L' : 'D');
-    const result2: 'W' | 'L' | 'D' = mr2Raw === 'W' ? 'W' : mr2Raw === 'L' ? 'L'
+    let result2: 'W' | 'L' | 'D' = mr2Raw === 'W' ? 'W' : mr2Raw === 'L' ? 'L'
       : (wins2 > wins1 ? 'W' : wins2 < wins1 ? 'L' : 'D');
 
     // Use Match PF/PA for accurate total points (these are pre-aggregated in the sheet)
@@ -475,6 +475,15 @@ function parseMatchData(rows: string[][]): {
     const rawPF2 = safeNum(team2AnyRow ? pick(team2AnyRow, 'Match PF') : '');
     const pf1 = rawPF1 || boxScore.reduce((s, r) => s + r.score1, 0);
     const pf2 = rawPF2 || boxScore.reduce((s, r) => s + r.score2, 0);
+
+    // Tied totals are a draw regardless of what the upstream Match Result
+    // column says — the scoreboard is the source of truth.
+    if (pf1 > 0 || pf2 > 0) {
+      if (Math.abs(pf1 - pf2) < 0.0001) {
+        result1 = 'D';
+        result2 = 'D';
+      }
+    }
 
     // Store a version of the boxScore oriented from each team's perspective
     // (score1 always = "our" team, score2 = opponent) so displays are never inverted.

@@ -4,6 +4,12 @@ import Link from 'next/link';
 import { getAllData, toSlug } from '@/lib/data';
 import { getCityName, getTeamLogoPathByName } from '@/lib/teams';
 import { DataUnavailable } from '@/components/DataUnavailable';
+import {
+  TEAM_AWARDS,
+  TWO_TEAM_AWARDS,
+  awardOrderIndex,
+  normalizeAwardName,
+} from '@/lib/awards';
 import type { AwardEntry } from '@/types';
 
 export const metadata: Metadata = {
@@ -28,28 +34,6 @@ export const metadata: Metadata = {
 export const revalidate = 300;
 
 const BASE = 'https://tblstats.com';
-
-// Team awards (the winner is a team, not a fighter). Anything in this list
-// renders with the city/team header treatment and skips the fighter link.
-const TEAM_AWARDS = new Set(['Team Championship', 'Champion', 'Champions']);
-
-// Awards whose `team` field is two teams (e.g. "Houston / San Antonio").
-// Both logos render in the right-side chip.
-const TWO_TEAM_AWARDS = new Set(['Fight of the Year']);
-
-// Display order for award categories. Anything not in the list is appended
-// after, alphabetically.
-const AWARD_ORDER = [
-  'Most Valuable Fighter',
-  'Season MVP',
-  'MVP',
-  'Rookie of the Year',
-  'Rising Star',
-  'Most Entertaining Fighter',
-  'Fight of the Year',
-  'Female Fighter of the Year',
-  'Team Championship',
-];
 
 function splitTeams(raw: string): string[] {
   return raw
@@ -274,14 +258,11 @@ export default async function AwardsPage() {
 
   const byAward = new Map<string, AwardEntry[]>();
   for (const a of awards) {
-    if (!byAward.has(a.award)) byAward.set(a.award, []);
-    byAward.get(a.award)!.push(a);
+    const key = normalizeAwardName(a.award);
+    if (!byAward.has(key)) byAward.set(key, []);
+    byAward.get(key)!.push(a);
   }
 
-  const awardOrderIndex = (name: string) => {
-    const idx = AWARD_ORDER.indexOf(name);
-    return idx === -1 ? AWARD_ORDER.length : idx;
-  };
   const awardGroups = [...byAward.entries()].sort(([a], [b]) => {
     const oa = awardOrderIndex(a);
     const ob = awardOrderIndex(b);
