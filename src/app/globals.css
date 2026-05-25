@@ -2537,6 +2537,14 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
   .gz-schedule-grid { grid-template-columns: 1fr !important; }
 }
 
+/* Match Round-by-Round: dense table on desktop, fight-card list on phones.
+   Toggle the two layouts at the same 640px cutoff used elsewhere. */
+.match-rbr-mobile { display: none; }
+@media (max-width: 640px) {
+  .match-rbr-desktop { display: none; }
+  .match-rbr-mobile { display: flex; flex-direction: column; gap: 8px; }
+}
+
 /* Match hero: keep teams side-by-side on phones (logo + abbr + score),
    hide the full team name, shrink padding + score so the whole hero
    fits in a tight strip rather than three stacked rows. */

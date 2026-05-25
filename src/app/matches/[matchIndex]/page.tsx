@@ -62,6 +62,26 @@ function teamShort(team: string): string {
   return map[key] ?? team.slice(0, 3).toUpperCase();
 }
 
+// Compact weight-class abbreviation for the dense desktop table.
+// Full name is still used on the mobile cards where there's room.
+function shortenWeight(name: string | undefined): string {
+  if (!name) return '—';
+  const k = name.toLowerCase().trim();
+  const map: Record<string, string> = {
+    bantamweight: 'BW',
+    featherweight: 'FW',
+    lightweight: 'LW',
+    welterweight: 'WW',
+    middleweight: 'MW',
+    'light heavyweight': 'LH',
+    'light heavy': 'LH',
+    heavyweight: 'HW',
+    female: 'F',
+    money: 'MNY',
+  };
+  return map[k] ?? name;
+}
+
 export default async function MatchPage({
   params,
 }: {
@@ -498,112 +518,350 @@ export default async function MatchPage({
         </div>
       )}
 
-      {/* Round-by-Round — flat, one row per round */}
-      <div style={{ padding: '18px 32px 36px' }}>
-        <SectionRule left="Round-by-Round" right={`${match.boxScore.length} rounds`} />
-        <div style={{ overflowX: 'auto' }}>
-          <table
-            style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              fontFamily: 'var(--tbl-font-mono)',
-              fontSize: 13,
-            }}
-          >
-            <thead>
-              <tr style={{ borderBottom: '2px solid var(--tbl-ink)' }}>
-                {[
-                  { label: 'Round', align: 'left' as const },
-                  { label: 'Weight', align: 'left' as const },
-                  { label: `${team1Abbr} Fighter`, align: 'right' as const },
-                  { label: `${team1Abbr} Pts`, align: 'center' as const },
-                  { label: `${team2Abbr} Pts`, align: 'center' as const },
-                  { label: `${team2Abbr} Fighter`, align: 'left' as const },
-                  { label: 'Method', align: 'left' as const },
-                ].map((h) => (
-                  <th
-                    key={h.label}
+      {/* Round-by-Round — desktop table + mobile fight-card list */}
+      {(() => {
+        const orderedRows = [...match.boxScore]
+          .sort((a, b) => a.round - b.round)
+          .map((row) => {
+            const isNoContest =
+              (!row.fighter1 || row.fighter1.trim().toUpperCase() === 'N/A') &&
+              (!row.fighter2 || row.fighter2.trim().toUpperCase() === 'N/A');
+            const win1 = !isNoContest && row.score1 > row.score2;
+            const win2 = !isNoContest && row.score2 > row.score1;
+            return { row, isNoContest, win1, win2 };
+          });
+
+        const scoreBoxBase = {
+          padding: '6px 10px',
+          textAlign: 'center' as const,
+          fontFamily: 'var(--tbl-font-serif)',
+          fontSize: 18,
+          fontWeight: 900 as const,
+          whiteSpace: 'nowrap' as const,
+          minWidth: 36,
+        };
+        const winBox = {
+          ...scoreBoxBase,
+          background: 'var(--tbl-accent)',
+          color: 'var(--tbl-paper)',
+        };
+        const loseBox = {
+          ...scoreBoxBase,
+          color: 'var(--tbl-ink-mute)',
+        };
+        const neutralBox = {
+          ...scoreBoxBase,
+          color: 'var(--tbl-ink-soft)',
+        };
+
+        return (
+          <div style={{ padding: '18px 32px 36px' }}>
+            <SectionRule left="Round-by-Round" right={`${match.boxScore.length} rounds`} />
+
+            {/* ── Desktop table ────────────────────────────────────────── */}
+            <div className="match-rbr-desktop" style={{ overflowX: 'auto' }}>
+              <table
+                style={{
+                  width: '100%',
+                  borderCollapse: 'collapse',
+                  fontFamily: 'var(--tbl-font-mono)',
+                  fontSize: 13,
+                }}
+              >
+                <thead>
+                  {/* Team-banner row — groups the fighter+pts cells under each team */}
+                  <tr style={{ borderBottom: '1px solid rgba(20,17,11,0.18)' }}>
+                    <th colSpan={2} />
+                    <th colSpan={2} style={{ padding: '8px 4px', textAlign: 'center' }}>
+                      <div
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          fontFamily: 'var(--tbl-font-mono)',
+                          fontSize: 11,
+                          letterSpacing: '0.18em',
+                          textTransform: 'uppercase',
+                          fontWeight: 700,
+                          color: 'var(--tbl-ink)',
+                        }}
+                      >
+                        {team1Logo && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={team1Logo}
+                            alt=""
+                            style={{ width: 22, height: 22, objectFit: 'contain' }}
+                          />
+                        )}
+                        <span>{team1Abbr}</span>
+                      </div>
+                    </th>
+                    <th colSpan={2} style={{ padding: '8px 4px', textAlign: 'center' }}>
+                      <div
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          fontFamily: 'var(--tbl-font-mono)',
+                          fontSize: 11,
+                          letterSpacing: '0.18em',
+                          textTransform: 'uppercase',
+                          fontWeight: 700,
+                          color: 'var(--tbl-ink)',
+                        }}
+                      >
+                        {team2Logo && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={team2Logo}
+                            alt=""
+                            style={{ width: 22, height: 22, objectFit: 'contain' }}
+                          />
+                        )}
+                        <span>{team2Abbr}</span>
+                      </div>
+                    </th>
+                    <th />
+                  </tr>
+                  <tr style={{ borderBottom: '2px solid var(--tbl-ink)' }}>
+                    {[
+                      { label: 'Rd', align: 'left' as const },
+                      { label: 'Wt', align: 'left' as const },
+                      { label: 'Fighter', align: 'right' as const },
+                      { label: 'Pts', align: 'center' as const },
+                      { label: 'Pts', align: 'center' as const },
+                      { label: 'Fighter', align: 'left' as const },
+                      { label: 'Method', align: 'left' as const },
+                    ].map((h, idx) => (
+                      <th
+                        key={idx}
+                        style={{
+                          padding: '6px 8px',
+                          textAlign: h.align,
+                          fontSize: 10,
+                          letterSpacing: '0.14em',
+                          textTransform: 'uppercase',
+                          color: 'var(--tbl-ink-soft)',
+                          fontWeight: 700,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {h.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {orderedRows.map(({ row, isNoContest, win1, win2 }, i) => {
+                    const stripe = i % 2 === 0 ? 'transparent' : 'rgba(20,17,11,0.025)';
+                    const cellBase = { padding: '10px 8px' };
+                    return (
+                      <tr
+                        key={i}
+                        style={{
+                          borderBottom: '1px dotted rgba(20,17,11,0.3)',
+                          background: stripe,
+                        }}
+                      >
+                        <td style={{ ...cellBase, fontWeight: 700, color: 'var(--tbl-ink)' }}>
+                          {row.round}
+                        </td>
+                        <td style={{ ...cellBase, color: 'var(--tbl-ink-soft)', fontWeight: 700 }}>
+                          {shortenWeight(row.weightClass || row.phase)}
+                        </td>
+                        <td
+                          style={{
+                            ...cellBase,
+                            textAlign: 'right',
+                            fontFamily: 'var(--tbl-font-serif)',
+                            fontSize: 15,
+                            fontWeight: 700,
+                            color: win1
+                              ? 'var(--tbl-accent)'
+                              : isNoContest
+                              ? 'var(--tbl-ink-soft)'
+                              : 'var(--tbl-ink)',
+                          }}
+                        >
+                          {isNoContest ? (
+                            row.fighter1 || '—'
+                          ) : (
+                            <Link
+                              href={`/fighters/${toSlug(row.fighter1)}`}
+                              style={{ color: 'inherit', textDecoration: 'none' }}
+                            >
+                              {row.fighter1}
+                            </Link>
+                          )}
+                        </td>
+                        <td style={win1 ? winBox : win2 ? loseBox : neutralBox}>
+                          {row.score1.toFixed(1)}
+                        </td>
+                        <td style={win2 ? winBox : win1 ? loseBox : neutralBox}>
+                          {row.score2.toFixed(1)}
+                        </td>
+                        <td
+                          style={{
+                            ...cellBase,
+                            fontFamily: 'var(--tbl-font-serif)',
+                            fontSize: 15,
+                            fontWeight: 700,
+                            color: win2
+                              ? 'var(--tbl-accent)'
+                              : isNoContest
+                              ? 'var(--tbl-ink-soft)'
+                              : 'var(--tbl-ink)',
+                          }}
+                        >
+                          {isNoContest ? (
+                            row.fighter2 || '—'
+                          ) : (
+                            <Link
+                              href={`/fighters/${toSlug(row.fighter2)}`}
+                              style={{ color: 'inherit', textDecoration: 'none' }}
+                            >
+                              {row.fighter2}
+                            </Link>
+                          )}
+                        </td>
+                        <td
+                          style={{
+                            ...cellBase,
+                            fontFamily: 'var(--tbl-font-mono)',
+                            fontSize: 10,
+                            letterSpacing: '0.1em',
+                            textTransform: 'uppercase',
+                            color: 'var(--tbl-ink-mute)',
+                            fontWeight: 600,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {isNoContest ? 'No Contest' : row.method || '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr style={{ background: 'var(--tbl-ink)', color: 'var(--tbl-bg)' }}>
+                    <td
+                      colSpan={3}
+                      style={{
+                        padding: '14px 8px',
+                        fontFamily: 'var(--tbl-font-mono)',
+                        fontSize: 10,
+                        letterSpacing: '0.22em',
+                        textTransform: 'uppercase',
+                        fontWeight: 700,
+                      }}
+                    >
+                      Match Total ({team1Abbr} vs {team2Abbr})
+                    </td>
+                    <td
+                      style={{
+                        padding: '14px 8px',
+                        textAlign: 'center',
+                        fontFamily: 'var(--tbl-font-serif)',
+                        fontWeight: 900,
+                        fontSize: 18,
+                        whiteSpace: 'nowrap',
+                        color: team1Won ? 'var(--tbl-accent-bright)' : 'inherit',
+                      }}
+                    >
+                      {totalA.toFixed(1)}
+                    </td>
+                    <td
+                      style={{
+                        padding: '14px 8px',
+                        textAlign: 'center',
+                        fontFamily: 'var(--tbl-font-serif)',
+                        fontWeight: 900,
+                        fontSize: 18,
+                        whiteSpace: 'nowrap',
+                        color: team2Won ? 'var(--tbl-accent-bright)' : 'inherit',
+                      }}
+                    >
+                      {totalB.toFixed(1)}
+                    </td>
+                    <td
+                      colSpan={2}
+                      style={{
+                        padding: '14px 8px',
+                        textAlign: 'left',
+                        fontFamily: 'var(--tbl-font-serif)',
+                        fontWeight: 900,
+                        fontSize: 16,
+                        whiteSpace: 'nowrap',
+                        color: team1Won
+                          ? 'var(--tbl-accent-bright)'
+                          : team2Won
+                          ? '#f5a3a3'
+                          : 'inherit',
+                      }}
+                    >
+                      {totalA - totalB > 0 ? '+' : ''}
+                      {(totalA - totalB).toFixed(1)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* ── Mobile fight-card list ───────────────────────────────── */}
+            <div className="match-rbr-mobile">
+              {orderedRows.map(({ row, isNoContest, win1, win2 }, i) => (
+                <div
+                  key={i}
+                  style={{
+                    background: 'var(--tbl-paper)',
+                    border: '1.5px solid var(--tbl-ink)',
+                    padding: '10px 12px',
+                  }}
+                >
+                  {/* Meta strip: round · weight · method */}
+                  <div
                     style={{
-                      padding: '8px',
-                      textAlign: h.align,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 8,
+                      fontFamily: 'var(--tbl-font-mono)',
                       fontSize: 10,
                       letterSpacing: '0.14em',
                       textTransform: 'uppercase',
                       color: 'var(--tbl-ink-soft)',
                       fontWeight: 700,
-                      whiteSpace: 'nowrap',
+                      marginBottom: 8,
                     }}
                   >
-                    {h.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {[...match.boxScore]
-                .sort((a, b) => a.round - b.round)
-                .map((row, i) => {
-                  const isNoContest =
-                    (!row.fighter1 || row.fighter1.trim().toUpperCase() === 'N/A') &&
-                    (!row.fighter2 || row.fighter2.trim().toUpperCase() === 'N/A');
-                  const win1 = !isNoContest && row.score1 > row.score2;
-                  const win2 = !isNoContest && row.score2 > row.score1;
-                  const stripe = i % 2 === 0 ? 'transparent' : 'rgba(20,17,11,0.025)';
-                  const scoreCellBase = {
-                    padding: '12px 8px',
-                    textAlign: 'center' as const,
-                    fontFamily: 'var(--tbl-font-serif)',
-                    fontSize: 18,
-                    fontWeight: 900,
-                    whiteSpace: 'nowrap' as const,
-                  };
-                  const winScoreStyle = {
-                    ...scoreCellBase,
-                    background: 'var(--tbl-accent)',
-                    color: 'var(--tbl-paper)',
-                  };
-                  const loseScoreStyle = {
-                    ...scoreCellBase,
-                    color: 'var(--tbl-ink-mute)',
-                  };
-                  const drawScoreStyle = {
-                    ...scoreCellBase,
-                    color: 'var(--tbl-ink-soft)',
-                  };
-                  return (
-                    <tr
-                      key={i}
-                      style={{
-                        borderBottom: '1px dotted rgba(20,17,11,0.3)',
-                        background: stripe,
-                      }}
-                    >
-                      <td
+                    <span>
+                      R{row.round} · {row.weightClass || row.phase || '—'}
+                    </span>
+                    <span style={{ color: isNoContest ? 'var(--tbl-ink-mute)' : 'var(--tbl-ink-soft)' }}>
+                      {isNoContest ? 'No Contest' : row.method || '—'}
+                    </span>
+                  </div>
+                  {/* Bout: fighter — scores — fighter */}
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr auto 1fr',
+                      alignItems: 'center',
+                      gap: 10,
+                    }}
+                  >
+                    <div style={{ minWidth: 0, textAlign: 'right' }}>
+                      <div
                         style={{
-                          padding: '12px 8px',
-                          fontWeight: 700,
-                          color: 'var(--tbl-ink)',
-                        }}
-                      >
-                        {row.round}
-                      </td>
-                      <td
-                        style={{
-                          padding: '12px 8px',
-                          color: 'var(--tbl-ink-soft)',
-                          fontWeight: 700,
-                        }}
-                      >
-                        {row.weightClass || row.phase || '—'}
-                      </td>
-                      <td
-                        style={{
-                          padding: '12px 8px',
-                          textAlign: 'right',
                           fontFamily: 'var(--tbl-font-serif)',
                           fontSize: 15,
                           fontWeight: 700,
-                          color: win1 ? 'var(--tbl-accent)' : isNoContest ? 'var(--tbl-ink-soft)' : 'var(--tbl-ink)',
+                          lineHeight: 1.15,
+                          color: win1
+                            ? 'var(--tbl-accent)'
+                            : isNoContest
+                            ? 'var(--tbl-ink-soft)'
+                            : 'var(--tbl-ink)',
+                          overflowWrap: 'anywhere',
                         }}
                       >
                         {isNoContest ? (
@@ -616,20 +874,49 @@ export default async function MatchPage({
                             {row.fighter1}
                           </Link>
                         )}
-                      </td>
-                      <td style={win1 ? winScoreStyle : win2 ? loseScoreStyle : drawScoreStyle}>
-                        {row.score1.toFixed(1)}
-                      </td>
-                      <td style={win2 ? winScoreStyle : win1 ? loseScoreStyle : drawScoreStyle}>
-                        {row.score2.toFixed(1)}
-                      </td>
-                      <td
+                      </div>
+                      <div
                         style={{
-                          padding: '12px 8px',
+                          fontFamily: 'var(--tbl-font-mono)',
+                          fontSize: 9,
+                          letterSpacing: '0.16em',
+                          color: 'var(--tbl-ink-soft)',
+                          marginTop: 2,
+                        }}
+                      >
+                        {team1Abbr}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span style={win1 ? winBox : win2 ? loseBox : neutralBox}>
+                        {row.score1.toFixed(1)}
+                      </span>
+                      <span
+                        style={{
+                          color: 'var(--tbl-ink-mute)',
+                          fontStyle: 'italic',
+                          fontFamily: 'var(--tbl-font-serif)',
+                        }}
+                      >
+                        —
+                      </span>
+                      <span style={win2 ? winBox : win1 ? loseBox : neutralBox}>
+                        {row.score2.toFixed(1)}
+                      </span>
+                    </div>
+                    <div style={{ minWidth: 0, textAlign: 'left' }}>
+                      <div
+                        style={{
                           fontFamily: 'var(--tbl-font-serif)',
                           fontSize: 15,
                           fontWeight: 700,
-                          color: win2 ? 'var(--tbl-accent)' : isNoContest ? 'var(--tbl-ink-soft)' : 'var(--tbl-ink)',
+                          lineHeight: 1.15,
+                          color: win2
+                            ? 'var(--tbl-accent)'
+                            : isNoContest
+                            ? 'var(--tbl-ink-soft)'
+                            : 'var(--tbl-ink)',
+                          overflowWrap: 'anywhere',
                         }}
                       >
                         {isNoContest ? (
@@ -642,88 +929,108 @@ export default async function MatchPage({
                             {row.fighter2}
                           </Link>
                         )}
-                      </td>
-                      <td
+                      </div>
+                      <div
                         style={{
-                          padding: '12px 8px',
                           fontFamily: 'var(--tbl-font-mono)',
-                          fontSize: 11,
-                          letterSpacing: '0.12em',
-                          textTransform: 'uppercase',
+                          fontSize: 9,
+                          letterSpacing: '0.16em',
                           color: 'var(--tbl-ink-soft)',
-                          fontWeight: 700,
-                          whiteSpace: 'nowrap',
+                          marginTop: 2,
                         }}
                       >
-                        {isNoContest ? 'No Contest' : row.method || '—'}
-                      </td>
-                    </tr>
-                  );
-                })}
-              <tr style={{ background: 'var(--tbl-ink)', color: 'var(--tbl-bg)' }}>
-                <td
-                  colSpan={3}
+                        {team2Abbr}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {/* Match total card */}
+              <div
+                style={{
+                  background: 'var(--tbl-ink)',
+                  color: 'var(--tbl-bg)',
+                  padding: '12px 14px',
+                  marginTop: 4,
+                }}
+              >
+                <div
                   style={{
-                    padding: '14px 8px',
                     fontFamily: 'var(--tbl-font-mono)',
                     fontSize: 10,
                     letterSpacing: '0.22em',
                     textTransform: 'uppercase',
                     fontWeight: 700,
+                    color: 'rgba(244,237,224,0.7)',
+                    marginBottom: 6,
                   }}
                 >
-                  Match Total ({team1Abbr} vs {team2Abbr})
-                </td>
-                <td
+                  Match Total
+                </div>
+                <div
                   style={{
-                    padding: '14px 8px',
+                    display: 'grid',
+                    gridTemplateColumns: '1fr auto 1fr',
+                    alignItems: 'center',
+                    gap: 10,
+                  }}
+                >
+                  <div
+                    style={{
+                      textAlign: 'right',
+                      fontFamily: 'var(--tbl-font-serif)',
+                      fontWeight: 900,
+                      fontSize: 22,
+                      color: team1Won ? 'var(--tbl-accent-bright)' : 'inherit',
+                    }}
+                  >
+                    {totalA.toFixed(1)}
+                  </div>
+                  <div
+                    style={{
+                      color: 'rgba(244,237,224,0.4)',
+                      fontStyle: 'italic',
+                      fontFamily: 'var(--tbl-font-serif)',
+                      fontSize: 18,
+                    }}
+                  >
+                    —
+                  </div>
+                  <div
+                    style={{
+                      textAlign: 'left',
+                      fontFamily: 'var(--tbl-font-serif)',
+                      fontWeight: 900,
+                      fontSize: 22,
+                      color: team2Won ? 'var(--tbl-accent-bright)' : 'inherit',
+                    }}
+                  >
+                    {totalB.toFixed(1)}
+                  </div>
+                </div>
+                <div
+                  style={{
+                    fontFamily: 'var(--tbl-font-mono)',
+                    fontSize: 11,
+                    letterSpacing: '0.16em',
                     textAlign: 'center',
-                    fontFamily: 'var(--tbl-font-serif)',
-                    fontWeight: 900,
-                    fontSize: 18,
-                    whiteSpace: 'nowrap',
-                    color: team1Won ? 'var(--tbl-accent-bright)' : 'inherit',
-                  }}
-                >
-                  {totalA.toFixed(1)}
-                </td>
-                <td
-                  style={{
-                    padding: '14px 8px',
-                    textAlign: 'center',
-                    fontFamily: 'var(--tbl-font-serif)',
-                    fontWeight: 900,
-                    fontSize: 18,
-                    whiteSpace: 'nowrap',
-                    color: team2Won ? 'var(--tbl-accent-bright)' : 'inherit',
-                  }}
-                >
-                  {totalB.toFixed(1)}
-                </td>
-                <td
-                  colSpan={2}
-                  style={{
-                    padding: '14px 8px',
-                    textAlign: 'left',
-                    fontFamily: 'var(--tbl-font-serif)',
-                    fontWeight: 900,
-                    fontSize: 16,
-                    whiteSpace: 'nowrap',
                     color: team1Won
                       ? 'var(--tbl-accent-bright)'
                       : team2Won
                       ? '#f5a3a3'
-                      : 'inherit',
+                      : 'rgba(244,237,224,0.6)',
+                    marginTop: 6,
+                    fontWeight: 700,
                   }}
                 >
                   {totalA - totalB > 0 ? '+' : ''}
                   {(totalA - totalB).toFixed(1)}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Highlights */}
       {highlights.length > 0 && (
