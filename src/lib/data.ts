@@ -746,6 +746,14 @@ export const getAllData = cache(async (): Promise<ParsedSheetData> => {
     console.error('[getAllData] parseMatchData threw:', err);
   }
 
+  // Recompute team streaks from the bout-by-bout match data so draws ("D1")
+  // surface even when the upstream Standings sheet only tracks W/L.
+  teams = teams.map((t) => {
+    const matches = teamMatches[t.team];
+    if (!matches || matches.length === 0) return t;
+    return { ...t, streak: calcTeamStreak(matches) };
+  });
+
   let schedule: ReturnType<typeof parseSchedule> = [];
   try { schedule = parseSchedule(scheduleRawRows); } catch (err) {
     console.error('[getAllData] parseSchedule threw:', err);

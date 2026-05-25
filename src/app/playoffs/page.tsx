@@ -320,7 +320,7 @@ function SeedTable({
               style={{ color: s.team.diff >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)' }}
             >
               {s.team.diff >= 0 ? '+' : ''}
-              {s.team.diff.toFixed(1)}
+              {Math.round(s.team.diff)}
             </span>
             <span
               className="po-table__num"
