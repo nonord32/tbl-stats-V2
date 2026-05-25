@@ -33,16 +33,30 @@ const BASE = 'https://tblstats.com';
 // renders with the city/team header treatment and skips the fighter link.
 const TEAM_AWARDS = new Set(['Team Championship', 'Champion', 'Champions']);
 
+// Awards whose `team` field is two teams (e.g. "Houston / San Antonio").
+// Both logos render in the right-side chip.
+const TWO_TEAM_AWARDS = new Set(['Fight of the Year']);
+
 // Display order for award categories. Anything not in the list is appended
 // after, alphabetically.
 const AWARD_ORDER = [
+  'Most Valuable Fighter',
   'Season MVP',
   'MVP',
-  'Female Fighter of the Year',
-  'Rising Star',
   'Rookie of the Year',
+  'Rising Star',
+  'Most Entertaining Fighter',
+  'Fight of the Year',
+  'Female Fighter of the Year',
   'Team Championship',
 ];
+
+function splitTeams(raw: string): string[] {
+  return raw
+    .split(/\s*(?:\/| vs\.? | & |,)\s*/i)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 
 function AwardSection({
   award,
@@ -91,7 +105,9 @@ function AwardSection({
           const isLatest = a.season === latestSeason;
           const slug = toSlug(a.winner);
           const linkable = !isTeamAward && fighterSlugs.has(slug);
-          const logo = getTeamLogoPathByName(a.team);
+          const isTwoTeam = TWO_TEAM_AWARDS.has(award);
+          const teamList = isTwoTeam ? splitTeams(a.team) : [a.team];
+          const primaryLogo = getTeamLogoPathByName(teamList[0] || a.team);
           const city = getCityName(a.team) || a.team;
 
           return (
@@ -141,7 +157,7 @@ function AwardSection({
                     >
                       {a.winner}
                     </Link>
-                  ) : isTeamAward && logo ? (
+                  ) : isTeamAward && primaryLogo ? (
                     <Link
                       href={`/teams/${toSlug(a.team)}`}
                       style={{ color: 'inherit', textDecoration: 'none' }}
@@ -152,25 +168,9 @@ function AwardSection({
                     a.winner
                   )}
                 </span>
-                {isLatest && (
-                  <span
-                    style={{
-                      fontFamily: 'var(--tbl-font-mono)',
-                      fontSize: 9,
-                      letterSpacing: '0.18em',
-                      textTransform: 'uppercase',
-                      fontWeight: 700,
-                      background: 'var(--tbl-accent)',
-                      color: 'var(--tbl-paper)',
-                      padding: '3px 7px',
-                    }}
-                  >
-                    Latest
-                  </span>
-                )}
               </div>
 
-              {/* Team logo + meta */}
+              {/* Team logo(s) + meta */}
               <div
                 style={{
                   display: 'flex',
@@ -182,7 +182,47 @@ function AwardSection({
                   whiteSpace: 'nowrap',
                 }}
               >
-                {!isTeamAward && (
+                {isTwoTeam ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {teamList.map((t, i) => {
+                      const tLogo = getTeamLogoPathByName(t);
+                      const tCity = getCityName(t) || t;
+                      return (
+                        <span
+                          key={`${t}-${i}`}
+                          style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                        >
+                          {i > 0 && (
+                            <span style={{ color: 'var(--tbl-ink-mute)', fontStyle: 'italic' }}>
+                              vs
+                            </span>
+                          )}
+                          <Link
+                            href={`/teams/${toSlug(t)}`}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              color: 'var(--tbl-ink)',
+                              textDecoration: 'none',
+                              fontWeight: 700,
+                            }}
+                          >
+                            {tLogo && (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={tLogo}
+                                alt=""
+                                style={{ width: 20, height: 20, objectFit: 'contain' }}
+                              />
+                            )}
+                            <span>{tCity}</span>
+                          </Link>
+                        </span>
+                      );
+                    })}
+                  </div>
+                ) : !isTeamAward ? (
                   <Link
                     href={`/teams/${toSlug(a.team)}`}
                     style={{
@@ -194,27 +234,28 @@ function AwardSection({
                       fontWeight: 700,
                     }}
                   >
-                    {logo && (
+                    {primaryLogo && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={logo}
+                        src={primaryLogo}
                         alt=""
                         style={{ width: 20, height: 20, objectFit: 'contain' }}
                       />
                     )}
                     <span>{city}</span>
                   </Link>
-                )}
-                {isTeamAward && logo && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={logo}
-                    alt=""
-                    style={{ width: 20, height: 20, objectFit: 'contain' }}
-                  />
-                )}
-                {isTeamAward && (
-                  <span style={{ color: 'var(--tbl-ink)', fontWeight: 700 }}>{city}</span>
+                ) : (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {primaryLogo && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={primaryLogo}
+                        alt=""
+                        style={{ width: 20, height: 20, objectFit: 'contain' }}
+                      />
+                    )}
+                    <span style={{ color: 'var(--tbl-ink)', fontWeight: 700 }}>{city}</span>
+                  </span>
                 )}
                 {a.notes && <span>{a.notes}</span>}
               </div>
