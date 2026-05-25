@@ -10,6 +10,7 @@ import {
   awardOrderIndex,
   normalizeAwardName,
 } from '@/lib/awards';
+import { getTeamSlugByName } from '@/lib/teams';
 import type { AwardEntry } from '@/types';
 
 interface Props {
@@ -77,6 +78,9 @@ export function HallOfChampions({ awards, fighterSlugs, limit = 5 }: Props) {
               const slug = toSlug(a.winner);
               const linkable =
                 !isTeamAward && (!fighterSlugs || fighterSlugs.has(slug));
+              const winnerTeamSlug =
+                getTeamSlugByName(a.winner) || getTeamSlugByName(a.team);
+              const teamLinkSlug = getTeamSlugByName(a.team);
               return (
                 <tr key={`${award}-${a.season}-${a.winner}`}>
                   <td className="mono">{a.season}</td>
@@ -89,11 +93,29 @@ export function HallOfChampions({ awards, fighterSlugs, limit = 5 }: Props) {
                       >
                         {a.winner}
                       </Link>
+                    ) : isTeamAward && winnerTeamSlug ? (
+                      <Link
+                        href={`/teams/${winnerTeamSlug}`}
+                        style={{ color: 'var(--accent)', fontWeight: 600 }}
+                      >
+                        {a.winner}
+                      </Link>
                     ) : (
                       <span style={{ fontWeight: 600 }}>{a.winner}</span>
                     )}
                   </td>
-                  <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{a.team}</td>
+                  <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                    {teamLinkSlug ? (
+                      <Link
+                        href={`/teams/${teamLinkSlug}`}
+                        style={{ color: 'inherit', textDecoration: 'none' }}
+                      >
+                        {a.team}
+                      </Link>
+                    ) : (
+                      a.team
+                    )}
+                  </td>
                 </tr>
               );
             })}

@@ -70,6 +70,12 @@ export function getTeamLogoPathByName(name: string): string {
   return key ? `/logos/${key}.png` : '';
 }
 
+/** Canonical city slug for a team name (full, short, or city-only). Returns
+ *  empty string if the team isn't recognized. */
+export function getTeamSlugByName(name: string): string {
+  return nameKey(name) ?? '';
+}
+
 /** Just the city portion of the team, with proper casing.
  *  "las vegas" / "Las Vegas Hustle" → "Las Vegas"; "nyc" → "NYC".
  *  Falls back to the input string when the team isn't recognized. */

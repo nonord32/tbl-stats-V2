@@ -2,7 +2,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getAllData, toSlug } from '@/lib/data';
-import { getCityName, getTeamLogoPathByName } from '@/lib/teams';
+import { getCityName, getTeamLogoPathByName, getTeamSlugByName } from '@/lib/teams';
 import { DataUnavailable } from '@/components/DataUnavailable';
 import {
   TEAM_AWARDS,
@@ -93,6 +93,12 @@ function AwardSection({
           const teamList = isTwoTeam ? splitTeams(a.team) : [a.team];
           const primaryLogo = getTeamLogoPathByName(teamList[0] || a.team);
           const city = getCityName(a.team) || a.team;
+          // For team awards the winner *is* a team — resolve the slug from
+          // the winner name first, falling back to the team field.
+          const winnerTeamSlug =
+            getTeamSlugByName(a.winner) ||
+            getTeamSlugByName(a.team) ||
+            toSlug(a.team);
 
           return (
             <div
@@ -141,9 +147,9 @@ function AwardSection({
                     >
                       {a.winner}
                     </Link>
-                  ) : isTeamAward && primaryLogo ? (
+                  ) : isTeamAward && winnerTeamSlug ? (
                     <Link
-                      href={`/teams/${toSlug(a.team)}`}
+                      href={`/teams/${winnerTeamSlug}`}
                       style={{ color: 'inherit', textDecoration: 'none' }}
                     >
                       {a.winner}
@@ -182,7 +188,7 @@ function AwardSection({
                             </span>
                           )}
                           <Link
-                            href={`/teams/${toSlug(t)}`}
+                            href={`/teams/${getTeamSlugByName(t) || toSlug(t)}`}
                             style={{
                               display: 'flex',
                               alignItems: 'center',
@@ -208,7 +214,29 @@ function AwardSection({
                   </div>
                 ) : !isTeamAward ? (
                   <Link
-                    href={`/teams/${toSlug(a.team)}`}
+                    href={`/teams/${getTeamSlugByName(a.team) || toSlug(a.team)}`}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      color: 'var(--tbl-ink)',
+                      textDecoration: 'none',
+                      fontWeight: 700,
+                    }}
+                  >
+                    {primaryLogo && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={primaryLogo}
+                        alt=""
+                        style={{ width: 20, height: 20, objectFit: 'contain' }}
+                      />
+                    )}
+                    <span>{city}</span>
+                  </Link>
+                ) : winnerTeamSlug ? (
+                  <Link
+                    href={`/teams/${winnerTeamSlug}`}
                     style={{
                       display: 'flex',
                       alignItems: 'center',

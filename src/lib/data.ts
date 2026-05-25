@@ -18,10 +18,13 @@ import type {
 
 // ─── Sheet URLs ────────────────────────────────────────────────────────────────
 const SHEETS = {
+  // Primary fighter data lives on the "Fighter Stats" tab. Columns are
+  // looked up by header name (not position), so the source spreadsheet
+  // can reorder or drop columns freely without breaking the site.
   fighters:
-    'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=1927967888&single=true&output=csv',
-  // Secondary source for data only maintained on the Fighter Stats tab (Instagram URLs in col AJ).
-  // Merged into the primary fighters result by slug.
+    'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=1273687161&single=true&output=csv',
+  // Same tab as `fighters`; kept as a fallback for the Instagram-merge step
+  // in case the primary parse misses the column for any reason.
   fighterSocials:
     'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=1273687161&single=true&output=csv',
   teams:
