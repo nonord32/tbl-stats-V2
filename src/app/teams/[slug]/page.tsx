@@ -55,7 +55,16 @@ interface MatchCardProps {
   teamName: string;
 }
 function MatchCard({ match, teamName: _teamName }: MatchCardProps) {
-  const winSquare = match.result === 'W' ? 'var(--tbl-green)' : 'var(--tbl-red)';
+  // Tied totals override whatever W/L flag came from the sheet.
+  const isDraw = match.result === 'D' || Math.abs(match.pf - match.pa) < 0.0001;
+  const isWin = !isDraw && match.result === 'W';
+  const isLoss = !isDraw && match.result === 'L';
+  const badgeBg = isDraw
+    ? 'var(--tbl-ink-soft)'
+    : isWin
+    ? 'var(--tbl-green)'
+    : 'var(--tbl-red)';
+  const badgeLetter = isDraw ? 'D' : match.result;
   const oppSlug = toSlug(match.opponent);
   const oppFull = getFullTeamName(oppSlug) || match.opponent;
   const oppLogo = `/logos/${oppSlug}.png`;
@@ -93,14 +102,14 @@ function MatchCard({ match, teamName: _teamName }: MatchCardProps) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: winSquare,
+          background: badgeBg,
           color: '#fff',
           fontFamily: 'var(--tbl-font-serif)',
           fontSize: 18,
           fontWeight: 900,
         }}
       >
-        {match.result}
+        {badgeLetter}
       </div>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={oppLogo} alt="" style={{ width: 30, height: 30, objectFit: 'contain' }} />
@@ -128,13 +137,13 @@ function MatchCard({ match, teamName: _teamName }: MatchCardProps) {
         className="tbl-display"
         style={{ fontSize: 22, fontWeight: 900, whiteSpace: 'nowrap' }}
       >
-        <span style={{ color: match.result === 'W' ? 'var(--tbl-accent)' : 'var(--tbl-ink)' }}>
+        <span style={{ color: isWin ? 'var(--tbl-accent)' : 'var(--tbl-ink)' }}>
           {match.pf.toFixed(0)}
         </span>
         <span style={{ color: 'var(--tbl-ink-mute)', margin: '0 4px', fontStyle: 'italic' }}>
           —
         </span>
-        <span style={{ color: match.result === 'L' ? 'var(--tbl-accent)' : 'var(--tbl-ink)' }}>
+        <span style={{ color: isLoss ? 'var(--tbl-accent)' : 'var(--tbl-ink)' }}>
           {match.pa.toFixed(0)}
         </span>
       </div>
