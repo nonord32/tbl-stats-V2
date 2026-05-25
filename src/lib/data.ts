@@ -240,7 +240,7 @@ function parseFighters(rows: string[][]): { fighters: FighterStat[]; lastUpdated
         losses,
         record: recordStr,
         war: safeNum(pick(r, 'Fighter WAR', 'WAR')),
-        nppr: safeNum(pick(r, 'NPPR')),
+        nppr: safeNum(pick(r, 'NPPR (Net Points-per-Round)', 'NPPR', 'Net Points-per-Round', 'Net Points Per Round')),
         netPts: safeNum(pick(r, 'Total Net Points', 'Net Points')),
         winPct,
         rounds: safeInt(pick(r, 'Rounds Fought', 'Rounds', 'Round', 'Total Rounds', '# Rounds', 'Num Rounds')),
