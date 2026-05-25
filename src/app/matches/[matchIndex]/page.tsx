@@ -782,25 +782,7 @@ export default async function MatchPage({
                     >
                       {totalB.toFixed(1)}
                     </td>
-                    <td
-                      colSpan={2}
-                      style={{
-                        padding: '14px 8px',
-                        textAlign: 'left',
-                        fontFamily: 'var(--tbl-font-serif)',
-                        fontWeight: 900,
-                        fontSize: 16,
-                        whiteSpace: 'nowrap',
-                        color: team1Won
-                          ? 'var(--tbl-accent-bright)'
-                          : team2Won
-                          ? '#f5a3a3'
-                          : 'inherit',
-                      }}
-                    >
-                      {totalA - totalB > 0 ? '+' : ''}
-                      {(totalA - totalB).toFixed(1)}
-                    </td>
+                    <td colSpan={2} />
                   </tr>
                 </tbody>
               </table>
@@ -1007,24 +989,6 @@ export default async function MatchPage({
                   >
                     {totalB.toFixed(1)}
                   </div>
-                </div>
-                <div
-                  style={{
-                    fontFamily: 'var(--tbl-font-mono)',
-                    fontSize: 11,
-                    letterSpacing: '0.16em',
-                    textAlign: 'center',
-                    color: team1Won
-                      ? 'var(--tbl-accent-bright)'
-                      : team2Won
-                      ? '#f5a3a3'
-                      : 'rgba(244,237,224,0.6)',
-                    marginTop: 6,
-                    fontWeight: 700,
-                  }}
-                >
-                  {totalA - totalB > 0 ? '+' : ''}
-                  {(totalA - totalB).toFixed(1)}
                 </div>
               </div>
             </div>
