@@ -1,42 +1,78 @@
 'use client';
 
-// Small share pill for the match hero. Uses the Web Share API on mobile
-// (gives the native iOS / Android share sheet) and falls back to copying
-// the URL to the clipboard on desktop.
+// Small share pill for the match hero. Tries to share the dynamic OG
+// card as an actual PNG file via the Web Share API (Level 2) so the
+// recipient gets the image embedded, not just a link preview. Falls
+// back to URL-only share, then clipboard copy.
 import { useState } from 'react';
 
 type Props = {
   url: string;
+  imageUrl: string;
   title: string;
   text?: string;
+  fileName?: string;
 };
 
-export function ShareButton({ url, title, text }: Props) {
-  const [copied, setCopied] = useState(false);
+export function ShareButton({ url, imageUrl, title, text, fileName }: Props) {
+  const [state, setState] = useState<'idle' | 'busy' | 'copied'>('idle');
 
   async function handleClick() {
-    const absoluteUrl =
-      typeof window !== 'undefined' && url.startsWith('/')
-        ? `${window.location.origin}${url}`
-        : url;
+    if (state === 'busy') return;
+    setState('busy');
 
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const absoluteUrl = url.startsWith('/') ? `${origin}${url}` : url;
+    const absoluteImg = imageUrl.startsWith('/') ? `${origin}${imageUrl}` : imageUrl;
+    const name = fileName || 'tbl-match.png';
+
+    // Best path: share the PNG itself. Works on iOS Safari 15+, recent
+    // Chrome on Android, and most desktop browsers that support Web
+    // Share API Level 2.
+    try {
+      const res = await fetch(absoluteImg, { cache: 'force-cache' });
+      if (res.ok) {
+        const blob = await res.blob();
+        const file = new File([blob], name, { type: blob.type || 'image/png' });
+        if (
+          typeof navigator !== 'undefined' &&
+          typeof navigator.canShare === 'function' &&
+          navigator.canShare({ files: [file] })
+        ) {
+          await navigator.share({ files: [file], title, text, url: absoluteUrl });
+          setState('idle');
+          return;
+        }
+      }
+    } catch {
+      // fall through to URL-only share
+    }
+
+    // URL-only share — still pops the native sheet, recipient gets the
+    // OG card via link-preview.
     if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
       try {
         await navigator.share({ title, text, url: absoluteUrl });
+        setState('idle');
         return;
       } catch {
-        // User dismissed or share failed — fall through to copy.
+        // user dismissed — fall through to clipboard
       }
     }
+
     try {
       await navigator.clipboard.writeText(absoluteUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1600);
+      setState('copied');
+      setTimeout(() => setState('idle'), 1600);
+      return;
     } catch {
-      // Last-resort: open a prompt so the user can copy manually.
       window.prompt('Copy this link:', absoluteUrl);
+      setState('idle');
     }
   }
+
+  const copied = state === 'copied';
+  const busy = state === 'busy';
 
   return (
     <button
@@ -44,6 +80,7 @@ export function ShareButton({ url, title, text }: Props) {
       onClick={handleClick}
       aria-label="Share match"
       title={copied ? 'Copied' : 'Share'}
+      disabled={busy}
       style={{
         position: 'absolute',
         top: 10,
@@ -59,9 +96,10 @@ export function ShareButton({ url, title, text }: Props) {
           ? 'var(--tbl-accent-bright)'
           : 'rgba(244,237,224,0.08)',
         color: copied ? 'var(--tbl-ink)' : 'var(--tbl-bg)',
-        cursor: 'pointer',
+        cursor: busy ? 'wait' : 'pointer',
         padding: 0,
         transition: 'background 120ms ease',
+        opacity: busy ? 0.7 : 1,
       }}
     >
       {copied ? (
@@ -77,6 +115,20 @@ export function ShareButton({ url, title, text }: Props) {
           aria-hidden="true"
         >
           <polyline points="20 6 9 17 4 12" />
+        </svg>
+      ) : busy ? (
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          aria-hidden="true"
+          style={{ animation: 'tbl-share-spin 0.8s linear infinite' }}
+        >
+          <path d="M21 12a9 9 0 1 1-6.2-8.55" />
         </svg>
       ) : (
         <svg
@@ -95,6 +147,7 @@ export function ShareButton({ url, title, text }: Props) {
           <line x1="12" y1="2" x2="12" y2="15" />
         </svg>
       )}
+      <style>{`@keyframes tbl-share-spin { to { transform: rotate(360deg); } }`}</style>
     </button>
   );
 }

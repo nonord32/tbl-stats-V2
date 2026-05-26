@@ -234,8 +234,10 @@ export default async function MatchPage({
       >
         <ShareButton
           url={`/matches/${mi}`}
+          imageUrl={`/matches/${mi}/opengraph-image`}
           title={`${team1Full} vs ${team2Full} | TBL Stats`}
           text={`${team1Full} ${match.score1.toFixed(0)} – ${match.score2.toFixed(0)} ${team2Full}`}
+          fileName={`tbl-${team1Slug}-vs-${team2Slug}.png`}
         />
         <div
           style={{
