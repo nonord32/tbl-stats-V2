@@ -246,6 +246,7 @@ export default async function MatchPage({
             textTransform: 'uppercase',
             fontWeight: 700,
             textAlign: 'center',
+            padding: '0 52px',
           }}
         >
           {heroStatus || longDate}
