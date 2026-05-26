@@ -30,13 +30,11 @@ export async function generateMetadata({
       url: `https://tblstats.com/matches/${mi}`,
       title: `${t1} vs ${t2} | TBL Stats`,
       description: `${t1} ${match.score1.toFixed(1)} – ${match.score2.toFixed(1)} ${t2}`,
-      images: [{ url: '/og-image.png', width: 1200, height: 630 }],
     },
     twitter: {
       card: 'summary_large_image',
       title: `${t1} vs ${t2} | TBL Stats`,
       description: `${t1} ${match.score1.toFixed(1)} – ${match.score2.toFixed(1)} ${t2}`,
-      images: ['/og-image.png'],
     },
   };
 }
