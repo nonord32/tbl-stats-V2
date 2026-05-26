@@ -8,6 +8,7 @@ import { getMatchByIndex, toSlug } from '@/lib/data';
 import { getFullTeamName, getTeamLogoPathByName } from '@/lib/teams';
 import { SectionRule } from '@/components/chrome/SectionRule';
 import { HighlightsSection } from '@/components/HighlightsSection';
+import { ShareButton } from '@/components/ShareButton';
 
 export const revalidate = 300;
 
@@ -228,8 +229,14 @@ export default async function MatchPage({
           color: 'var(--tbl-bg)',
           padding: '34px 40px 30px',
           borderBottom: '3px double var(--tbl-ink)',
+          position: 'relative',
         }}
       >
+        <ShareButton
+          url={`/matches/${mi}`}
+          title={`${team1Full} vs ${team2Full} | TBL Stats`}
+          text={`${team1Full} ${match.score1.toFixed(0)} – ${match.score2.toFixed(0)} ${team2Full}`}
+        />
         <div
           style={{
             fontFamily: 'var(--tbl-font-mono)',
