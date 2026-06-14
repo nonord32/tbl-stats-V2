@@ -5,9 +5,21 @@ import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import type { TeamStanding, TeamMatch, BoxScoreRound } from '@/types';
 import { calcTeamStreak, toSlug } from '@/lib/data';
+import {
+  aggregateTeamStandingsByPhase,
+  filterTeamMatchesByPhase,
+  hasPlayoffData,
+  type Phase,
+} from '@/lib/phaseStats';
 import { getTeamColor, getTeamLogoPath, getFullTeamName, getCityName } from '@/lib/teams';
 import { sortStandings, getH2HTiebreakerWinners } from '@/lib/standings';
 import { PageHeader } from '@/components/chrome/PageHeader';
+
+const PHASE_LABELS: Record<Phase, string> = {
+  all: 'Full Season',
+  regular: 'Regular Season',
+  playoffs: 'Playoffs',
+};
 
 type SortKey = 'record' | 'pf' | 'pa' | 'diff' | 'streak';
 
@@ -198,11 +210,30 @@ function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; s
   return <span style={{ marginLeft: 3 }}>{sortDir === 'desc' ? '↓' : '↑'}</span>;
 }
 
-export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props) {
+export function TeamsClient({ teams: allTeams, teamMatches: allMatches, seoText, lastUpdated }: Props) {
   const formattedUpdate = lastUpdated || null;
   const [sortKey, setSortKey] = useState<SortKey>('record');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [modalTeam, setModalTeam] = useState<TeamStanding | null>(null);
+  const [phase, setPhase] = useState<Phase>('all');
+
+  // Phase toggle only appears once playoff games exist.
+  const playoffsLive = useMemo(() => hasPlayoffData({}, allMatches), [allMatches]);
+
+  // Teams/matches scoped to the selected phase. 'all' passes the sheet data
+  // through unchanged, so the standings page is identical until playoffs start.
+  const teams = useMemo(
+    () => aggregateTeamStandingsByPhase(allTeams, allMatches, phase),
+    [allTeams, allMatches, phase]
+  );
+  const teamMatches = useMemo(
+    () => filterTeamMatchesByPhase(allMatches, phase),
+    [allMatches, phase]
+  );
+
+  // The playoff-cutoff line and games-back column only make sense for a
+  // standings table that decides seeding — not for the playoff-only view.
+  const showCutoff = phase !== 'playoffs';
 
   const handleSort = (key: SortKey) => {
     if (key === sortKey) {
@@ -242,6 +273,21 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
   // Mobile card list mirrors the desktop "record" sort.
   const sortedByWins = recordSorted;
 
+  const phaseToggle = playoffsLive ? (
+    <label className="gz-filter" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <span className="gz-filter__label">View</span>
+      <select
+        className="gz-filter__select"
+        value={phase}
+        onChange={(e) => setPhase(e.target.value as Phase)}
+      >
+        {(['all', 'regular', 'playoffs'] as Phase[]).map((p) => (
+          <option key={p} value={p}>{PHASE_LABELS[p]}</option>
+        ))}
+      </select>
+    </label>
+  ) : null;
+
   return (
     <div className="page teams-page">
       {/* Mobile-only Gazette header + card list */}
@@ -249,11 +295,14 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
         <PageHeader
           eyebrow="The League"
           title="Standings"
-          subtitle={`${teams.length} Clubs · Sorted by Wins`}
+          subtitle={`${teams.length} Clubs · ${phase === 'all' ? 'Sorted by Wins' : PHASE_LABELS[phase]}`}
           right={
-            <Link href="/playoffs" className="teams-playoffs-link">
-              Playoff Picture →
-            </Link>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              {phaseToggle}
+              <Link href="/playoffs" className="teams-playoffs-link">
+                Playoff Picture →
+              </Link>
+            </div>
           }
         />
       </div>
@@ -319,7 +368,7 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
                   {t.diff.toFixed(0)}
                 </div>
               </Link>
-              {i === 7 && i < sortedByWins.length - 1 && (
+              {showCutoff && i === 7 && i < sortedByWins.length - 1 && (
                 <div className="teams-mobile-cutoff" aria-hidden="true">
                   <span>── Playoff Cutoff ──</span>
                 </div>
@@ -355,7 +404,7 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
           <div>
             <h1>Team Standings</h1>
             <div className="subtitle">
-              Team Rankings · 2026 TBL Season
+              {phase === 'all' ? 'Team Rankings' : PHASE_LABELS[phase]} · 2026 TBL Season
               {formattedUpdate && (
                 <span style={{ marginLeft: 10, fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>
                   · Updated {formattedUpdate}
@@ -363,9 +412,12 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
               )}
             </div>
           </div>
-          <Link href="/playoffs" className="teams-playoffs-link">
-            Playoff Picture →
-          </Link>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            {phaseToggle}
+            <Link href="/playoffs" className="teams-playoffs-link">
+              Playoff Picture →
+            </Link>
+          </div>
         </div>
         {seoText && <p className="page-intro">{seoText}</p>}
 
@@ -482,7 +534,7 @@ export function TeamsClient({ teams, teamMatches, seoText, lastUpdated }: Props)
                           <td>{streak && <StreakBadge streak={streak} />}</td>
                         </tr>
                         {/* Playoff cutoff line — only show when sorted by record */}
-                        {sortKey === 'record' && i === PLAYOFF_SPOTS - 1 && (
+                        {showCutoff && sortKey === 'record' && i === PLAYOFF_SPOTS - 1 && (
                           <tr className="playoff-cutoff-row">
                             <td colSpan={8}>
                               <div className="playoff-cutoff-line">
