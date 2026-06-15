@@ -26,8 +26,31 @@ type SortKey = 'record' | 'pf' | 'pa' | 'diff' | 'streak';
 interface Props {
   teams: TeamStanding[];
   teamMatches: Record<string, TeamMatch[]>;
+  // slug → 'z' (clinched #1 seed) | 'x' (clinched playoff berth)
+  clinch?: Record<string, 'x' | 'z'>;
   seoText?: string;
   lastUpdated?: string;
+}
+
+// Small superscript-style clinch marker shown before a team name.
+function ClinchMark({ mark }: { mark?: 'x' | 'z' }) {
+  if (!mark) return null;
+  const label = mark === 'z' ? 'Clinched #1 seed' : 'Clinched playoff berth';
+  return (
+    <span
+      title={label}
+      aria-label={label}
+      style={{
+        fontFamily: 'IBM Plex Mono, monospace',
+        fontSize: 11,
+        fontWeight: 700,
+        color: 'var(--accent)',
+        marginRight: 5,
+      }}
+    >
+      {mark}
+    </span>
+  );
 }
 
 function StreakBadge({ streak }: { streak: string }) {
@@ -210,12 +233,18 @@ function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; s
   return <span style={{ marginLeft: 3 }}>{sortDir === 'desc' ? '↓' : '↑'}</span>;
 }
 
-export function TeamsClient({ teams: allTeams, teamMatches: allMatches, seoText, lastUpdated }: Props) {
+export function TeamsClient({ teams: allTeams, teamMatches: allMatches, clinch, seoText, lastUpdated }: Props) {
   const formattedUpdate = lastUpdated || null;
   const [sortKey, setSortKey] = useState<SortKey>('record');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [modalTeam, setModalTeam] = useState<TeamStanding | null>(null);
   const [phase, setPhase] = useState<Phase>('all');
+
+  // Clinch markers reflect the full-season playoff race, so only show them on
+  // the default (full-season) standings view.
+  const clinchFor = (slug: string): 'x' | 'z' | undefined =>
+    phase === 'all' ? clinch?.[slug] : undefined;
+  const anyClinch = phase === 'all' && !!clinch && Object.keys(clinch).length > 0;
 
   // Phase toggle only appears once playoff games exist.
   const playoffsLive = useMemo(() => hasPlayoffData({}, allMatches), [allMatches]);
@@ -329,6 +358,7 @@ export function TeamsClient({ teams: allTeams, teamMatches: allMatches, seoText,
                 />
                 <div className="teams-mobile-row__body">
                   <div className="teams-mobile-row__name">
+                    <ClinchMark mark={clinchFor(t.slug)} />
                     {getFullTeamName(t.slug)}
                     {h2hWinners.has(t.slug) && (
                       <span
@@ -376,6 +406,11 @@ export function TeamsClient({ teams: allTeams, teamMatches: allMatches, seoText,
             </React.Fragment>
           );
         })}
+        {anyClinch && (
+          <div className="teams-mobile-h2h-note">
+            <div><span style={{ color: 'var(--accent)', fontWeight: 700 }}>x</span> — Clinched playoff berth · <span style={{ color: 'var(--accent)', fontWeight: 700 }}>z</span> — Clinched #1 seed</div>
+          </div>
+        )}
         {h2hWinners.size > 0 && (
           <div className="teams-mobile-h2h-note">
             {Array.from(h2hWinners.entries()).map(([slug, beaten]) => {
@@ -503,6 +538,7 @@ export function TeamsClient({ teams: allTeams, teamMatches: allMatches, seoText,
                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                               />
                               <Link href={`/teams/${t.slug}`} className="fighter-name-btn">
+                                <ClinchMark mark={clinchFor(t.slug)} />
                                 {t.team}
                                 {sortKey === 'record' && h2hWinners.has(t.slug) && (
                                   <span
@@ -555,6 +591,13 @@ export function TeamsClient({ teams: allTeams, teamMatches: allMatches, seoText,
         <div style={{ marginTop: 12, fontSize: 12, color: 'var(--text-muted)' }}>
           {teams.length} teams · Click a team name to view box scores
         </div>
+        {anyClinch && (
+          <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-muted)', fontFamily: 'IBM Plex Mono, monospace' }}>
+            <span style={{ color: 'var(--accent)', fontWeight: 700 }}>x</span> — Clinched playoff berth
+            {'  ·  '}
+            <span style={{ color: 'var(--accent)', fontWeight: 700 }}>z</span> — Clinched #1 seed
+          </div>
+        )}
         {h2hWinners.size > 0 && sortKey === 'record' && (
           <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-muted)', fontFamily: 'IBM Plex Mono, monospace' }}>
             {Array.from(h2hWinners.entries()).map(([slug, beaten]) => {
