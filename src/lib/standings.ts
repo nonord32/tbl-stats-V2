@@ -94,70 +94,219 @@ export function sortStandings(
 
 // ─── Clinch logic ───────────────────────────────────────────────────────────
 //
-// "Magic number" style clinching based on games remaining. We deliberately
-// ignore tiebreakers and reason about wins only, in the worst case for the
-// team in question: it wins none of its remaining games (final wins = current
-// wins) while every rival wins all of theirs (final wins = maxWins). A team is
-// flagged only when it is mathematically guaranteed — so a flag is never wrong,
-// though a true clinch that depends on a tiebreaker may go unflagged.
+// A team is flagged 'x' (clinched a playoff berth) or 'z' (clinched the #1
+// seed) only when it is GUARANTEED — i.e. it cannot be knocked out in any
+// completion of the remaining schedule. We do this by enumerating every
+// win/loss outcome of the remaining games and, in each scenario, computing the
+// team's WORST-CASE finishing rank under TBL's real tiebreaker:
+//
+//   • Within a group tied on (wins, losses), the head-to-head "sweep" rule is
+//     evaluated exactly (sweeper ranks first, recurse). Because the H2H games
+//     are part of the enumeration, this is fully determined per scenario.
+//   • Any tied teams the sweep can't separate fall to point differential. The
+//     margins of future games are unknowable, so such ties are treated
+//     adversarially: each unresolved team is placed at the BOTTOM of its block.
+//
+// Result: a clinch via a locked H2H sweep is credited, while one that would
+// depend on point differential never is (it genuinely can't be guaranteed).
+//
+// Enumeration is 2^n in the number of remaining league games. With 12 teams
+// this is cheap near the end of the season; above `maxEnumGames` we fall back
+// to the conservative wins-only test (nothing is clinched that early anyway).
 
-// Count of not-yet-played league games per team, keyed by team slug. Schedule
-// team names are short ("Las Vegas") while standings names are full
-// ("Las Vegas Hustle"), so matching is done by prefix. Week 0 (non-league /
-// exhibition) and non-upcoming rows are ignored.
+// Match a short schedule name ("Las Vegas") to a full standings team
+// ("Las Vegas Hustle") by prefix.
+function matchScheduleTeam(
+  teams: TeamStanding[],
+  shortName: string
+): TeamStanding | undefined {
+  const sn = shortName.toLowerCase().trim();
+  if (!sn) return undefined;
+  return teams.find((t) => {
+    const tn = t.team.toLowerCase();
+    return tn === sn || tn.startsWith(sn) || sn.startsWith(tn.split(' ')[0]);
+  });
+}
+
+// Count of not-yet-played league games per team, keyed by team slug. Week 0
+// (non-league / exhibition) and non-upcoming rows are ignored.
 export function getRemainingGames(
   teams: TeamStanding[],
   schedule: ScheduleEntry[]
 ): Map<string, number> {
   const out = new Map<string, number>();
   for (const t of teams) out.set(t.slug, 0);
-
-  const matchTeam = (shortName: string): TeamStanding | undefined => {
-    const sn = shortName.toLowerCase().trim();
-    if (!sn) return undefined;
-    return teams.find((t) => {
-      const tn = t.team.toLowerCase();
-      return tn === sn || tn.startsWith(sn) || sn.startsWith(tn.split(' ')[0]);
-    });
-  };
-
   for (const s of schedule) {
     if (s.week === 0) continue;
     if (s.status.toLowerCase() !== 'upcoming') continue;
     for (const name of [s.team1, s.team2]) {
-      const t = matchTeam(name);
+      const t = matchScheduleTeam(teams, name);
       if (t) out.set(t.slug, (out.get(t.slug) ?? 0) + 1);
     }
   }
   return out;
 }
 
-// Returns a slug → marker map: 'z' = clinched the #1 seed, 'x' = clinched a
-// playoff berth. 'z' implies a playoff berth, so such teams are returned as
-// 'z' only.
-export function getClinchStatus(
+// Remaining games as [slugA, slugB] pairs (only games where both teams resolve
+// to a standings team).
+export function getRemainingPairings(
+  teams: TeamStanding[],
+  schedule: ScheduleEntry[]
+): [string, string][] {
+  const out: [string, string][] = [];
+  for (const s of schedule) {
+    if (s.week === 0) continue;
+    if (s.status.toLowerCase() !== 'upcoming') continue;
+    const a = matchScheduleTeam(teams, s.team1);
+    const b = matchScheduleTeam(teams, s.team2);
+    if (a && b && a.slug !== b.slug) out.push([a.slug, b.slug]);
+  }
+  return out;
+}
+
+// Conservative wins-only fallback (no tiebreakers). Used when there are too
+// many remaining games to enumerate exactly.
+function getClinchStatusByWins(
   teams: TeamStanding[],
   remainingByTeam: Map<string, number>,
-  playoffSpots = 8
+  playoffSpots: number
 ): Map<string, 'x' | 'z'> {
   const out = new Map<string, 'x' | 'z'>();
   const maxWins = (t: TeamStanding) => t.wins + (remainingByTeam.get(t.slug) ?? 0);
-
   for (const t of teams) {
-    // #1 seed: even at the team's win floor, no rival's best case can reach it.
-    const clinchedFirst = teams.every(
-      (o) => o.slug === t.slug || maxWins(o) < t.wins
-    );
+    const clinchedFirst = teams.every((o) => o.slug === t.slug || maxWins(o) < t.wins);
     if (clinchedFirst) {
       out.set(t.slug, 'z');
       continue;
     }
-    // Playoff berth: at most (playoffSpots - 1) rivals can still reach or pass
-    // the team's win floor, so it can finish no worse than the last seed.
-    const threats = teams.filter(
-      (o) => o.slug !== t.slug && maxWins(o) >= t.wins
-    ).length;
+    const threats = teams.filter((o) => o.slug !== t.slug && maxWins(o) >= t.wins).length;
     if (threats < playoffSpots) out.set(t.slug, 'x');
+  }
+  return out;
+}
+
+// Index-based sweeper search for the simulation. `cmp(i, j)` returns -1 when i
+// has the winning H2H record over j. Mirrors findSweeper() above.
+function findSweeperIdx(
+  group: number[],
+  cmp: (i: number, j: number) => number
+): number | null {
+  for (const cand of group) {
+    if (group.every((o) => o === cand || cmp(cand, o) === -1)) return cand;
+  }
+  return null;
+}
+
+// Within one (wins,losses) group occupying ranks starting after `pos` teams,
+// assign each member its WORST possible 1-based rank and fold it into
+// `worstRank` (keeping the max seen across scenarios).
+function foldWorstRanks(
+  group: number[],
+  pos: number,
+  cmp: (i: number, j: number) => number,
+  worstRank: number[]
+): void {
+  let remaining = group.slice();
+  let p = pos;
+  // Peel deterministic sweepers off the top.
+  while (remaining.length > 1) {
+    const sweeper = findSweeperIdx(remaining, cmp);
+    if (sweeper === null) break;
+    const r = p + 1;
+    if (r > worstRank[sweeper]) worstRank[sweeper] = r;
+    remaining = remaining.filter((x) => x !== sweeper);
+    p++;
+  }
+  if (remaining.length === 1) {
+    const r = p + 1;
+    if (r > worstRank[remaining[0]]) worstRank[remaining[0]] = r;
+  } else {
+    // Unresolved (point-diff) block: worst case is the bottom for everyone.
+    const worst = p + remaining.length;
+    for (const t of remaining) if (worst > worstRank[t]) worstRank[t] = worst;
+  }
+}
+
+// Returns a slug → marker map: 'z' = clinched the #1 seed, 'x' = clinched a
+// playoff berth. 'z' implies a playoff berth, so such teams are returned as
+// 'z' only. Honors the H2H tiebreaker (see header comment).
+export function getClinchStatus(
+  teams: TeamStanding[],
+  teamMatches: Record<string, TeamMatch[]>,
+  schedule: ScheduleEntry[],
+  playoffSpots = 8,
+  maxEnumGames = 18
+): Map<string, 'x' | 'z'> {
+  const pairings = getRemainingPairings(teams, schedule);
+  const n = pairings.length;
+  if (n > maxEnumGames) {
+    return getClinchStatusByWins(teams, getRemainingGames(teams, schedule), playoffSpots);
+  }
+
+  const T = teams.length;
+  const idxOf = new Map(teams.map((t, i) => [t.slug, i]));
+
+  // Base H2H wins from games already played: baseH2H[i][j] = times i beat j.
+  const baseH2H: number[][] = Array.from({ length: T }, () => new Array(T).fill(0));
+  for (let i = 0; i < T; i++) {
+    for (const m of teamMatches[teams[i].team] || []) {
+      const j = idxOf.get(toSlug(m.opponent));
+      if (j === undefined) continue;
+      if (m.result === 'W') baseH2H[i][j]++;
+    }
+  }
+
+  const pairIdx: [number, number][] = pairings.map(
+    ([a, b]) => [idxOf.get(a)!, idxOf.get(b)!] as [number, number]
+  );
+
+  const baseWins = teams.map((t) => t.wins);
+  const baseLosses = teams.map((t) => t.losses);
+  const worstRank = new Array<number>(T).fill(0);
+
+  const scenarios = 1 << n;
+  for (let mask = 0; mask < scenarios; mask++) {
+    const wins = baseWins.slice();
+    const losses = baseLosses.slice();
+    const overlay = new Map<number, number>(); // i*T+j -> extra wins by i over j
+    for (let g = 0; g < n; g++) {
+      const [a, b] = pairIdx[g];
+      if ((mask >> g) & 1) {
+        wins[a]++; losses[b]++;
+        overlay.set(a * T + b, (overlay.get(a * T + b) ?? 0) + 1);
+      } else {
+        wins[b]++; losses[a]++;
+        overlay.set(b * T + a, (overlay.get(b * T + a) ?? 0) + 1);
+      }
+    }
+    const cmp = (i: number, j: number): number => {
+      const iw = baseH2H[i][j] + (overlay.get(i * T + j) ?? 0);
+      const jw = baseH2H[j][i] + (overlay.get(j * T + i) ?? 0);
+      return iw > jw ? -1 : jw > iw ? 1 : 0;
+    };
+
+    // Order all teams by (wins desc, losses asc); walk (wins,losses) groups.
+    const order = [...Array(T).keys()].sort(
+      (x, y) => wins[y] - wins[x] || losses[x] - losses[y]
+    );
+    let pos = 0;
+    let gi = 0;
+    while (gi < order.length) {
+      const w = wins[order[gi]];
+      const l = losses[order[gi]];
+      let gj = gi;
+      while (gj < order.length && wins[order[gj]] === w && losses[order[gj]] === l) gj++;
+      const group = order.slice(gi, gj);
+      foldWorstRanks(group, pos, cmp, worstRank);
+      pos += group.length;
+      gi = gj;
+    }
+  }
+
+  const out = new Map<string, 'x' | 'z'>();
+  for (let i = 0; i < T; i++) {
+    if (worstRank[i] === 1) out.set(teams[i].slug, 'z');
+    else if (worstRank[i] <= playoffSpots) out.set(teams[i].slug, 'x');
   }
   return out;
 }
