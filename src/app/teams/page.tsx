@@ -1,6 +1,7 @@
 // src/app/teams/page.tsx
 import type { Metadata } from 'next';
 import { getAllData } from '@/lib/data';
+import { getRemainingGames, getClinchStatus } from '@/lib/standings';
 import { DataUnavailable } from '@/components/DataUnavailable';
 import { TeamsClient } from './TeamsClient';
 
@@ -20,6 +21,8 @@ const BASE = 'https://tblstats.com';
 
 export default async function TeamsPage() {
   const data = await getAllData();
+  const remaining = getRemainingGames(data.teams, data.schedule);
+  const clinch = Object.fromEntries(getClinchStatus(data.teams, remaining));
   const breadcrumb = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -47,6 +50,7 @@ export default async function TeamsPage() {
         <TeamsClient
           teams={data.teams}
           teamMatches={data.teamMatches}
+          clinch={clinch}
           lastUpdated={data.lastUpdated}
           seoText="Team Boxing League standings based on match results and performance across the season. Sorted by wins, with Points For, Points Against, and point differential."
         />

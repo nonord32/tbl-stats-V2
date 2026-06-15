@@ -61,26 +61,6 @@ function teamShort(team: string): string {
   return map[key] ?? team.slice(0, 3).toUpperCase();
 }
 
-// Compact weight-class abbreviation for the dense desktop table.
-// Full name is still used on the mobile cards where there's room.
-function shortenWeight(name: string | undefined): string {
-  if (!name) return '—';
-  const k = name.toLowerCase().trim();
-  const map: Record<string, string> = {
-    bantamweight: 'BW',
-    featherweight: 'FW',
-    lightweight: 'LW',
-    welterweight: 'WW',
-    middleweight: 'MW',
-    'light heavyweight': 'LH',
-    'light heavy': 'LH',
-    heavyweight: 'HW',
-    female: 'F',
-    money: 'MNY',
-  };
-  return map[k] ?? name;
-}
-
 export default async function MatchPage({
   params,
 }: {
@@ -675,8 +655,8 @@ export default async function MatchPage({
                         <td style={{ ...cellBase, fontWeight: 700, color: 'var(--tbl-ink)' }}>
                           {row.round}
                         </td>
-                        <td style={{ ...cellBase, color: 'var(--tbl-ink-soft)', fontWeight: 700 }}>
-                          {shortenWeight(row.weightClass || row.phase)}
+                        <td style={{ ...cellBase, color: 'var(--tbl-ink-soft)', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                          {row.weightClass || row.phase || '—'}
                         </td>
                         <td
                           style={{

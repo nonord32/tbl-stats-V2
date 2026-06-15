@@ -15,7 +15,7 @@
 // The 2-team case is a special case of the same rule: a team "sweeps" by
 // having a winning H2H record against the one other tied team.
 
-import type { TeamStanding, TeamMatch } from '@/types';
+import type { TeamStanding, TeamMatch, ScheduleEntry } from '@/types';
 import { toSlug } from '@/lib/data';
 
 export function getH2HResult(
@@ -90,6 +90,76 @@ export function sortStandings(
     result.push(...rankTiedGroup(group, teamMatches));
   }
   return result;
+}
+
+// ─── Clinch logic ───────────────────────────────────────────────────────────
+//
+// "Magic number" style clinching based on games remaining. We deliberately
+// ignore tiebreakers and reason about wins only, in the worst case for the
+// team in question: it wins none of its remaining games (final wins = current
+// wins) while every rival wins all of theirs (final wins = maxWins). A team is
+// flagged only when it is mathematically guaranteed — so a flag is never wrong,
+// though a true clinch that depends on a tiebreaker may go unflagged.
+
+// Count of not-yet-played league games per team, keyed by team slug. Schedule
+// team names are short ("Las Vegas") while standings names are full
+// ("Las Vegas Hustle"), so matching is done by prefix. Week 0 (non-league /
+// exhibition) and non-upcoming rows are ignored.
+export function getRemainingGames(
+  teams: TeamStanding[],
+  schedule: ScheduleEntry[]
+): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const t of teams) out.set(t.slug, 0);
+
+  const matchTeam = (shortName: string): TeamStanding | undefined => {
+    const sn = shortName.toLowerCase().trim();
+    if (!sn) return undefined;
+    return teams.find((t) => {
+      const tn = t.team.toLowerCase();
+      return tn === sn || tn.startsWith(sn) || sn.startsWith(tn.split(' ')[0]);
+    });
+  };
+
+  for (const s of schedule) {
+    if (s.week === 0) continue;
+    if (s.status.toLowerCase() !== 'upcoming') continue;
+    for (const name of [s.team1, s.team2]) {
+      const t = matchTeam(name);
+      if (t) out.set(t.slug, (out.get(t.slug) ?? 0) + 1);
+    }
+  }
+  return out;
+}
+
+// Returns a slug → marker map: 'z' = clinched the #1 seed, 'x' = clinched a
+// playoff berth. 'z' implies a playoff berth, so such teams are returned as
+// 'z' only.
+export function getClinchStatus(
+  teams: TeamStanding[],
+  remainingByTeam: Map<string, number>,
+  playoffSpots = 8
+): Map<string, 'x' | 'z'> {
+  const out = new Map<string, 'x' | 'z'>();
+  const maxWins = (t: TeamStanding) => t.wins + (remainingByTeam.get(t.slug) ?? 0);
+
+  for (const t of teams) {
+    // #1 seed: even at the team's win floor, no rival's best case can reach it.
+    const clinchedFirst = teams.every(
+      (o) => o.slug === t.slug || maxWins(o) < t.wins
+    );
+    if (clinchedFirst) {
+      out.set(t.slug, 'z');
+      continue;
+    }
+    // Playoff berth: at most (playoffSpots - 1) rivals can still reach or pass
+    // the team's win floor, so it can finish no worse than the last seed.
+    const threats = teams.filter(
+      (o) => o.slug !== t.slug && maxWins(o) >= t.wins
+    ).length;
+    if (threats < playoffSpots) out.set(t.slug, 'x');
+  }
+  return out;
 }
 
 export interface H2HWinnerInfo {
