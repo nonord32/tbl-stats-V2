@@ -6,6 +6,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { FighterStat, FightHistory } from '@/types';
+import { aggregateFightersByPhase, hasPlayoffData, type Phase } from '@/lib/phaseStats';
 import { compareWeightClass } from '@/lib/weightClasses';
 import { getPrimaryWeightClass, getFighterWeightClasses } from '@/lib/fighters';
 import { PageHeader } from '@/components/chrome/PageHeader';
@@ -37,9 +38,34 @@ const CATEGORIES: Category[] = [
   { key: 'winPct', label: 'Win Percentage',         format: (v) => (v * 100).toFixed(0) + '%' },
 ];
 
+const PHASE_LABELS: Record<Phase, string> = {
+  all: 'Full Season',
+  regular: 'Regular Season',
+  playoffs: 'Playoffs',
+};
+
 export function RankingsClient({ fighters, fighterHistory, lastUpdated }: Props) {
   const [gender, setGender] = useState<Gender>('All');
   const [weightClass, setWeightClass] = useState<string>('All');
+  const [phase, setPhase] = useState<Phase>('all');
+
+  // The phase toggle only appears once playoff games exist, so the page is
+  // unchanged through the regular season.
+  const playoffsLive = useMemo(
+    () => hasPlayoffData(fighterHistory, {}),
+    [fighterHistory]
+  );
+
+  // WAR can't be recomputed per-phase (sheet-only formula), so it's only shown
+  // in the Full Season view; phase views drop the WAR category.
+  const showWar = phase === 'all';
+  const categories = showWar ? CATEGORIES : CATEGORIES.filter((c) => c.key !== 'war');
+
+  // Stats scoped to the selected phase. 'all' passes the sheet stats through.
+  const phaseFighters = useMemo(
+    () => aggregateFightersByPhase(fighters, fighterHistory, phase),
+    [fighters, fighterHistory, phase]
+  );
 
   // Each fighter is ranked under their *primary* class (most fights, ties →
   // most recent). Fighters who've moved up or down still show up in the
@@ -62,7 +88,7 @@ export function RankingsClient({ fighters, fighterHistory, lastUpdated }: Props)
   }, [fighters, fighterHistory]);
 
   const filtered = useMemo(() => {
-    return fighters.filter((f) => {
+    return phaseFighters.filter((f) => {
       if (f.rounds < MIN_ROUNDS) return false;
       if (gender !== 'All' && f.gender !== gender) return false;
       if (weightClass !== 'All') {
@@ -70,10 +96,24 @@ export function RankingsClient({ fighters, fighterHistory, lastUpdated }: Props)
       }
       return true;
     });
-  }, [fighters, gender, weightClass, primaryClassFor]);
+  }, [phaseFighters, gender, weightClass, primaryClassFor]);
 
   const filterSlot = (
     <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+      {playoffsLive && (
+        <label className="gz-filter">
+          <span className="gz-filter__label">View</span>
+          <select
+            className="gz-filter__select"
+            value={phase}
+            onChange={(e) => setPhase(e.target.value as Phase)}
+          >
+            {(['all', 'regular', 'playoffs'] as Phase[]).map((p) => (
+              <option key={p} value={p}>{PHASE_LABELS[p]}</option>
+            ))}
+          </select>
+        </label>
+      )}
       <label className="gz-filter">
         <span className="gz-filter__label">Weight</span>
         <select
@@ -109,7 +149,8 @@ export function RankingsClient({ fighters, fighterHistory, lastUpdated }: Props)
         title="Rankings"
         subtitle={
           <>
-            Four Categories
+            {showWar ? 'Four Categories' : 'Three Categories'}
+            {phase !== 'all' ? ` · ${PHASE_LABELS[phase]}` : ''}
             <span className="rankings-desktop-only"> · Top Five in Each</span>
             <span className="rankings-mobile-only"> · Top Three Each</span>
             {lastUpdated ? ` · Updated ${lastUpdated}` : ''}
@@ -144,7 +185,7 @@ export function RankingsClient({ fighters, fighterHistory, lastUpdated }: Props)
             No qualifying fighters for this filter combination.
           </div>
         ) : (
-          CATEGORIES.map((cat) => (
+          categories.map((cat) => (
             <CategoryList key={cat.key} cat={cat} fighters={filtered} />
           ))
         )}

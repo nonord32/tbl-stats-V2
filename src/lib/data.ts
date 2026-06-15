@@ -14,6 +14,7 @@ import type {
   HighlightEntry,
   AwardEntry,
   ParsedSheetData,
+  GamePhase,
 } from '@/types';
 
 // ─── Sheet URLs ────────────────────────────────────────────────────────────────
@@ -358,6 +359,13 @@ function parseMatchData(rows: string[][]): {
     const firstRow = matchRows[0];
     const date = pick(firstRow, 'Date of Fight', 'Date');
 
+    // Season phase for this match. Tagged in the Data tab via a "Game Phase"
+    // column (Regular / Playoffs); blank or unrecognized ⇒ regular, so the
+    // site behaves exactly as before until playoff games are marked.
+    const gamePhase: GamePhase = matchRows.some((r) =>
+      /playoff/i.test(pick(r, 'Game Phase', 'Game Type', 'Season Phase'))
+    ) ? 'playoffs' : 'regular';
+
     // Get the two teams in this match
     const teamsInMatch = Array.from(new Set(matchRows.map(teamOf).filter(Boolean)));
     if (teamsInMatch.length < 2) return;
@@ -450,6 +458,7 @@ function parseMatchData(rows: string[][]): {
           netPts,
           matchIndex: safeInt(matchId),
           roundId,
+          phase: gamePhase,
         });
       };
 
@@ -502,7 +511,7 @@ function parseMatchData(rows: string[][]): {
       if (!teamMatches[team]) teamMatches[team] = [];
       const exists = teamMatches[team].some((m) => m.date === date && m.opponent === opp);
       if (!exists) {
-        teamMatches[team].push({ date, opponent: opp, result, pf, pa, boxScore: bs, matchIndex: safeInt(matchId) });
+        teamMatches[team].push({ date, opponent: opp, result, pf, pa, boxScore: bs, matchIndex: safeInt(matchId), phase: gamePhase });
       }
     };
 
@@ -583,6 +592,7 @@ export function extractUniqueMatches(teamMatches: Record<string, TeamMatch[]>): 
         wins2,
         result: match.result,
         boxScore: match.boxScore,
+        phase: match.phase,
       });
     });
   });

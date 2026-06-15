@@ -1,5 +1,9 @@
 // src/types/index.ts
 
+// Season phase a game belongs to. Blank/unknown in the source sheet is
+// treated as 'regular' so nothing changes until playoff games are tagged.
+export type GamePhase = 'regular' | 'playoffs';
+
 export interface FighterStat {
   name: string;
   team: string;
@@ -44,6 +48,7 @@ export interface FightHistory {
   netPts: number;
   matchIndex: number;
   roundId: number;  // unique, monotonic across the season; used for stable sort
+  phase: GamePhase;
 }
 
 export interface TeamStanding {
@@ -78,6 +83,7 @@ export interface TeamMatch {
   pa: number;
   boxScore: BoxScoreRound[];
   matchIndex: number;
+  phase: GamePhase;
 }
 
 export interface MatchResult {
@@ -91,6 +97,7 @@ export interface MatchResult {
   wins2: number;
   result: 'W' | 'L' | 'D'; // from team1's perspective
   boxScore: BoxScoreRound[];
+  phase: GamePhase;
 }
 
 export interface ScheduleEntry {

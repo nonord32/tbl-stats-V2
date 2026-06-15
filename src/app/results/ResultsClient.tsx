@@ -1,12 +1,19 @@
 'use client';
 // src/app/results/ResultsClient.tsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toSlug } from '@/lib/data';
 import { getFullTeamName } from '@/lib/teams';
 import type { MatchResult, BoxScoreRound, HighlightEntry } from '@/types';
+import type { Phase } from '@/lib/phaseStats';
+
+const PHASE_LABELS: Record<Phase, string> = {
+  all: 'All',
+  regular: 'Regular Season',
+  playoffs: 'Playoffs',
+};
 
 interface Props {
   matches: MatchResult[];
@@ -104,6 +111,7 @@ function MatchCard({ match, hasHighlights }: { match: MatchResult; hasHighlights
 
   const team1Name = getFullTeamName(toSlug(match.team1));
   const team2Name = getFullTeamName(toSlug(match.team2));
+  const isPlayoff = match.phase === 'playoffs';
 
   // Equal totals are a draw, even when the upstream Match Result column
   // disagrees — the scoreboard is the source of truth.
@@ -143,6 +151,24 @@ function MatchCard({ match, hasHighlights }: { match: MatchResult; hasHighlights
             </span>
           </span>
           <span className="results-rounds-line">
+            {isPlayoff && (
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 9,
+                  fontWeight: 700,
+                  letterSpacing: '0.1em',
+                  color: '#fff',
+                  background: 'var(--accent)',
+                  padding: '1px 6px',
+                  borderRadius: 3,
+                  marginRight: 6,
+                  textTransform: 'uppercase',
+                }}
+              >
+                Playoffs
+              </span>
+            )}
             {isDraw ? 'Draw' : `Rounds ${match.wins1}–${match.wins2}`}
           </span>
         </div>
@@ -298,10 +324,18 @@ function RoundByRound({
 
 export function ResultsClient({ matches, lastUpdated, highlights = [] }: Props) {
   const formattedUpdate = lastUpdated || null;
+  const [phase, setPhase] = useState<Phase>('all');
+
+  const playoffsLive = useMemo(() => matches.some((m) => m.phase === 'playoffs'), [matches]);
+  const visibleMatches = useMemo(
+    () => (phase === 'all' ? matches : matches.filter((m) => m.phase === phase)),
+    [matches, phase]
+  );
+
   const grouped: { date: string; matches: MatchResult[] }[] = [];
   const dateMap = new Map<string, MatchResult[]>();
 
-  for (const m of matches) {
+  for (const m of visibleMatches) {
     if (!dateMap.has(m.date)) {
       dateMap.set(m.date, []);
       grouped.push({ date: m.date, matches: dateMap.get(m.date)! });
@@ -320,22 +354,41 @@ export function ResultsClient({ matches, lastUpdated, highlights = [] }: Props) 
   return (
     <div className="page">
       <div className="container">
-        <div className="page-header">
-          <h1>Results</h1>
-          <div className="subtitle">
-            All Matches · 2026 TBL Season
-            {formattedUpdate && (
-              <span style={{ marginLeft: 10, fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>
-                · Updated {formattedUpdate}
-              </span>
-            )}
+        <div
+          className="page-header"
+          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}
+        >
+          <div>
+            <h1>Results</h1>
+            <div className="subtitle">
+              {phase === 'all' ? 'All Matches' : PHASE_LABELS[phase]} · 2026 TBL Season
+              {formattedUpdate && (
+                <span style={{ marginLeft: 10, fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>
+                  · Updated {formattedUpdate}
+                </span>
+              )}
+            </div>
           </div>
+          {playoffsLive && (
+            <label className="gz-filter" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <span className="gz-filter__label">View</span>
+              <select
+                className="gz-filter__select"
+                value={phase}
+                onChange={(e) => setPhase(e.target.value as Phase)}
+              >
+                {(['all', 'regular', 'playoffs'] as Phase[]).map((p) => (
+                  <option key={p} value={p}>{PHASE_LABELS[p]}</option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
         <p className="page-intro">
           All Team Boxing League match results for the 2026 season. Click any match to see the phase box score, or view the full round-by-round breakdown.
         </p>
 
-        {matches.length === 0 ? (
+        {visibleMatches.length === 0 ? (
           <div className="card"><div className="loading">No match data available</div></div>
         ) : (
           grouped.map(({ date, matches: dayMatches }) => (
@@ -353,7 +406,7 @@ export function ResultsClient({ matches, lastUpdated, highlights = [] }: Props) 
         )}
 
         <div style={{ marginTop: 12, fontSize: 12, color: 'var(--text-muted)' }}>
-          {matches.length} match{matches.length !== 1 ? 'es' : ''} · Click any match for the box score
+          {visibleMatches.length} match{visibleMatches.length !== 1 ? 'es' : ''} · Click any match for the box score
         </div>
       </div>
     </div>
