@@ -11,7 +11,7 @@ export const revalidate = 0;
 // One of the public CSV sheets — a successful response means Google Sheets
 // is reachable and the publish link is still valid.
 const SHEETS_PROBE =
-  'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=1927967888&single=true&output=csv';
+  'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=1273687161&single=true&output=csv';
 
 async function probeSheets(): Promise<{ ok: boolean; status?: number; error?: string }> {
   try {
