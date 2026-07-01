@@ -49,6 +49,7 @@ export interface FightHistory {
   matchIndex: number;
   roundId: number;  // unique, monotonic across the season; used for stable sort
   phase: GamePhase;
+  week?: number;    // schedule week the bout took place in; joined from the Schedule tab by Match ID
 }
 
 export interface TeamStanding {

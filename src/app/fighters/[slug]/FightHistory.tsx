@@ -148,6 +148,7 @@ export function FightHistory({ history }: { history: FightHistoryEntry[] }) {
                           {h.opponent}
                         </Link>
                         <div className="gz-fighter-history-row__meta">
+                          {h.week != null ? `Wk ${h.week} · ` : ''}
                           {h.date} · {roundLabel}
                           {h.roundPhase ? ` · ${h.roundPhase}` : ''}
                           {h.phase === 'playoffs' ? ' · Playoffs' : ''}
@@ -180,11 +181,19 @@ export function FightHistory({ history }: { history: FightHistoryEntry[] }) {
                 >
                   <thead>
                     <tr style={{ borderBottom: '1.5px solid var(--tbl-ink)' }}>
-                      {['Date', 'Opponent', 'Team', 'Round', 'Result', 'Net'].map((h, i) => (
+                      {([
+                        ['Date', 'left'],
+                        ['Week', 'left'],
+                        ['Opponent', 'left'],
+                        ['Team', 'left'],
+                        ['Round', 'right'],
+                        ['Result', 'right'],
+                        ['Net', 'right'],
+                      ] as [string, 'left' | 'right'][]).map(([h, align]) => (
                         <th
                           key={h}
                           style={{
-                            textAlign: i < 3 ? 'left' : 'right',
+                            textAlign: align,
                             padding: '6px 6px',
                             fontWeight: 700,
                             letterSpacing: '0.12em',
@@ -226,6 +235,9 @@ export function FightHistory({ history }: { history: FightHistoryEntry[] }) {
                                 PO
                               </span>
                             )}
+                          </td>
+                          <td style={{ padding: '10px 6px', color: 'var(--tbl-ink-soft)' }}>
+                            {h.week != null ? h.week : '—'}
                           </td>
                           <td
                             style={{

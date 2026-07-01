@@ -813,7 +813,20 @@ export async function getFighterBySlug(slug: string) {
   const data = await getAllData();
   const fighter = data.fighters.find((f) => f.slug === slug);
   if (!fighter) return null;
-  const history = data.fighterHistory[slug] || [];
+
+  // Join the schedule's week onto each bout by Match ID. The Data tab doesn't
+  // carry a week column, but the Schedule tab does — and both key off Match ID
+  // (matchIndex), so a match maps cleanly to a single week. Bouts whose match
+  // isn't on the schedule keep week undefined and render as "—".
+  const weekByMatch = new Map<number, number>();
+  for (const s of data.schedule) {
+    if (s.matchIndex != null && s.week > 0) weekByMatch.set(s.matchIndex, s.week);
+  }
+  const rawHistory = data.fighterHistory[slug] || [];
+  const history = rawHistory.map((h) => {
+    const week = weekByMatch.get(h.matchIndex);
+    return week != null ? { ...h, week } : h;
+  });
   const streak = calcFighterStreak(history);
 
   // 1-based rank within the WAR leaderboard so the profile eyebrow can read
