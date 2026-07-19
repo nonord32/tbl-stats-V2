@@ -1,8 +1,9 @@
 'use client';
 // src/app/teams/[slug]/RecentMatches.tsx
-// Phase-aware "Recent Matches" list for a team profile. When the team has
-// playoff games, a Full Season / Regular Season / Playoffs toggle scopes the
-// list and a small W-L summary; otherwise it renders as before.
+// Phase-aware season matches list for a team profile. Shows every match the
+// team has played this season. When the team has playoff games, a Full Season
+// / Regular Season / Playoffs toggle scopes the list and a small W-L summary;
+// otherwise it renders the full list as-is.
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -139,7 +140,7 @@ export function RecentMatches({ matches }: { matches: TeamMatch[] }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 160 }}>
           <SectionRule
-            left={phase === 'all' ? 'Recent Matches' : `${PHASE_LABELS[phase]} · ${summary}`}
+            left={phase === 'all' ? 'This Season' : `${PHASE_LABELS[phase]} · ${summary}`}
             right="Click for box score"
           />
         </div>
@@ -151,7 +152,7 @@ export function RecentMatches({ matches }: { matches: TeamMatch[] }) {
         </p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {scoped.slice(0, phase === 'all' ? 6 : scoped.length).map((m, i) => (
+          {scoped.map((m, i) => (
             <MatchCard key={i} match={m} />
           ))}
         </div>
