@@ -7,8 +7,12 @@
 //     against EVERY other tied team (a "sweep"), that team ranks first.
 //     Recurse on the rest.
 //   • Otherwise (no sweep, cycles, partial samples where tied teams
-//     haven't played each other), fall back to point differential,
-//     then points-for, then team name (stable, deterministic).
+//     haven't played each other), fall back in order to:
+//       1. overall point differential,
+//       2. head-to-head point differential (net margin in games played
+//          against the other still-tied teams),
+//       3. overall points-for,
+//       4. team name (stable, deterministic).
 //   • An asterisk is shown next to a team only when the sweep actually
 //     changed the order vs point differential alone.
 //
@@ -48,9 +52,39 @@ function findSweeper(
   return null;
 }
 
-function pointDiffSort(group: TeamStanding[]): TeamStanding[] {
+// Net point differential a team earned in head-to-head games against the
+// other members of `group` (points for minus points against in those
+// meetings only). Zero when the tied teams never played each other.
+export function getH2HPointDiff(
+  team: TeamStanding,
+  group: TeamStanding[],
+  teamMatches: Record<string, TeamMatch[]>
+): number {
+  const others = new Set(
+    group.filter((t) => t.slug !== team.slug).map((t) => t.slug)
+  );
+  let net = 0;
+  for (const m of teamMatches[team.team] || []) {
+    if (others.has(toSlug(m.opponent))) net += m.pf - m.pa;
+  }
+  return net;
+}
+
+function pointDiffSort(
+  group: TeamStanding[],
+  teamMatches: Record<string, TeamMatch[]>
+): TeamStanding[] {
+  // Head-to-head point differential is measured within the currently tied
+  // group, so precompute it once per team to keep the comparator cheap.
+  const h2hpd = new Map(
+    group.map((t) => [t.slug, getH2HPointDiff(t, group, teamMatches)])
+  );
   return [...group].sort(
-    (a, b) => b.diff - a.diff || b.pf - a.pf || a.team.localeCompare(b.team)
+    (a, b) =>
+      b.diff - a.diff ||
+      h2hpd.get(b.slug)! - h2hpd.get(a.slug)! ||
+      b.pf - a.pf ||
+      a.team.localeCompare(b.team)
   );
 }
 
@@ -60,7 +94,7 @@ function rankTiedGroup(
 ): TeamStanding[] {
   if (group.length <= 1) return group;
   const sweeper = findSweeper(group, teamMatches);
-  if (!sweeper) return pointDiffSort(group);
+  if (!sweeper) return pointDiffSort(group, teamMatches);
   const rest = group.filter((t) => t.slug !== sweeper.slug);
   return [sweeper, ...rankTiedGroup(rest, teamMatches)];
 }
@@ -103,12 +137,20 @@ export function sortStandings(
 //   • Within a group tied on (wins, losses), the head-to-head "sweep" rule is
 //     evaluated exactly (sweeper ranks first, recurse). Because the H2H games
 //     are part of the enumeration, this is fully determined per scenario.
-//   • Any tied teams the sweep can't separate fall to point differential. The
-//     margins of future games are unknowable, so such ties are treated
-//     adversarially: each unresolved team is placed at the BOTTOM of its block.
+//   • Any tied teams the sweep can't separate fall to point differential. Only
+//     the MARGINS of remaining games are unknowable, not the differentials
+//     already banked. So each team's final diff is bounded to a range
+//     [worstDiff, bestDiff]: a team that still has a win to play could climb
+//     arbitrarily high (+∞), one with a loss to play could sink arbitrarily
+//     low (−∞), and a team that is done playing is pinned to its current diff.
+//     A rival u can finish ahead of team t only if u's BEST possible diff can
+//     reach t's WORST possible diff; otherwise t is guaranteed ahead. Exact
+//     diff ties are resolved adversarially (counted against t) so we never
+//     over-credit a clinch that would hinge on a points-for tiebreak.
 //
-// Result: a clinch via a locked H2H sweep is credited, while one that would
-// depend on point differential never is (it genuinely can't be guaranteed).
+// Result: a locked H2H sweep is credited, AND so is a point-differential
+// cushion that no remaining game can overcome (e.g. a team that is done
+// playing and sits far enough ahead of everyone who still has games left).
 //
 // Enumeration is 2^n in the number of remaining league games. With 12 teams
 // this is cheap near the end of the season; above `maxEnumGames` we fall back
@@ -199,11 +241,15 @@ function findSweeperIdx(
 
 // Within one (wins,losses) group occupying ranks starting after `pos` teams,
 // assign each member its WORST possible 1-based rank and fold it into
-// `worstRank` (keeping the max seen across scenarios).
+// `worstRank` (keeping the max seen across scenarios). `bestDiff`/`worstDiff`
+// bound each team's achievable final point differential given the remaining
+// (margin-unknown) games in this scenario.
 function foldWorstRanks(
   group: number[],
   pos: number,
   cmp: (i: number, j: number) => number,
+  bestDiff: number[],
+  worstDiff: number[],
   worstRank: number[]
 ): void {
   let remaining = group.slice();
@@ -220,10 +266,20 @@ function foldWorstRanks(
   if (remaining.length === 1) {
     const r = p + 1;
     if (r > worstRank[remaining[0]]) worstRank[remaining[0]] = r;
-  } else {
-    // Unresolved (point-diff) block: worst case is the bottom for everyone.
-    const worst = p + remaining.length;
-    for (const t of remaining) if (worst > worstRank[t]) worstRank[t] = worst;
+    return;
+  }
+  // Point-differential block. A rival u can only finish above t if u's best
+  // possible diff can reach t's worst possible diff; ties count against t
+  // (adversarial). A team whose diff cushion no remaining game can erase ends
+  // up ahead of the pack here, which is what lets a genuine clinch register.
+  for (const t of remaining) {
+    let ahead = 0;
+    for (const u of remaining) {
+      if (u === t) continue;
+      if (bestDiff[u] >= worstDiff[t]) ahead++;
+    }
+    const r = p + 1 + ahead;
+    if (r > worstRank[t]) worstRank[t] = r;
   }
 }
 
@@ -268,17 +324,32 @@ export function getClinchStatus(
   for (let mask = 0; mask < scenarios; mask++) {
     const wins = baseWins.slice();
     const losses = baseLosses.slice();
+    const remWins = new Array<number>(T).fill(0);
+    const remLosses = new Array<number>(T).fill(0);
     const overlay = new Map<number, number>(); // i*T+j -> extra wins by i over j
     for (let g = 0; g < n; g++) {
       const [a, b] = pairIdx[g];
       if ((mask >> g) & 1) {
         wins[a]++; losses[b]++;
+        remWins[a]++; remLosses[b]++;
         overlay.set(a * T + b, (overlay.get(a * T + b) ?? 0) + 1);
       } else {
         wins[b]++; losses[a]++;
+        remWins[b]++; remLosses[a]++;
         overlay.set(b * T + a, (overlay.get(b * T + a) ?? 0) + 1);
       }
     }
+
+    // Bound each team's achievable final point differential. A pending win can
+    // be by any margin (best case +∞, worst case just +1 apiece); a pending
+    // loss likewise (worst case −∞, best case −1 apiece). A team with no games
+    // left is pinned to its banked diff.
+    const bestDiff = teams.map((t, i) =>
+      remWins[i] > 0 ? Infinity : t.diff - remLosses[i]
+    );
+    const worstDiff = teams.map((t, i) =>
+      remLosses[i] > 0 ? -Infinity : t.diff + remWins[i]
+    );
     const cmp = (i: number, j: number): number => {
       const iw = baseH2H[i][j] + (overlay.get(i * T + j) ?? 0);
       const jw = baseH2H[j][i] + (overlay.get(j * T + i) ?? 0);
@@ -297,7 +368,7 @@ export function getClinchStatus(
       let gj = gi;
       while (gj < order.length && wins[order[gj]] === w && losses[order[gj]] === l) gj++;
       const group = order.slice(gi, gj);
-      foldWorstRanks(group, pos, cmp, worstRank);
+      foldWorstRanks(group, pos, cmp, bestDiff, worstDiff, worstRank);
       pos += group.length;
       gi = gj;
     }
