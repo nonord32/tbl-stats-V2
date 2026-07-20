@@ -5909,6 +5909,9 @@ body:has(.fv2) {
   gap: 24px;
   align-items: start;
 }
+/* When the postseason field is locked the "On the Bubble" card is dropped, so
+   the field table takes the full width instead of leaving an empty column. */
+.po-grid--single { grid-template-columns: 1fr; }
 .po-card {
   background: var(--tbl-paper);
   border: 1.5px solid var(--tbl-ink);

@@ -7,7 +7,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getAllData, extractUniqueMatches } from '@/lib/data';
 import { getFullTeamName, getTeamLogoPathByName } from '@/lib/teams';
-import { getLastCompletedWeek } from '@/lib/week';
+import { getLastCompletedWeek, getDisplayedCurrentWeek } from '@/lib/week';
 import { sortStandings, getH2HTiebreakerWinners } from '@/lib/standings';
 import { buildBracket, type Seed, type BracketMatch } from '@/lib/playoffs';
 import type { TeamMatch } from '@/types';
@@ -77,22 +77,32 @@ export default async function PlayoffsPage() {
 
   const lastWeek = getLastCompletedWeek(schedule);
 
+  // The field is "set" once the regular season is over (no upcoming games left)
+  // or once a playoff game has been played. Only before that — while games are
+  // still being played — is this a projection ("if the playoffs started today").
+  const fieldSet = anyPlayed || getDisplayedCurrentWeek(schedule) === null;
+
+  const eyebrow = anyPlayed
+    ? 'Postseason · MegaBrawl IV'
+    : fieldSet
+    ? 'Postseason · The Bracket'
+    : 'Postseason · Live Projection';
+  const heading = fieldSet ? 'Playoff Bracket' : 'Playoff Picture';
+
   return (
     <main>
       <div className="tbl-page-body po-root">
         <header className="po-header">
           <div>
-            <div className="tbl-eyebrow">
-              {anyPlayed ? 'Postseason · MegaBrawl IV' : 'Postseason · Live Projection'}
-            </div>
-            <h1 className="tbl-page-header__title po-title">
-              {anyPlayed ? 'Playoff Bracket' : 'Playoff Picture'}
-            </h1>
+            <div className="tbl-eyebrow">{eyebrow}</div>
+            <h1 className="tbl-page-header__title po-title">{heading}</h1>
             <div className="po-header__sub">
               {champion ? (
                 <>Champions: {getFullTeamName(champion.slug)}</>
               ) : anyPlayed ? (
                 <>Single elimination · Winners advance</>
+              ) : fieldSet ? (
+                <>The field is set · Single elimination</>
               ) : (
                 <>If the playoffs started today</>
               )}
@@ -146,7 +156,7 @@ export default async function PlayoffsPage() {
         </div>
 
         {/* Seed list + bubble */}
-        <div className="po-grid">
+        <div className={fieldSet ? 'po-grid po-grid--single' : 'po-grid'}>
           <section className="po-card">
             <div className="tbl-section-rule">
               <span>The Field · 1 through {PLAYOFF_SPOTS}</span>
@@ -155,7 +165,7 @@ export default async function PlayoffsPage() {
             <SeedTable seeds={seeds} h2hWinners={h2hWinners} championSlug={championSlug} />
           </section>
 
-          {!anyPlayed && (
+          {!fieldSet && (
             <section className="po-card">
               <div className="tbl-section-rule">
                 <span>On the Bubble</span>
