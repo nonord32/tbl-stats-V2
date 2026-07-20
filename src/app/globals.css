@@ -2658,7 +2658,7 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
   background: var(--tbl-paper);
   border-top: 2px solid var(--tbl-ink);
   display: none;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   padding: 8px 4px calc(10px + env(safe-area-inset-bottom));
 }
 @media (max-width: 1023px) {
@@ -2675,10 +2675,15 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
   color: var(--tbl-ink-soft);
   font-family: var(--tbl-font-mono);
   font-size: 8.5px;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   font-weight: 500;
   min-height: 44px;
+}
+/* Six tabs get tight on the narrowest phones — trim label spacing so
+   "Standings" doesn't clip. */
+@media (max-width: 360px) {
+  .tbl-mobile-tab-bar__tab { font-size: 8px; letter-spacing: 0.04em; }
 }
 .tbl-mobile-tab-bar__tab.is-active {
   color: var(--tbl-accent);
@@ -5764,7 +5769,7 @@ body:has(.fv2) {
 /* Seed line inside a match cell */
 .po-seed {
   display: grid;
-  grid-template-columns: 26px 28px 1fr;
+  grid-template-columns: 26px 28px 1fr auto;
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
@@ -5773,6 +5778,30 @@ body:has(.fv2) {
 }
 .po-seed:hover { background: color-mix(in srgb, var(--tbl-accent) 6%, transparent); }
 .po-seed--high { background: rgba(20, 17, 11, 0.04); }
+
+/* Decided matchups: the advancing team gets an accent bar + check; the
+   eliminated team is dimmed. */
+.po-seed--winner {
+  background: color-mix(in srgb, var(--tbl-accent) 8%, transparent);
+  box-shadow: inset 3px 0 0 var(--tbl-accent);
+}
+.po-seed--winner .po-seed__name { color: var(--tbl-ink); }
+.po-seed--winner .po-seed__name::after {
+  content: ' ✓';
+  color: var(--tbl-accent);
+  font-weight: 900;
+}
+.po-seed--out { opacity: 0.5; }
+.po-seed__score {
+  font-family: var(--tbl-font-serif);
+  font-weight: 900;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--tbl-ink);
+  text-align: right;
+  min-width: 20px;
+}
+.po-seed--out .po-seed__score { color: var(--tbl-ink-soft); }
 .po-seed__num {
   font-family: var(--tbl-font-serif);
   font-weight: 900;
@@ -5827,6 +5856,46 @@ body:has(.fv2) {
   margin-bottom: 8px;
   color: var(--tbl-bg);
   letter-spacing: 0.02em;
+}
+
+/* Champion state for the Final cell */
+.po-match--champion {
+  background: var(--tbl-accent);
+  border-color: var(--tbl-accent);
+}
+.po-match--champion .po-final__line { color: #fff; }
+.po-final__ribbon {
+  font-family: var(--tbl-font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  padding: 3px 10px;
+  margin-bottom: 10px;
+}
+.po-champion__logo {
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+  margin-bottom: 8px;
+}
+.po-final__meta {
+  font-family: var(--tbl-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Champion row in the seed table */
+.po-table__row--champion {
+  background: color-mix(in srgb, var(--tbl-accent) 10%, transparent);
+}
+.po-table__champ {
+  margin-left: 4px;
+  color: var(--tbl-accent);
+  font-size: 12px;
 }
 
 /* Lower-half SF stack reversal so visual flow mirrors top half */
@@ -5933,61 +6002,40 @@ body:has(.fv2) {
   color: var(--tbl-ink);
 }
 
-/* Mobile-only "Semifinals · MegaBrawl IV TBD" caption. Hidden by default; */
-/* the SF/F columns cover the same info on desktop. */
-.po-bracket__mobile-tbd { display: none; }
+/* Scroll wrapper around the bracket. On desktop it's a passthrough; on phones
+   it lets the real left-to-right bracket scroll sideways instead of collapsing
+   or hiding the semifinal/final rounds — those are the whole point once the
+   postseason is underway. */
+.po-bracket-scroll { margin-bottom: 28px; }
+.po-bracket-scroll .po-bracket { margin-bottom: 0; }
 
-/* Mobile collapse: phones don't need 5 columns of TBD slots — show just the */
-/* four quarterfinal matchups and a tasteful TBD caption underneath. */
+/* Mobile: keep all five columns (QF · SF · F · SF · QF) and swipe. The bracket
+   keeps its intrinsic width so the last column peeks off-screen, signalling
+   that there's more to scroll to. */
 @media (max-width: 720px) {
+  .po-bracket-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    /* Bleed to the screen edges so the cut-off column reads as scrollable. */
+    margin-left: -16px;
+    margin-right: -16px;
+    padding: 0 16px;
+  }
   .po-bracket {
-    grid-template-columns: 1fr;
-    gap: 10px;
+    min-width: 880px;
+    gap: 12px;
     padding: 14px;
   }
-  .po-col { gap: 10px; }
-  /* Hide the empty SF/F slots — they only become useful once the bracket */
-  /* fills in, and on phones the stack of TBDs broke the visual flow. */
-  .po-col--sf, .po-col--f { display: none; }
-  /* Two QF columns now sit back-to-back; drop the duplicate header. */
-  .po-col--qf-bottom .po-round-rule { display: none; }
-  .po-col--qf-bottom { margin-top: 4px; }
+  .po-col { gap: 12px; }
 
-  .po-bracket__mobile-tbd {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    align-items: center;
-    text-align: center;
-    padding: 14px 12px;
-    margin-top: 6px;
-    border: 1px dashed rgba(20, 17, 11, 0.35);
-    background: transparent;
-  }
-  .po-bracket__mobile-tbd-label {
-    font-family: var(--tbl-font-mono);
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-    color: var(--tbl-ink-soft);
-  }
-  .po-bracket__mobile-tbd-text {
-    font-family: var(--tbl-font-serif);
-    font-style: italic;
-    font-size: 13px;
-    color: var(--tbl-ink-soft);
-  }
-
-  .po-grid { grid-template-columns: 1fr; gap: 16px; }
-  .po-card { padding: 14px 14px 16px; }
-
-  /* Match cells: more breathing room, larger touch target on phones. */
-  .po-match { padding: 4px 0; }
-  .po-seed { padding: 10px 12px; gap: 10px; grid-template-columns: 22px 28px 1fr; }
+  /* Larger touch targets on phones (keep the 4-col seed grid incl. score). */
+  .po-seed { padding: 10px 12px; gap: 8px; grid-template-columns: 22px 26px 1fr auto; }
   .po-seed__num { font-size: 20px; }
   .po-seed__name { font-size: 14px; }
   .po-match__rule { padding: 3px 0; }
+
+  .po-grid { grid-template-columns: 1fr; gap: 16px; }
+  .po-card { padding: 14px 14px 16px; }
 
   /* Tighter Field/Bubble table so 320px phones fit without truncation. */
   .po-table__head,
@@ -6004,8 +6052,6 @@ body:has(.fv2) {
 
 @media (max-width: 540px) {
   .po-title { font-size: clamp(40px, 12vw, 60px); }
-  /* Bracket is single-column at this width, so the full team name fits — */
-  /* don't fall back to the city abbreviation. */
 }
 
 /* Standings → Playoffs link (top-right of /teams page header) */

@@ -8,6 +8,7 @@ const LINKS: { label: string; href: string }[] = [
   { label: 'Fighters', href: '/fighters' },
   { label: 'Rankings', href: '/rankings' },
   { label: 'Standings', href: '/teams' },
+  { label: 'Playoffs', href: '/playoffs' },
   { label: 'Schedule', href: '/schedule' },
   { label: "Pick'em", href: '/picks' },
   { label: 'Leaderboard', href: '/leaderboard' },

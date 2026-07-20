@@ -4,6 +4,7 @@
 //   Home     → /
 //   Fighters → /fighters, /fighters/[slug], /rankings
 //   Standings → /teams, /teams/[slug]
+//   Playoffs → /playoffs
 //   Schedule → /schedule, /matches/[id]
 //   Pick'em  → /picks, /leaderboard
 
@@ -61,6 +62,18 @@ const TABS: TabDef[] = [
     icon: (a) => (
       <svg {...iconProps(a)}>
         <path d="M4 21V8l8-5 8 5v13M9 21v-7h6v7" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Playoffs',
+    href: '/playoffs',
+    match: (p) => p.startsWith('/playoffs'),
+    icon: (a) => (
+      <svg {...iconProps(a)}>
+        <path d="M7 4h10v3a5 5 0 0 1-10 0V4z" />
+        <path d="M7 5H4v2a3 3 0 0 0 3 3M17 5h3v2a3 3 0 0 1-3 3" />
+        <path d="M10 12.5V16m4-3.5V16M8 20h8M9 20l.5-2.5h5L15 20" />
       </svg>
     ),
   },

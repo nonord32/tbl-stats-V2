@@ -1,29 +1,26 @@
 // src/app/playoffs/page.tsx
-// "If the playoffs started today" — top-8 single-elimination bracket seeded
-// from the current standings. Quarterfinals are the only round we can fill
-// in (we know who the seeds are); semifinals and the final show TBD slots.
+// Live playoff bracket. Before any playoff game is played this is a projection
+// ("if the playoffs started today") seeded from the final regular-season
+// standings. Once games tagged Game Phase = Playoffs land in the sheet, the
+// bracket advances winners round by round and eventually crowns a champion.
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getAllData } from '@/lib/data';
+import { getAllData, extractUniqueMatches } from '@/lib/data';
 import { getFullTeamName, getTeamLogoPathByName } from '@/lib/teams';
 import { getLastCompletedWeek } from '@/lib/week';
 import { sortStandings, getH2HTiebreakerWinners } from '@/lib/standings';
-import type { TeamStanding } from '@/types';
+import { buildBracket, type Seed, type BracketMatch } from '@/lib/playoffs';
+import type { TeamMatch } from '@/types';
 
 export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: 'Playoff Picture — TBL Stats',
+  title: 'Playoff Bracket — TBL Stats',
   description:
-    'A live bracket projection: if the TBL playoffs started today, here is what the field would look like.',
+    'The TBL playoff bracket: MegaBrawl IV. Live single-elimination results as winners advance to the final.',
 };
 
 const PLAYOFF_SPOTS = 8;
-
-interface Seed {
-  seed: number;
-  team: TeamStanding;
-}
 
 function shortAbbr(slug: string, fallback: string): string {
   const map: Record<string, string> = {
@@ -43,11 +40,25 @@ function shortAbbr(slug: string, fallback: string): string {
   return map[slug] ?? fallback.slice(0, 3).toUpperCase();
 }
 
+// Keep only each team's regular-season matches. Seeds must reflect the final
+// regular-season table, so playoff games can't perturb the standings or the
+// head-to-head tiebreakers.
+function regularSeasonMatches(
+  teamMatches: Record<string, TeamMatch[]>
+): Record<string, TeamMatch[]> {
+  const out: Record<string, TeamMatch[]> = {};
+  for (const [team, matches] of Object.entries(teamMatches)) {
+    out[team] = matches.filter((m) => m.phase === 'regular');
+  }
+  return out;
+}
+
 export default async function PlayoffsPage() {
   const { teams, teamMatches, schedule } = await getAllData();
 
-  const standings = sortStandings(teams, teamMatches);
-  const h2hWinners = getH2HTiebreakerWinners(teams, teamMatches);
+  const regularMatches = regularSeasonMatches(teamMatches);
+  const standings = sortStandings(teams, regularMatches);
+  const h2hWinners = getH2HTiebreakerWinners(teams, regularMatches);
 
   const seeds: Seed[] = standings.slice(0, PLAYOFF_SPOTS).map((team, i) => ({
     seed: i + 1,
@@ -55,15 +66,14 @@ export default async function PlayoffsPage() {
   }));
   const inHunt = standings.slice(PLAYOFF_SPOTS, PLAYOFF_SPOTS + 4);
 
-  // Standard 8-team bracket pairings: 1v8, 4v5, 3v6, 2v7.
-  // Top half = (1v8) → (4v5) → SF1 → Final; bottom half = (3v6) → (2v7) → SF2.
-  const bySeed = new Map(seeds.map((s) => [s.seed, s] as const));
-  const qfPairs: Array<[Seed | undefined, Seed | undefined]> = [
-    [bySeed.get(1), bySeed.get(8)],
-    [bySeed.get(4), bySeed.get(5)],
-    [bySeed.get(3), bySeed.get(6)],
-    [bySeed.get(2), bySeed.get(7)],
-  ];
+  const playoffResults = extractUniqueMatches(teamMatches).filter(
+    (m) => m.phase === 'playoffs'
+  );
+  const bracket = buildBracket(seeds, playoffResults);
+  const { anyPlayed, championSlug } = bracket;
+  const champion = championSlug
+    ? seeds.find((s) => s.team.slug === championSlug)?.team
+    : undefined;
 
   const lastWeek = getLastCompletedWeek(schedule);
 
@@ -72,12 +82,22 @@ export default async function PlayoffsPage() {
       <div className="tbl-page-body po-root">
         <header className="po-header">
           <div>
-            <div className="tbl-eyebrow">Postseason · Live Projection</div>
-            <h1 className="tbl-page-header__title po-title">Playoff Picture</h1>
+            <div className="tbl-eyebrow">
+              {anyPlayed ? 'Postseason · MegaBrawl IV' : 'Postseason · Live Projection'}
+            </div>
+            <h1 className="tbl-page-header__title po-title">
+              {anyPlayed ? 'Playoff Bracket' : 'Playoff Picture'}
+            </h1>
             <div className="po-header__sub">
-              If the playoffs started today
+              {champion ? (
+                <>Champions: {getFullTeamName(champion.slug)}</>
+              ) : anyPlayed ? (
+                <>Single elimination · Winners advance</>
+              ) : (
+                <>If the playoffs started today</>
+              )}
               {lastWeek != null && <> · Through Week {lastWeek}</>}
-              <> · Top {PLAYOFF_SPOTS} seeds · Single elimination</>
+              <> · Top {PLAYOFF_SPOTS} seeds</>
             </div>
           </div>
           <div className="po-header__legend">
@@ -87,45 +107,41 @@ export default async function PlayoffsPage() {
           </div>
         </header>
 
-        <div className="po-bracket">
-          {/* Quarterfinals — top half */}
-          <div className="po-col po-col--qf">
-            <div className="po-round-rule">Quarterfinals</div>
-            {qfPairs.slice(0, 2).map((p, i) => (
-              <Match key={`qf-top-${i}`} a={p[0]} b={p[1]} hostHigh h2hWinners={h2hWinners} />
-            ))}
-          </div>
+        {/* Horizontally scrollable on mobile; the wrapper preserves the true
+            left-to-right bracket instead of collapsing/hiding rounds. */}
+        <div className="po-bracket-scroll">
+          <div className="po-bracket">
+            {/* Quarterfinals — top half */}
+            <div className="po-col po-col--qf">
+              <div className="po-round-rule">Quarterfinals</div>
+              <Match match={bracket.qf[0]} hostHigh h2hWinners={h2hWinners} />
+              <Match match={bracket.qf[1]} hostHigh h2hWinners={h2hWinners} />
+            </div>
 
-          {/* Semifinals — top half */}
-          <div className="po-col po-col--sf">
-            <div className="po-round-rule">Semifinal</div>
-            <TBDMatch />
-          </div>
+            {/* Semifinals — top half */}
+            <div className="po-col po-col--sf">
+              <div className="po-round-rule">Semifinal</div>
+              <Match match={bracket.sf[0]} h2hWinners={h2hWinners} />
+            </div>
 
-          {/* Final */}
-          <div className="po-col po-col--f">
-            <div className="po-round-rule">Final</div>
-            <FinalMatch />
-          </div>
+            {/* Final */}
+            <div className="po-col po-col--f">
+              <div className="po-round-rule">Final</div>
+              <FinalMatch match={bracket.final} h2hWinners={h2hWinners} />
+            </div>
 
-          {/* Semifinals — bottom half */}
-          <div className="po-col po-col--sf po-col--sf-bottom">
-            <div className="po-round-rule">Semifinal</div>
-            <TBDMatch />
-          </div>
+            {/* Semifinals — bottom half */}
+            <div className="po-col po-col--sf po-col--sf-bottom">
+              <div className="po-round-rule">Semifinal</div>
+              <Match match={bracket.sf[1]} h2hWinners={h2hWinners} />
+            </div>
 
-          {/* Quarterfinals — bottom half */}
-          <div className="po-col po-col--qf po-col--qf-bottom">
-            <div className="po-round-rule">Quarterfinals</div>
-            {qfPairs.slice(2, 4).map((p, i) => (
-              <Match key={`qf-bot-${i}`} a={p[0]} b={p[1]} hostHigh h2hWinners={h2hWinners} />
-            ))}
-          </div>
-
-          {/* Mobile-only summary in place of the empty SF/F columns */}
-          <div className="po-bracket__mobile-tbd" aria-hidden="true">
-            <span className="po-bracket__mobile-tbd-label">Semifinals · MegaBrawl IV</span>
-            <span className="po-bracket__mobile-tbd-text">Filled in as winners advance</span>
+            {/* Quarterfinals — bottom half */}
+            <div className="po-col po-col--qf po-col--qf-bottom">
+              <div className="po-round-rule">Quarterfinals</div>
+              <Match match={bracket.qf[2]} hostHigh h2hWinners={h2hWinners} />
+              <Match match={bracket.qf[3]} hostHigh h2hWinners={h2hWinners} />
+            </div>
           </div>
         </div>
 
@@ -136,27 +152,29 @@ export default async function PlayoffsPage() {
               <span>The Field · 1 through {PLAYOFF_SPOTS}</span>
               <span>{seeds.length === PLAYOFF_SPOTS ? 'Locked positions' : 'Provisional'}</span>
             </div>
-            <SeedTable seeds={seeds} h2hWinners={h2hWinners} />
+            <SeedTable seeds={seeds} h2hWinners={h2hWinners} championSlug={championSlug} />
           </section>
 
-          <section className="po-card">
-            <div className="tbl-section-rule">
-              <span>On the Bubble</span>
-              <span>{inHunt.length} clubs</span>
-            </div>
-            {inHunt.length === 0 ? (
-              <div className="po-empty">All clubs are in the field — wait until later in the season.</div>
-            ) : (
-              <SeedTable
-                seeds={inHunt.map((team, i) => ({
-                  seed: PLAYOFF_SPOTS + i + 1,
-                  team,
-                }))}
-                bubble
-                h2hWinners={h2hWinners}
-              />
-            )}
-          </section>
+          {!anyPlayed && (
+            <section className="po-card">
+              <div className="tbl-section-rule">
+                <span>On the Bubble</span>
+                <span>{inHunt.length} clubs</span>
+              </div>
+              {inHunt.length === 0 ? (
+                <div className="po-empty">All clubs are in the field — wait until later in the season.</div>
+              ) : (
+                <SeedTable
+                  seeds={inHunt.map((team, i) => ({
+                    seed: PLAYOFF_SPOTS + i + 1,
+                    team,
+                  }))}
+                  bubble
+                  h2hWinners={h2hWinners}
+                />
+              )}
+            </section>
+          )}
         </div>
 
         {h2hWinners.size > 0 && (
@@ -178,27 +196,42 @@ export default async function PlayoffsPage() {
 
 // ── Match cell ───────────────────────────────────────────────────────────────
 function Match({
-  a,
-  b,
+  match,
   hostHigh,
   h2hWinners,
 }: {
-  a: Seed | undefined;
-  b: Seed | undefined;
+  match: BracketMatch;
   hostHigh?: boolean;
   h2hWinners: Map<string, string[]>;
 }) {
+  const { a, b, status } = match;
   if (!a || !b) {
     return <TBDMatch />;
   }
-  // Lower seed = higher seed line (gets host designation)
+  // Lower seed = higher seed line (gets host designation).
   const host = a.seed < b.seed ? a : b;
   const visitor = a.seed < b.seed ? b : a;
+  const decided = status === 'played';
+  const hostScore = match.score?.[a.seed < b.seed ? 0 : 1];
+  const visitorScore = match.score?.[a.seed < b.seed ? 1 : 0];
   return (
-    <div className="po-match">
-      <SeedRow seed={host} highlight={!!hostHigh} h2hWinners={h2hWinners} />
+    <div className={`po-match${decided ? ' po-match--played' : ''}`}>
+      <SeedRow
+        seed={host}
+        highlight={!!hostHigh && !decided}
+        winner={decided && match.winnerSlug === host.team.slug}
+        eliminated={decided && match.winnerSlug !== host.team.slug}
+        score={hostScore}
+        h2hWinners={h2hWinners}
+      />
       <div className="po-match__rule">vs</div>
-      <SeedRow seed={visitor} h2hWinners={h2hWinners} />
+      <SeedRow
+        seed={visitor}
+        winner={decided && match.winnerSlug === visitor.team.slug}
+        eliminated={decided && match.winnerSlug !== visitor.team.slug}
+        score={visitorScore}
+        h2hWinners={h2hWinners}
+      />
     </div>
   );
 }
@@ -206,20 +239,31 @@ function Match({
 function SeedRow({
   seed,
   highlight,
+  winner,
+  eliminated,
+  score,
   h2hWinners,
 }: {
   seed: Seed;
   highlight?: boolean;
+  winner?: boolean;
+  eliminated?: boolean;
+  score?: number;
   h2hWinners: Map<string, string[]>;
 }) {
   const logo = getTeamLogoPathByName(seed.team.team);
   const name = getFullTeamName(seed.team.slug);
   const beaten = h2hWinners.get(seed.team.slug);
+  const cls = [
+    'po-seed',
+    highlight ? 'po-seed--high' : '',
+    winner ? 'po-seed--winner' : '',
+    eliminated ? 'po-seed--out' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
   return (
-    <Link
-      href={`/teams/${seed.team.slug}`}
-      className={highlight ? 'po-seed po-seed--high' : 'po-seed'}
-    >
+    <Link href={`/teams/${seed.team.slug}`} className={cls}>
       <span className="po-seed__num">{seed.seed}</span>
       {logo && (
         // eslint-disable-next-line @next/next/no-img-element
@@ -240,6 +284,7 @@ function SeedRow({
         <span className="po-seed__abbr">{shortAbbr(seed.team.slug, seed.team.team)}</span>
         <span className="po-seed__rec">{seed.team.record}</span>
       </span>
+      {score != null && <span className="po-seed__score">{score}</span>}
     </Link>
   );
 }
@@ -254,7 +299,47 @@ function TBDMatch() {
   );
 }
 
-function FinalMatch() {
+function FinalMatch({
+  match,
+  h2hWinners,
+}: {
+  match: BracketMatch;
+  h2hWinners: Map<string, string[]>;
+}) {
+  const { a, b, status } = match;
+  const decided = status === 'played';
+  const champion = decided
+    ? a?.team.slug === match.winnerSlug
+      ? a
+      : b
+    : undefined;
+
+  if (champion) {
+    const logo = getTeamLogoPathByName(champion.team.team);
+    const scoreLine = match.score ? `${match.score[0]}–${match.score[1]}` : null;
+    return (
+      <div className="po-match po-match--final po-match--champion">
+        <div className="po-final__ribbon">Champion</div>
+        {logo && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logo} alt="" className="po-champion__logo" />
+        )}
+        <div className="po-final__line">{getFullTeamName(champion.team.slug)}</div>
+        <div className="po-final__meta">MegaBrawl IV{scoreLine ? ` · ${scoreLine}` : ''}</div>
+      </div>
+    );
+  }
+
+  // Finalists set but not yet played, or still awaiting semifinal winners.
+  if (a && b) {
+    return (
+      <div className="po-match po-match--final">
+        <div className="po-final__line">MegaBrawl IV</div>
+        <Match match={match} h2hWinners={h2hWinners} />
+      </div>
+    );
+  }
+
   return (
     <div className="po-match po-match--final">
       <div className="po-final__line">MegaBrawl IV</div>
@@ -270,10 +355,12 @@ function SeedTable({
   seeds,
   bubble,
   h2hWinners,
+  championSlug,
 }: {
   seeds: Seed[];
   bubble?: boolean;
   h2hWinners: Map<string, string[]>;
+  championSlug?: string;
 }) {
   return (
     <div className="po-table">
@@ -294,8 +381,13 @@ function SeedTable({
           ? 'var(--tbl-ink-soft)'
           : 'var(--tbl-red)';
         const beaten = h2hWinners.get(s.team.slug);
+        const isChampion = championSlug === s.team.slug;
         return (
-          <Link key={s.team.slug} href={`/teams/${s.team.slug}`} className="po-table__row">
+          <Link
+            key={s.team.slug}
+            href={`/teams/${s.team.slug}`}
+            className={`po-table__row${isChampion ? ' po-table__row--champion' : ''}`}
+          >
             <span className="po-table__seed">{s.seed}</span>
             <span className="po-table__team">
               {logo && (
@@ -304,6 +396,7 @@ function SeedTable({
               )}
               <span className="po-table__name">
                 {name}
+                {isChampion && <span className="po-table__champ" title="Champion">★</span>}
                 {beaten && (
                   <span
                     className="po-seed__h2h"
@@ -322,10 +415,7 @@ function SeedTable({
               {s.team.diff >= 0 ? '+' : ''}
               {Math.round(s.team.diff)}
             </span>
-            <span
-              className="po-table__num"
-              style={{ color: streakColor }}
-            >
+            <span className="po-table__num" style={{ color: streakColor }}>
               {s.team.streak || '—'}
             </span>
           </Link>
