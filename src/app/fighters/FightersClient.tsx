@@ -12,8 +12,15 @@ import {
 } from '@/lib/fighters';
 import { getTeamColorByName, getTeamLogoPathByName, getCityName } from '@/lib/teams';
 import { PageHeader } from '@/components/chrome/PageHeader';
+import { aggregateFightersByPhase, hasPlayoffData, type Phase } from '@/lib/phaseStats';
 
 type SortKey = 'war' | 'nppr' | 'netPts' | 'winPct' | 'rounds' | 'record' | 'name';
+
+const PHASE_LABELS: Record<Phase, string> = {
+  all: 'Full Season',
+  regular: 'Regular Season',
+  playoffs: 'Playoffs',
+};
 
 interface Props {
   fighters: FighterStat[];
@@ -176,7 +183,24 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
   const [genderFilter, setGenderFilter] = useState('');
   const [weekFilter, setWeekFilter] = useState('');
   const [minRoundsFilter, setMinRoundsFilter] = useState('');
+  const [phase, setPhase] = useState<Phase>('all');
   const [modalFighter, setModalFighter] = useState<FighterStat | null>(null);
+
+  // The View toggle only appears once playoff games exist, so nothing changes
+  // through the regular season.
+  const playoffsLive = useMemo(() => hasPlayoffData(fighterHistory, {}), [fighterHistory]);
+
+  // WAR can't be recomputed per-phase (its formula lives only in the source
+  // sheet), so it's shown as "—" outside the Full Season view.
+  const showWar = phase === 'all';
+
+  // Fighter stats scoped to the selected phase. 'all' passes the sheet stats
+  // through untouched; a single phase recomputes counting/rate stats from that
+  // phase's bouts and returns only fighters who competed in it.
+  const phaseFighters = useMemo(
+    () => aggregateFightersByPhase(fighters, fighterHistory, phase),
+    [fighters, fighterHistory, phase]
+  );
 
   const matchIndexToWeek = useMemo(() => {
     const map = new Map<number, number>();
@@ -278,9 +302,9 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
   // their fight history. WAR is season-level and can't be recomputed here,
   // so it stays as-is.
   const displayedFighters = useMemo(() => {
-    if (!weekFilter) return fighters;
+    if (!weekFilter) return phaseFighters;
     const w = Number(weekFilter);
-    return fighters.map((f) => {
+    return phaseFighters.map((f) => {
       const history = fighterHistory[f.slug] || [];
       const weekOnly = history.filter((h) => matchIndexToWeek.get(h.matchIndex) === w);
       if (weekOnly.length === 0) return f;
@@ -299,7 +323,7 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
         winPct: rounds > 0 ? wins / rounds : 0,
       };
     });
-  }, [fighters, fighterHistory, matchIndexToWeek, weekFilter]);
+  }, [phaseFighters, fighterHistory, matchIndexToWeek, weekFilter]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -380,6 +404,18 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
             onChange={(e) => setSearch(e.target.value)}
             aria-label="Search fighters by name"
           />
+          {playoffsLive && (
+            <select
+              className="fighters-mobile-select"
+              value={phase}
+              onChange={(e) => setPhase(e.target.value as Phase)}
+              aria-label="Filter by season phase"
+            >
+              {(['all', 'regular', 'playoffs'] as Phase[]).map((p) => (
+                <option key={p} value={p}>{PHASE_LABELS[p]}</option>
+              ))}
+            </select>
+          )}
           <select
             className="fighters-mobile-select"
             value={weightFilter}
@@ -429,7 +465,7 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
               <div className="fighters-mobile-row__body">
                 <div className="fighters-mobile-row__name">{f.name}</div>
                 <div className="fighters-mobile-row__meta">
-                  {orderedClassesFor(f).join(', ') || f.weightClass} · {f.record} · WAR {f.war.toFixed(2)}
+                  {orderedClassesFor(f).join(', ') || f.weightClass} · {f.record} · WAR {showWar ? f.war.toFixed(2) : '—'}
                 </div>
               </div>
               <div className="fighters-mobile-row__value">
@@ -475,6 +511,18 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
                 onChange={(e) => setSearch(e.target.value)}
                 aria-label="Search fighters by name"
               />
+              {playoffsLive && (
+                <select
+                  className="filter-select"
+                  value={phase}
+                  onChange={(e) => setPhase(e.target.value as Phase)}
+                  aria-label="Filter by season phase"
+                >
+                  {(['all', 'regular', 'playoffs'] as Phase[]).map((p) => (
+                    <option key={p} value={p}>{PHASE_LABELS[p]}</option>
+                  ))}
+                </select>
+              )}
               <select className="filter-select" value={weightFilter} onChange={(e) => setWeightFilter(e.target.value)}>
                 <option value="">All weights</option>
                 {weightClasses.map((w) => <option key={w} value={w}>{w}</option>)}
@@ -589,7 +637,7 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
                       </td>
                       <td className="num-cell mono col-hide-mobile">{f.nppr.toFixed(2)}</td>
                       <td className="num-cell mono col-hide-mobile">{(f.winPct * 100).toFixed(0)}%</td>
-                      <td className="num-cell mono col-hide-mobile">{f.war.toFixed(2)}</td>
+                      <td className="num-cell mono col-hide-mobile">{showWar ? f.war.toFixed(2) : '—'}</td>
                       <td className="num-cell mono col-hide-mobile">{f.rounds}</td>
                       <td>{streak && <StreakBadge streak={streak} />}</td>
                     </tr>
