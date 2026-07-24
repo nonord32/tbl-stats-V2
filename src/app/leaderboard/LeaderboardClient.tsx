@@ -69,6 +69,11 @@ export function LeaderboardClient({
     ? 'Entries open'
     : 'In progress';
 
+  // While entries are still open, keep each player's champion pick and
+  // tiebreaker number hidden so nobody can copy them — they reveal once the
+  // bracket locks.
+  const revealPicks = !bracketOpen;
+
   return (
     <div className="tbl-page-body lb-root">
       {/* ── Page header ──────────────────────────────────────────────────── */}
@@ -87,6 +92,7 @@ export function LeaderboardClient({
             )}
             {' · '}
             {maxPoints} pts possible
+            {!revealPicks && <> · champion &amp; tiebreaker reveal at lock</>}
           </div>
         </div>
         <div className="lb-header__controls">
@@ -119,8 +125,12 @@ export function LeaderboardClient({
                     <th className="lb-th lb-th--num">Pts</th>
                     <th className="lb-th lb-th--num col-hide-mobile">QF</th>
                     <th className="lb-th lb-th--num col-hide-mobile">SF</th>
-                    <th className="lb-th lb-th--num col-hide-mobile">Champ</th>
-                    <th className="lb-th lb-th--num">TB</th>
+                    {revealPicks && (
+                      <>
+                        <th className="lb-th lb-th--num col-hide-mobile">Champ</th>
+                        <th className="lb-th lb-th--num">TB</th>
+                      </>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -139,25 +149,29 @@ export function LeaderboardClient({
                         <td className="lb-pts">{entry.points}</td>
                         <td className="lb-num col-hide-mobile">{entry.qf_correct}/4</td>
                         <td className="lb-num col-hide-mobile">{entry.sf_correct}/2</td>
-                        <td className="lb-num col-hide-mobile">
-                          {entry.champ_correct ? (
-                            <span className="tbl-streak tbl-streak--win">✓</span>
-                          ) : (
-                            <span className="lb-num__muted">—</span>
-                          )}
-                        </td>
-                        <td className="lb-num">
-                          {entry.final_total != null ? (
-                            <>
-                              {entry.final_total}
-                              {entry.tiebreak_diff != null && (
-                                <span className="lb-num__muted"> ({entry.tiebreak_diff})</span>
+                        {revealPicks && (
+                          <>
+                            <td className="lb-num col-hide-mobile">
+                              {entry.champ_correct ? (
+                                <span className="tbl-streak tbl-streak--win">✓</span>
+                              ) : (
+                                <span className="lb-num__muted">—</span>
                               )}
-                            </>
-                          ) : (
-                            <span className="lb-num__muted">—</span>
-                          )}
-                        </td>
+                            </td>
+                            <td className="lb-num">
+                              {entry.final_total != null ? (
+                                <>
+                                  {entry.final_total}
+                                  {entry.tiebreak_diff != null && (
+                                    <span className="lb-num__muted"> ({entry.tiebreak_diff})</span>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="lb-num__muted">—</span>
+                              )}
+                            </td>
+                          </>
+                        )}
                       </tr>
                     );
                   })}
