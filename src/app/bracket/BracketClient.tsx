@@ -218,6 +218,30 @@ export function BracketClient({ seeds, bracket, entry, open, lockISO }: BracketC
     bracket.sf[i].status === 'played' ? bracket.sf[i].winnerSlug : undefined;
   const actualChampion = bracket.final.status === 'played' ? bracket.championSlug : undefined;
 
+  // A single matchup, rendered identically in the desktop bracket and the
+  // mobile stack (React keys keep the two DOM copies independent).
+  const qfMatch = (i: number, where: string) => (
+    <PickMatch
+      key={`${where}-qf-${i}`}
+      teamA={qfA[i]} teamB={qfB[i]} selected={qf[i]} onPick={(s) => pickQf(i, s)}
+      locked={!open} actualWinner={actualQfWinner(i)} pts={QF_POINTS}
+    />
+  );
+  const sfMatch = (i: number, where: string) => (
+    <PickMatch
+      key={`${where}-sf-${i}`}
+      teamA={sfPart[i][0]} teamB={sfPart[i][1]} selected={sf[i]} onPick={(s) => pickSf(i, s)}
+      locked={!open} actualWinner={actualSfWinner(i)} pts={SF_POINTS}
+    />
+  );
+  const finalMatch = (where: string) => (
+    <PickMatch
+      key={`${where}-final`}
+      teamA={finalPart[0]} teamB={finalPart[1]} selected={champ} onPick={pickChamp}
+      locked={!open} actualWinner={actualChampion} pts={CHAMP_POINTS} final
+    />
+  );
+
   return (
     <>
       {/* ── Header band ─────────────────────────────────────────────────── */}
@@ -326,62 +350,58 @@ export function BracketClient({ seeds, bracket, entry, open, lockISO }: BracketC
           </span>
         </div>
 
-        {/* ── The bracket ────────────────────────────────────────────────── */}
-        <div className="po-bracket-scroll">
+        {/* ── Desktop: full left-to-right bracket ────────────────────────── */}
+        <div className="bc-desktop-only po-bracket-scroll">
           <div className="po-bracket">
             {/* Quarterfinals — top half */}
             <div className="po-col po-col--qf">
               <div className="po-round-rule">Quarterfinals</div>
-              <PickMatch
-                teamA={qfA[0]} teamB={qfB[0]} selected={qf[0]} onPick={(s) => pickQf(0, s)}
-                locked={!open} actualWinner={actualQfWinner(0)} pts={QF_POINTS}
-              />
-              <PickMatch
-                teamA={qfA[1]} teamB={qfB[1]} selected={qf[1]} onPick={(s) => pickQf(1, s)}
-                locked={!open} actualWinner={actualQfWinner(1)} pts={QF_POINTS}
-              />
+              {qfMatch(0, 'd')}
+              {qfMatch(1, 'd')}
             </div>
 
             {/* Semifinal — top */}
             <div className="po-col po-col--sf">
               <div className="po-round-rule">Semifinal</div>
-              <PickMatch
-                teamA={sfPart[0][0]} teamB={sfPart[0][1]} selected={sf[0]} onPick={(s) => pickSf(0, s)}
-                locked={!open} actualWinner={actualSfWinner(0)} pts={SF_POINTS}
-              />
+              {sfMatch(0, 'd')}
             </div>
 
             {/* Final */}
             <div className="po-col po-col--f">
               <div className="po-round-rule">Final</div>
-              <PickMatch
-                teamA={finalPart[0]} teamB={finalPart[1]} selected={champ} onPick={pickChamp}
-                locked={!open} actualWinner={actualChampion} pts={CHAMP_POINTS} final
-              />
+              {finalMatch('d')}
             </div>
 
             {/* Semifinal — bottom */}
             <div className="po-col po-col--sf po-col--sf-bottom">
               <div className="po-round-rule">Semifinal</div>
-              <PickMatch
-                teamA={sfPart[1][0]} teamB={sfPart[1][1]} selected={sf[1]} onPick={(s) => pickSf(1, s)}
-                locked={!open} actualWinner={actualSfWinner(1)} pts={SF_POINTS}
-              />
+              {sfMatch(1, 'd')}
             </div>
 
             {/* Quarterfinals — bottom half */}
             <div className="po-col po-col--qf po-col--qf-bottom">
               <div className="po-round-rule">Quarterfinals</div>
-              <PickMatch
-                teamA={qfA[2]} teamB={qfB[2]} selected={qf[2]} onPick={(s) => pickQf(2, s)}
-                locked={!open} actualWinner={actualQfWinner(2)} pts={QF_POINTS}
-              />
-              <PickMatch
-                teamA={qfA[3]} teamB={qfB[3]} selected={qf[3]} onPick={(s) => pickQf(3, s)}
-                locked={!open} actualWinner={actualQfWinner(3)} pts={QF_POINTS}
-              />
+              {qfMatch(2, 'd')}
+              {qfMatch(3, 'd')}
             </div>
           </div>
+        </div>
+
+        {/* ── Mobile: stacked round-by-round picker ──────────────────────── */}
+        <div className="bc-mobile-only">
+          <MobileRound label="Quarterfinals" note="1 pt each">
+            {qfMatch(0, 'm')}
+            {qfMatch(1, 'm')}
+            {qfMatch(2, 'm')}
+            {qfMatch(3, 'm')}
+          </MobileRound>
+          <MobileRound label="Semifinals" note="2 pts each">
+            {sfMatch(0, 'm')}
+            {sfMatch(1, 'm')}
+          </MobileRound>
+          <MobileRound label="Final · MegaBrawl IV" note="4 pts">
+            {finalMatch('m')}
+          </MobileRound>
         </div>
 
         {/* ── Champion + tiebreaker ──────────────────────────────────────── */}
@@ -533,6 +553,27 @@ const chipLabelStyle: React.CSSProperties = {
   textTransform: 'uppercase',
   lineHeight: 1.2,
 };
+
+// Mobile stacked round: a labeled section with its matchups in a column.
+function MobileRound({
+  label,
+  note,
+  children,
+}: {
+  label: string;
+  note: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={{ marginBottom: 22 }}>
+      <div className="tbl-section-rule">
+        <span>{label}</span>
+        <span>{note}</span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>{children}</div>
+    </div>
+  );
+}
 
 // A single bracket cell with two clickable team lines.
 function PickMatch({

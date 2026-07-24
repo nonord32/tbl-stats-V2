@@ -2825,6 +2825,14 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
   .home-awards-section { padding: 0 16px 28px !important; }
 }
 
+/* Bracket Challenge: full left-to-right bracket on desktop, stacked
+   round-by-round picker on phones. */
+.bc-mobile-only { display: none; }
+@media (max-width: 720px) {
+  .bc-desktop-only { display: none; }
+  .bc-mobile-only { display: block; }
+}
+
 .home-mobile-banner { transition: opacity 0.12s; }
 .home-mobile-banner:hover { opacity: 0.95; text-decoration: none; color: var(--tbl-bg); }
 
