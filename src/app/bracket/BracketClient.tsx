@@ -1,11 +1,13 @@
 'use client';
 // src/app/bracket/BracketClient.tsx
-// Gazette-styled Bracket Challenge ballot. Signed-in users fill out the locked
-// 8-team single-elimination bracket round by round; semifinal options are drawn
-// from their own quarterfinal picks, the champion from their semifinal picks,
-// plus a combined-final-score tiebreaker. Auto-saves on change. Once entries
-// lock (1.5h after the first playoff game starts) this renders as a read-only
-// scorecard grading each pick against the live results.
+// Gazette-styled Bracket Challenge — a real left-to-right bracket (reusing the
+// .po-* bracket scaffold from the Playoffs tab). Signed-in users fill out the
+// WHOLE bracket up front: pick all four quarterfinal winners, then the two
+// semifinal winners from their own QF picks, then the champion, plus a
+// combined-final-score tiebreaker. Everything locks together 1.5h after the
+// first playoff game starts — there is no coming back to pick a semifinal once
+// the quarterfinals are decided. Auto-saves on change; after lock it becomes a
+// read-only scorecard grading each pick against the live results.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getFullTeamName, getTeamLogoPathByName } from '@/lib/teams';
@@ -54,7 +56,6 @@ function useNow(tickMs = 30_000) {
 export function BracketClient({ seeds, bracket, entry, open, lockISO }: BracketClientProps) {
   const now = useNow();
 
-  // slug → Seed lookup for rendering any team by its slug.
   const bySlug = useMemo(() => {
     const m = new Map<string, Seed>();
     seeds.forEach((s) => m.set(s.team.slug, s));
@@ -62,14 +63,12 @@ export function BracketClient({ seeds, bracket, entry, open, lockISO }: BracketC
   }, [seeds]);
 
   // ── Prediction state ──────────────────────────────────────────────────────
-  const [qf, setQf] = useState<string[]>(() => {
-    const base = entry?.qf_winners ?? [];
-    return [0, 1, 2, 3].map((i) => base[i] ?? '');
-  });
-  const [sf, setSf] = useState<string[]>(() => {
-    const base = entry?.sf_winners ?? [];
-    return [0, 1].map((i) => base[i] ?? '');
-  });
+  const [qf, setQf] = useState<string[]>(() =>
+    [0, 1, 2, 3].map((i) => entry?.qf_winners?.[i] ?? '')
+  );
+  const [sf, setSf] = useState<string[]>(() =>
+    [0, 1].map((i) => entry?.sf_winners?.[i] ?? '')
+  );
   const [champ, setChamp] = useState<string>(entry?.champion ?? '');
   const [finalTotal, setFinalTotal] = useState<string>(
     entry?.final_total != null ? String(entry.final_total) : ''
@@ -89,7 +88,6 @@ export function BracketClient({ seeds, bracket, entry, open, lockISO }: BracketC
     })
   );
 
-  // Persist the current prediction (debounced). Only fires while entries are open.
   function scheduleSave(nextQf: string[], nextSf: string[], nextChamp: string, nextTotal: string) {
     if (!open) return;
     const totalNum = nextTotal.trim() === '' ? null : Number(nextTotal);
@@ -133,8 +131,8 @@ export function BracketClient({ seeds, bracket, entry, open, lockISO }: BracketC
     }, 500);
   }
 
-  // Clear any downstream picks that a change just invalidated, keeping the
-  // prediction a valid chain (SF winner ∈ its QF winners; champ ∈ SF winners).
+  // Clear downstream picks a change just invalidated so the bracket stays a
+  // valid chain (SF winner ∈ its QF winners; champion ∈ SF winners).
   function sanitize(nextQf: string[], nextSf: string[], nextChamp: string) {
     const sf2 = [...nextSf];
     ([0, 1] as const).forEach((sfi) => {
@@ -182,16 +180,21 @@ export function BracketClient({ seeds, bracket, entry, open, lockISO }: BracketC
     scheduleSave(qf, sf, champ, clean);
   }
 
-  // ── Participants for each round (from the user's own picks) ────────────────
-  const qfPairs = bracket.qf.map((m) => [m.a, m.b] as [Seed | undefined, Seed | undefined]);
-  const sfPairs: Array<[string, string]> = [
-    [qf[0], qf[1]],
-    [qf[2], qf[3]],
+  // ── Participants per round (from the user's own picks) ─────────────────────
+  const qfA = bracket.qf.map((m) => seedTeam(m.a));
+  const qfB = bracket.qf.map((m) => seedTeam(m.b));
+  const sfPart: Array<[SlotTeam | null, SlotTeam | null]> = [
+    [slugTeam(qf[0], bySlug), slugTeam(qf[1], bySlug)],
+    [slugTeam(qf[2], bySlug), slugTeam(qf[3], bySlug)],
   ];
-  const finalPair: [string, string] = [sf[0], sf[1]];
+  const finalPart: [SlotTeam | null, SlotTeam | null] = [
+    slugTeam(sf[0], bySlug),
+    slugTeam(sf[1], bySlug),
+  ];
+  const championTeam = slugTeam(champ, bySlug);
 
   // ── Scoring (locked view) ──────────────────────────────────────────────────
-  const entryForScore: BracketEntry = {
+  const scoreEntry: BracketEntry = {
     user_id: entry?.user_id ?? '',
     qf_winners: qf,
     sf_winners: sf,
@@ -200,16 +203,20 @@ export function BracketClient({ seeds, bracket, entry, open, lockISO }: BracketC
     created_at: entry?.created_at ?? '',
     updated_at: entry?.updated_at ?? '',
   };
-  const score = scoreBracketEntry(entryForScore, bracket);
+  const score = scoreBracketEntry(scoreEntry, bracket);
   const finalTotalActual = actualFinalTotal(bracket);
 
-  const madeCount =
-    qf.filter(Boolean).length + sf.filter(Boolean).length + (champ ? 1 : 0);
-  const totalSlots = 7;
+  const madeCount = qf.filter(Boolean).length + sf.filter(Boolean).length + (champ ? 1 : 0);
+  const complete = madeCount === 7 && finalTotal.trim() !== '';
   const lockMs = lockISO ? new Date(lockISO).getTime() - now : null;
   const countdown = lockMs != null ? formatCountdown(lockMs) : null;
-
   const statusText = saving ? 'Saving…' : error ? error : saved ? 'Saved' : '';
+
+  const actualQfWinner = (i: number) =>
+    bracket.qf[i].status === 'played' ? bracket.qf[i].winnerSlug : undefined;
+  const actualSfWinner = (i: number) =>
+    bracket.sf[i].status === 'played' ? bracket.sf[i].winnerSlug : undefined;
+  const actualChampion = bracket.final.status === 'played' ? bracket.championSlug : undefined;
 
   return (
     <>
@@ -238,21 +245,21 @@ export function BracketClient({ seeds, bracket, entry, open, lockISO }: BracketC
           >
             Postseason · MegaBrawl IV
           </div>
-          <div className="tbl-display" style={{ fontSize: 60, lineHeight: 0.95, marginTop: 8 }}>
+          <div className="tbl-display" style={{ fontSize: 56, lineHeight: 0.95, marginTop: 8 }}>
             Bracket Challenge
           </div>
           <div
             style={{
               fontFamily: 'var(--tbl-font-mono)',
               fontSize: 11,
-              letterSpacing: '0.22em',
+              letterSpacing: '0.2em',
               color: 'var(--tbl-ink-soft)',
               textTransform: 'uppercase',
               fontWeight: 700,
               marginTop: 10,
             }}
           >
-            Pick every winner · 1 pt QF · 2 pt SF · 4 pt Final · Tiebreaker: final score
+            Fill the whole bracket · 1 pt QF · 2 pt SF · 4 pt Final · Tiebreaker: final score
           </div>
         </div>
 
@@ -270,12 +277,12 @@ export function BracketClient({ seeds, bracket, entry, open, lockISO }: BracketC
           <div>
             <div style={chipLabelStyle}>{open ? 'Filled' : 'Points'}</div>
             <div className="tbl-display" style={{ fontSize: 28, lineHeight: 1, marginTop: 2 }}>
-              {open ? `${madeCount}/${totalSlots}` : `${score.points}/${MAX_BRACKET_POINTS}`}
+              {open ? `${madeCount}/7` : `${score.points}/${MAX_BRACKET_POINTS}`}
             </div>
           </div>
           <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(244,237,224,0.25)' }} />
           <div>
-            <div style={chipLabelStyle}>{open ? 'Entries lock' : 'Status'}</div>
+            <div style={chipLabelStyle}>{open ? 'Locks in' : 'Status'}</div>
             <div
               className="tbl-display"
               style={{ fontSize: 28, lineHeight: 1, marginTop: 2, color: 'var(--tbl-accent-bright)' }}
@@ -286,145 +293,208 @@ export function BracketClient({ seeds, bracket, entry, open, lockISO }: BracketC
         </div>
       </div>
 
-      <div style={{ padding: '26px 32px 56px', maxWidth: 760, margin: '0 auto' }}>
-        {/* Save status / lock notice */}
+      <div className="tbl-page-body" style={{ paddingTop: 22 }}>
+        {/* Status / completeness line */}
         <div
           style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            marginBottom: 18,
+            gap: 12,
+            marginBottom: 16,
             fontFamily: 'var(--tbl-font-mono)',
             fontSize: 11,
-            letterSpacing: '0.14em',
+            letterSpacing: '0.12em',
             textTransform: 'uppercase',
             fontWeight: 700,
-            color: error ? 'var(--tbl-red)' : 'var(--tbl-ink-soft)',
-          }}
-        >
-          <span>{open ? 'Auto-saves as you pick' : 'Entries are locked — grading live results'}</span>
-          <span>{statusText}</span>
-        </div>
-
-        {/* Quarterfinals */}
-        <RoundHeading label="Quarterfinals" note="1 point each" />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
-          {qfPairs.map(([a, b], i) => (
-            <MatchupCard
-              key={`qf-${i}`}
-              teamA={seedTeam(a)}
-              teamB={seedTeam(b)}
-              selected={qf[i]}
-              onPick={(slug) => pickQf(i, slug)}
-              locked={!open}
-              actualWinner={bracket.qf[i].status === 'played' ? bracket.qf[i].winnerSlug : undefined}
-              pointsIfCorrect={QF_POINTS}
-              bySlug={bySlug}
-            />
-          ))}
-        </div>
-
-        {/* Semifinals */}
-        <RoundHeading label="Semifinals" note="2 points each" />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
-          {([0, 1] as const).map((i) => (
-            <MatchupCard
-              key={`sf-${i}`}
-              teamA={slugTeam(sfPairs[i][0], bySlug)}
-              teamB={slugTeam(sfPairs[i][1], bySlug)}
-              selected={sf[i]}
-              onPick={(slug) => pickSf(i, slug)}
-              locked={!open}
-              actualWinner={bracket.sf[i].status === 'played' ? bracket.sf[i].winnerSlug : undefined}
-              pointsIfCorrect={SF_POINTS}
-              bySlug={bySlug}
-            />
-          ))}
-        </div>
-
-        {/* Final */}
-        <RoundHeading label="Final · MegaBrawl IV" note="4 points" />
-        <div style={{ marginBottom: 22 }}>
-          <MatchupCard
-            teamA={slugTeam(finalPair[0], bySlug)}
-            teamB={slugTeam(finalPair[1], bySlug)}
-            selected={champ}
-            onPick={(slug) => pickChamp(slug)}
-            locked={!open}
-            actualWinner={bracket.final.status === 'played' ? bracket.championSlug : undefined}
-            pointsIfCorrect={CHAMP_POINTS}
-            bySlug={bySlug}
-          />
-        </div>
-
-        {/* Tiebreaker */}
-        <div
-          style={{
-            border: '1.5px solid var(--tbl-ink)',
-            background: 'var(--tbl-paper)',
-            padding: '18px 20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 16,
             flexWrap: 'wrap',
           }}
         >
-          <div>
-            <div
-              style={{
-                fontFamily: 'var(--tbl-font-mono)',
-                fontSize: 11,
-                letterSpacing: '0.2em',
-                textTransform: 'uppercase',
-                fontWeight: 700,
-                color: 'var(--tbl-ink)',
-              }}
-            >
-              Tiebreaker
+          <span style={{ color: error ? 'var(--tbl-red)' : 'var(--tbl-ink-soft)' }}>
+            {open
+              ? complete
+                ? 'Bracket complete — you can still edit until it locks'
+                : 'Pick every matchup, a champion, and the tiebreaker before it locks'
+              : 'Entries are locked — grading live results'}
+          </span>
+          <span
+            style={{
+              color: open && complete ? 'var(--tbl-green)' : 'var(--tbl-ink-soft)',
+            }}
+          >
+            {statusText || (open && complete ? '✓ Complete' : '')}
+          </span>
+        </div>
+
+        {/* ── The bracket ────────────────────────────────────────────────── */}
+        <div className="po-bracket-scroll">
+          <div className="po-bracket">
+            {/* Quarterfinals — top half */}
+            <div className="po-col po-col--qf">
+              <div className="po-round-rule">Quarterfinals</div>
+              <PickMatch
+                teamA={qfA[0]} teamB={qfB[0]} selected={qf[0]} onPick={(s) => pickQf(0, s)}
+                locked={!open} actualWinner={actualQfWinner(0)} pts={QF_POINTS}
+              />
+              <PickMatch
+                teamA={qfA[1]} teamB={qfB[1]} selected={qf[1]} onPick={(s) => pickQf(1, s)}
+                locked={!open} actualWinner={actualQfWinner(1)} pts={QF_POINTS}
+              />
             </div>
-            <div
-              style={{
-                fontFamily: 'var(--tbl-font-mono)',
-                fontSize: 11,
-                color: 'var(--tbl-ink-soft)',
-                marginTop: 4,
-              }}
-            >
-              Combined final score of the Final (both teams)
+
+            {/* Semifinal — top */}
+            <div className="po-col po-col--sf">
+              <div className="po-round-rule">Semifinal</div>
+              <PickMatch
+                teamA={sfPart[0][0]} teamB={sfPart[0][1]} selected={sf[0]} onPick={(s) => pickSf(0, s)}
+                locked={!open} actualWinner={actualSfWinner(0)} pts={SF_POINTS}
+              />
+            </div>
+
+            {/* Final */}
+            <div className="po-col po-col--f">
+              <div className="po-round-rule">Final</div>
+              <PickMatch
+                teamA={finalPart[0]} teamB={finalPart[1]} selected={champ} onPick={pickChamp}
+                locked={!open} actualWinner={actualChampion} pts={CHAMP_POINTS} final
+              />
+            </div>
+
+            {/* Semifinal — bottom */}
+            <div className="po-col po-col--sf po-col--sf-bottom">
+              <div className="po-round-rule">Semifinal</div>
+              <PickMatch
+                teamA={sfPart[1][0]} teamB={sfPart[1][1]} selected={sf[1]} onPick={(s) => pickSf(1, s)}
+                locked={!open} actualWinner={actualSfWinner(1)} pts={SF_POINTS}
+              />
+            </div>
+
+            {/* Quarterfinals — bottom half */}
+            <div className="po-col po-col--qf po-col--qf-bottom">
+              <div className="po-round-rule">Quarterfinals</div>
+              <PickMatch
+                teamA={qfA[2]} teamB={qfB[2]} selected={qf[2]} onPick={(s) => pickQf(2, s)}
+                locked={!open} actualWinner={actualQfWinner(2)} pts={QF_POINTS}
+              />
+              <PickMatch
+                teamA={qfA[3]} teamB={qfB[3]} selected={qf[3]} onPick={(s) => pickQf(3, s)}
+                locked={!open} actualWinner={actualQfWinner(3)} pts={QF_POINTS}
+              />
             </div>
           </div>
-          {open ? (
-            <input
-              inputMode="numeric"
-              value={finalTotal}
-              onChange={(e) => onFinalTotal(e.target.value)}
-              placeholder="—"
-              aria-label="Predicted combined final score"
-              style={{
-                width: 96,
-                padding: '10px 12px',
-                border: '1.5px solid var(--tbl-ink)',
-                background: 'var(--tbl-bg)',
-                fontFamily: 'var(--tbl-font-mono)',
-                fontSize: 22,
-                fontWeight: 700,
-                textAlign: 'center',
-                color: 'var(--tbl-ink)',
-              }}
-            />
-          ) : (
-            <div style={{ textAlign: 'right', fontFamily: 'var(--tbl-font-mono)' }}>
-              <div className="tbl-display" style={{ fontSize: 26 }}>
-                {finalTotal || '—'}
-              </div>
-              {finalTotalActual != null && (
-                <div style={{ fontSize: 11, color: 'var(--tbl-ink-soft)', marginTop: 2 }}>
-                  Actual {finalTotalActual}
-                </div>
-              )}
+        </div>
+
+        {/* ── Champion + tiebreaker ──────────────────────────────────────── */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gap: 14,
+            marginTop: 8,
+          }}
+        >
+          {/* Predicted champion */}
+          <div
+            style={{
+              border: '1.5px solid var(--tbl-ink)',
+              background: championTeam ? 'var(--tbl-ink)' : 'var(--tbl-paper)',
+              color: championTeam ? 'var(--tbl-bg)' : 'var(--tbl-ink)',
+              padding: '18px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              minHeight: 78,
+            }}
+          >
+            <div style={{ ...chipLabelStyle, color: championTeam ? 'rgba(244,237,224,0.6)' : 'var(--tbl-ink-soft)' }}>
+              Your<br />Champion
             </div>
-          )}
+            {championTeam ? (
+              <>
+                {championTeam.logo && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={championTeam.logo} alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
+                )}
+                <div className="tbl-display" style={{ fontSize: 24, lineHeight: 1 }}>
+                  {championTeam.name}
+                </div>
+              </>
+            ) : (
+              <div style={{ fontFamily: 'var(--tbl-font-mono)', fontSize: 12, color: 'var(--tbl-ink-soft)' }}>
+                Pick your way to a champion
+              </div>
+            )}
+            {!open && actualChampion && (
+              <div style={{ marginLeft: 'auto', fontFamily: 'var(--tbl-font-mono)', fontSize: 10, fontWeight: 700, letterSpacing: '0.14em' }}>
+                {champ && champ === actualChampion ? (
+                  <span style={{ color: 'var(--tbl-green)' }}>✓ +{CHAMP_POINTS}</span>
+                ) : (
+                  <span style={{ color: 'var(--tbl-accent-bright)' }}>
+                    {getFullTeamName(actualChampion)}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Tiebreaker */}
+          <div
+            style={{
+              border: '1.5px solid var(--tbl-ink)',
+              background: 'var(--tbl-paper)',
+              padding: '14px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 16,
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  fontFamily: 'var(--tbl-font-mono)',
+                  fontSize: 11,
+                  letterSpacing: '0.2em',
+                  textTransform: 'uppercase',
+                  fontWeight: 700,
+                }}
+              >
+                Tiebreaker
+              </div>
+              <div style={{ fontFamily: 'var(--tbl-font-mono)', fontSize: 11, color: 'var(--tbl-ink-soft)', marginTop: 4 }}>
+                Combined final score (both teams)
+              </div>
+            </div>
+            {open ? (
+              <input
+                inputMode="numeric"
+                value={finalTotal}
+                onChange={(e) => onFinalTotal(e.target.value)}
+                placeholder="—"
+                aria-label="Predicted combined final score"
+                style={{
+                  width: 88,
+                  padding: '10px 12px',
+                  border: '1.5px solid var(--tbl-ink)',
+                  background: 'var(--tbl-bg)',
+                  fontFamily: 'var(--tbl-font-mono)',
+                  fontSize: 22,
+                  fontWeight: 700,
+                  textAlign: 'center',
+                  color: 'var(--tbl-ink)',
+                }}
+              />
+            ) : (
+              <div style={{ textAlign: 'right', fontFamily: 'var(--tbl-font-mono)' }}>
+                <div className="tbl-display" style={{ fontSize: 26 }}>{finalTotal || '—'}</div>
+                {finalTotalActual != null && (
+                  <div style={{ fontSize: 11, color: 'var(--tbl-ink-soft)', marginTop: 2 }}>
+                    Actual {finalTotalActual}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </>
@@ -461,26 +531,19 @@ const chipLabelStyle: React.CSSProperties = {
   fontWeight: 700,
   color: 'rgba(244,237,224,0.55)',
   textTransform: 'uppercase',
+  lineHeight: 1.2,
 };
 
-function RoundHeading({ label, note }: { label: string; note: string }) {
-  return (
-    <div className="tbl-section-rule">
-      <span>{label}</span>
-      <span>{note}</span>
-    </div>
-  );
-}
-
-function MatchupCard({
+// A single bracket cell with two clickable team lines.
+function PickMatch({
   teamA,
   teamB,
   selected,
   onPick,
   locked,
   actualWinner,
-  pointsIfCorrect,
-  bySlug,
+  pts,
+  final,
 }: {
   teamA: SlotTeam | null;
   teamB: SlotTeam | null;
@@ -488,147 +551,145 @@ function MatchupCard({
   onPick: (slug: string) => void;
   locked: boolean;
   actualWinner?: string;
-  pointsIfCorrect: number;
-  bySlug: Map<string, Seed>;
+  pts: number;
+  final?: boolean;
 }) {
-  const earned = !!actualWinner && !!selected && selected === actualWinner;
+  const earned = locked && !!actualWinner && !!selected && selected === actualWinner;
   const missed = locked && !!actualWinner && !!selected && selected !== actualWinner;
 
   return (
-    <div
-      style={{
-        border: '1.5px solid var(--tbl-ink)',
-        background: 'var(--tbl-bg)',
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-      }}
-    >
-      <TeamButton
+    <div className={`po-match${final ? ' bc-match--final' : ''}`} style={{ background: 'var(--tbl-paper)' }}>
+      <SeedPick
         team={teamA}
         selected={!!selected && teamA?.slug === selected}
         onPick={onPick}
         locked={locked}
-        isActualWinner={!!actualWinner && teamA?.slug === actualWinner}
-        side="left"
+        actualWinner={actualWinner}
       />
-      <TeamButton
+      <div className="po-match__rule">vs</div>
+      <SeedPick
         team={teamB}
         selected={!!selected && teamB?.slug === selected}
         onPick={onPick}
         locked={locked}
-        isActualWinner={!!actualWinner && teamB?.slug === actualWinner}
-        side="right"
+        actualWinner={actualWinner}
       />
       {locked && actualWinner && (
         <div
           style={{
-            gridColumn: '1 / -1',
             borderTop: '1px solid var(--tbl-ink)',
-            padding: '6px 12px',
+            padding: '4px 10px',
             fontFamily: 'var(--tbl-font-mono)',
-            fontSize: 10,
+            fontSize: 9,
             letterSpacing: '0.14em',
             textTransform: 'uppercase',
             fontWeight: 700,
-            color: earned ? 'var(--tbl-green)' : missed ? 'var(--tbl-red)' : 'var(--tbl-ink-soft)',
             textAlign: 'right',
+            color: earned ? 'var(--tbl-green)' : missed ? 'var(--tbl-red)' : 'var(--tbl-ink-soft)',
           }}
         >
-          {earned ? `+${pointsIfCorrect} pts` : missed ? '0 pts' : `${pointsIfCorrect} pts avail.`}
+          {earned ? `+${pts} pts` : missed ? '0 pts' : `${pts} pts`}
         </div>
       )}
     </div>
   );
 }
 
-function TeamButton({
+function SeedPick({
   team,
   selected,
   onPick,
   locked,
-  isActualWinner,
-  side,
+  actualWinner,
 }: {
   team: SlotTeam | null;
   selected: boolean;
   onPick: (slug: string) => void;
   locked: boolean;
-  isActualWinner: boolean;
-  side: 'left' | 'right';
+  actualWinner?: string;
 }) {
-  const disabled = locked || !team;
-  const bg = selected ? 'var(--tbl-ink)' : 'transparent';
-  const fg = selected ? 'var(--tbl-bg)' : 'var(--tbl-ink)';
+  if (!team) {
+    return <div className="po-tbd">TBD</div>;
+  }
+  const isActualWinner = !!actualWinner && team.slug === actualWinner;
+  const dim = locked && !selected && !isActualWinner;
+  const disabled = locked;
 
   return (
     <button
       type="button"
       disabled={disabled}
-      onClick={() => team && onPick(team.slug)}
+      onClick={() => onPick(team.slug)}
       style={{
-        display: 'flex',
+        display: 'grid',
+        gridTemplateColumns: '22px 26px 1fr auto',
         alignItems: 'center',
-        gap: 10,
-        padding: '14px 14px',
-        background: bg,
-        color: fg,
+        gap: 8,
+        padding: '9px 10px',
+        width: '100%',
         border: 'none',
-        borderRight: side === 'left' ? '1px solid var(--tbl-ink)' : 'none',
         cursor: disabled ? 'default' : 'pointer',
         textAlign: 'left',
-        width: '100%',
-        minHeight: 58,
-        fontFamily: 'var(--tbl-font-mono)',
-        position: 'relative',
-        opacity: locked && !selected && !isActualWinner ? 0.6 : 1,
+        fontFamily: 'var(--tbl-font-serif)',
+        background: selected ? 'color-mix(in srgb, var(--tbl-accent) 14%, transparent)' : 'transparent',
+        boxShadow: selected ? 'inset 3px 0 0 var(--tbl-accent)' : 'none',
+        opacity: dim ? 0.5 : 1,
       }}
     >
-      {team ? (
-        <>
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              opacity: 0.7,
-              minWidth: 16,
-            }}
-          >
-            {team.seed}
-          </span>
-          {team.logo && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={team.logo} alt="" style={{ width: 26, height: 26, objectFit: 'contain' }} />
-          )}
-          <span style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.1 }}>{team.name}</span>
-          {selected && (
-            <span
-              style={{
-                marginLeft: 'auto',
-                fontSize: 9,
-                letterSpacing: '0.18em',
-                fontWeight: 700,
-                color: 'var(--tbl-accent-bright)',
-              }}
-            >
-              PICK
-            </span>
-          )}
-          {locked && isActualWinner && !selected && (
-            <span
-              style={{
-                marginLeft: 'auto',
-                fontSize: 9,
-                letterSpacing: '0.18em',
-                fontWeight: 700,
-                color: 'var(--tbl-green)',
-              }}
-            >
-              WON
-            </span>
-          )}
-        </>
+      <span
+        style={{
+          fontWeight: 900,
+          fontSize: 18,
+          color: 'var(--tbl-accent)',
+          lineHeight: 1,
+        }}
+      >
+        {team.seed}
+      </span>
+      {team.logo ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={team.logo} alt="" style={{ width: 24, height: 24, objectFit: 'contain' }} />
       ) : (
-        <span style={{ fontSize: 12, color: 'var(--tbl-ink-soft)', letterSpacing: '0.14em' }}>TBD</span>
+        <span />
+      )}
+      <span
+        style={{
+          fontWeight: 800,
+          fontSize: 13,
+          color: 'var(--tbl-ink)',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {team.name}
+      </span>
+      {selected ? (
+        <span
+          style={{
+            fontFamily: 'var(--tbl-font-mono)',
+            fontSize: 8,
+            fontWeight: 700,
+            letterSpacing: '0.16em',
+            color: 'var(--tbl-accent)',
+          }}
+        >
+          PICK
+        </span>
+      ) : locked && isActualWinner ? (
+        <span
+          style={{
+            fontFamily: 'var(--tbl-font-mono)',
+            fontSize: 8,
+            fontWeight: 700,
+            letterSpacing: '0.16em',
+            color: 'var(--tbl-green)',
+          }}
+        >
+          WON
+        </span>
+      ) : (
+        <span />
       )}
     </button>
   );

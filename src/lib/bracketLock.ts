@@ -44,6 +44,11 @@ export function getBracketLockTime(schedule: ScheduleEntry[], seeds: Seed[]): Da
   let earliest: Date | null = null;
   for (const s of schedule) {
     if (!s.team1 || !s.team2) continue;
+    // Only the *upcoming* meeting counts. The same two teams almost certainly
+    // also met in the regular season (a Completed row in the past) — matching
+    // that would lock the bracket the moment the field is set. Blank statuses
+    // parse as "Upcoming", so unplayed playoff games are included.
+    if (s.status !== 'Upcoming') continue;
     const key = [toSlug(s.team1), toSlug(s.team2)].sort().join('|');
     if (!qfPairKeys.has(key)) continue;
     const start = getGameStartUTC(s.date, s.time, s.venueCity);

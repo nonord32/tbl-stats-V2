@@ -8,7 +8,7 @@ import type { ParsedSheetData, TeamMatch } from '@/types';
 import { extractUniqueMatches } from './data';
 import { sortStandings } from './standings';
 import { buildBracket, type Bracket, type Seed } from './playoffs';
-import { getBracketLockTime } from './bracketLock';
+import { getBracketLockTime, isBracketOpen } from './bracketLock';
 
 export const PLAYOFF_SPOTS = 8;
 
@@ -28,9 +28,13 @@ export interface BracketContext {
   seeds: Seed[];
   bracket: Bracket;
   lockTime: Date | null;
+  /** Whether entries can still be created or edited right now. */
+  open: boolean;
 }
 
-/** Build the top-8 seeds, the live bracket, and the entry-lock time. */
+/** Build the top-8 seeds, the live bracket, the entry-lock time, and whether
+ *  entries are still open. Entries close 1.5h after the first playoff game
+ *  starts, or immediately once any playoff game has been played. */
 export function getBracketContext(sheetData: ParsedSheetData): BracketContext {
   const regularMatches = regularSeasonMatches(sheetData.teamMatches);
   const standings = sortStandings(sheetData.teams, regularMatches);
@@ -44,6 +48,9 @@ export function getBracketContext(sheetData: ParsedSheetData): BracketContext {
   );
   const bracket = buildBracket(seeds, playoffResults);
   const lockTime = getBracketLockTime(sheetData.schedule, seeds);
+  // Once any playoff game is on the board the field is in play — lock even if
+  // the schedule row has since flipped to Completed (making lockTime null).
+  const open = !bracket.anyPlayed && isBracketOpen(lockTime);
 
-  return { seeds, bracket, lockTime };
+  return { seeds, bracket, lockTime, open };
 }

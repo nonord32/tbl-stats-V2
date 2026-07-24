@@ -8,7 +8,6 @@ import { createClient as createServiceClient, type SupabaseClient } from '@supab
 import { getAllData } from '@/lib/data';
 import { getFullTeamName } from '@/lib/teams';
 import { getBracketContext } from '@/lib/bracketData';
-import { isBracketOpen } from '@/lib/bracketLock';
 import { scoreBracketEntry, actualFinalTotal, MAX_BRACKET_POINTS } from '@/lib/bracketScore';
 import { safeGetUser, safeQuery } from '@/lib/supabase/safe';
 import { LeaderboardClient } from './LeaderboardClient';
@@ -47,7 +46,7 @@ export default async function LeaderboardPage() {
   }
 
   const sheetData = await getAllData();
-  const { bracket, lockTime } = getBracketContext(sheetData);
+  const { bracket, open: bracketOpen } = getBracketContext(sheetData);
 
   const [entryRows, profileRows] = await Promise.all([
     service
@@ -133,7 +132,7 @@ export default async function LeaderboardPage() {
         maxPoints={MAX_BRACKET_POINTS}
         championName={championName}
         finalTotalActual={finalTotalActual}
-        bracketOpen={isBracketOpen(lockTime)}
+        bracketOpen={bracketOpen}
       />
     </main>
   );

@@ -9,7 +9,6 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getAllData } from '@/lib/data';
 import { getBracketContext } from '@/lib/bracketData';
-import { isBracketOpen } from '@/lib/bracketLock';
 
 const SF_SOURCES: Record<number, [number, number]> = { 0: [0, 1], 1: [2, 3] };
 
@@ -65,8 +64,8 @@ export async function POST(request: Request) {
 
   // Entries must still be open. Re-derive the lock time server-side.
   const sheetData = await getAllData();
-  const { seeds, lockTime } = getBracketContext(sheetData);
-  if (!isBracketOpen(lockTime)) {
+  const { seeds, open } = getBracketContext(sheetData);
+  if (!open) {
     return NextResponse.json(
       { error: 'The Bracket Challenge is locked — entries closed after the first playoff game.' },
       { status: 403 }

@@ -7,7 +7,6 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getAllData } from '@/lib/data';
 import { getBracketContext } from '@/lib/bracketData';
-import { isBracketOpen } from '@/lib/bracketLock';
 import { safeGetUser, safeQuery } from '@/lib/supabase/safe';
 import { BracketClient } from './BracketClient';
 import type { BracketEntry } from '@/types';
@@ -23,7 +22,7 @@ export default async function BracketPage() {
   }
 
   const sheetData = await getAllData();
-  const { seeds, bracket, lockTime } = getBracketContext(sheetData);
+  const { seeds, bracket, lockTime, open } = getBracketContext(sheetData);
 
   const entries = await safeQuery<BracketEntry[]>(
     supabase.from('bracket_entries').select('*').eq('user_id', user.id).limit(1),
@@ -37,7 +36,7 @@ export default async function BracketPage() {
       seeds={seeds}
       bracket={bracket}
       entry={entry}
-      open={isBracketOpen(lockTime)}
+      open={open}
       lockISO={lockTime ? lockTime.toISOString() : null}
     />
   );
