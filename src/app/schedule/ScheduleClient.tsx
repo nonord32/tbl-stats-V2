@@ -340,14 +340,18 @@ export function ScheduleClient({ schedule, currentWeek, scores }: Props) {
           </div>
         ) : (
           shown.map(([wk, entries]) => {
+            // Past weeks (and every week once the season is over, when
+            // currentWeek is null) show no label at all — only the current
+            // week, the one just before it, and genuinely future weeks are
+            // labeled.
             const label =
               wk === currentWeek
                 ? 'This Week'
                 : currentWeek != null && wk === currentWeek - 1
                 ? 'Last Week'
-                : wk > (currentWeek ?? 0)
+                : currentWeek != null && wk > currentWeek
                 ? 'Upcoming'
-                : 'Past';
+                : '';
             const labelColor =
               wk === currentWeek ? 'var(--tbl-accent)' : 'var(--tbl-ink-soft)';
             return (
@@ -369,18 +373,20 @@ export function ScheduleClient({ schedule, currentWeek, scores }: Props) {
                   >
                     Week {wk}
                   </div>
-                  <div
-                    style={{
-                      fontFamily: 'var(--tbl-font-mono)',
-                      fontSize: 10,
-                      letterSpacing: '0.22em',
-                      textTransform: 'uppercase',
-                      fontWeight: 700,
-                      color: labelColor,
-                    }}
-                  >
-                    {label}
-                  </div>
+                  {label && (
+                    <div
+                      style={{
+                        fontFamily: 'var(--tbl-font-mono)',
+                        fontSize: 10,
+                        letterSpacing: '0.22em',
+                        textTransform: 'uppercase',
+                        fontWeight: 700,
+                        color: labelColor,
+                      }}
+                    >
+                      {label}
+                    </div>
+                  )}
                 </div>
                 <div
                   className="gz-schedule-grid"

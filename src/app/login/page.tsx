@@ -44,7 +44,7 @@ export default function LoginPage() {
   // Both auth flows are server-driven so the freshly-issued cookies survive
   // iOS Safari's tracking prevention:
   //   • Google → GET /api/auth/google → 302 to Google with PKCE cookie set
-  //   • Email  → POST /api/auth/login → 303 to /picks with session cookie set
+  //   • Email  → POST /api/auth/login → 303 to /bracket with session cookie set
   return (
     <main className="auth-page">
       <div className="auth-form card" style={{ textAlign: 'center' }}>

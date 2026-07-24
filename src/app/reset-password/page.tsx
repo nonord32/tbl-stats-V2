@@ -65,7 +65,7 @@ export default function ResetPasswordPage() {
       setSubmitting(false);
       return;
     }
-    router.push('/picks');
+    router.push('/bracket');
     router.refresh();
   }
 

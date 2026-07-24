@@ -41,7 +41,7 @@ export default function SignupPage() {
       email: email.trim(),
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=/picks`,
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=/bracket`,
       },
     });
     if (signUpError) {

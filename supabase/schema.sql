@@ -117,6 +117,39 @@ join public.profiles pr on p.user_id = pr.id
 group by p.user_id, pr.username, pr.display_name
 order by total_points desc, exact_picks desc;
 
+-- ─── Bracket Challenge: one predicted playoff bracket per user ────────────────
+-- Users fill out the locked 8-team single-elimination bracket. Winners are
+-- stored as team slugs (matching toSlug(team) / Seed.team.slug), aligned to
+-- the fixed bracket slots. Scoring is computed live on read from the actual
+-- playoff results, so there is no resolved_at / points column here.
+--   qf_winners: length-4, aligned to QF slots [1v8, 4v5, 3v6, 2v7]
+--   sf_winners: length-2, aligned to SF slots [top half, bottom half]
+--   champion:   the predicted Final winner
+--   final_total: NCAA-style tiebreaker — predicted combined score of the Final
+create table public.bracket_entries (
+  user_id uuid references public.profiles(id) on delete cascade primary key,
+  qf_winners text[] not null default '{}',
+  sf_winners text[] not null default '{}',
+  champion text,
+  final_total integer,
+  created_at timestamptz default now() not null,
+  updated_at timestamptz default now() not null
+);
+
+alter table public.bracket_entries enable row level security;
+
+create policy "Users can view own bracket entry"
+  on public.bracket_entries for select using (auth.uid() = user_id);
+create policy "Users can insert own bracket entry"
+  on public.bracket_entries for insert with check (auth.uid() = user_id);
+create policy "Users can update own bracket entry"
+  on public.bracket_entries for update using (auth.uid() = user_id);
+create policy "Users can delete own bracket entry"
+  on public.bracket_entries for delete using (auth.uid() = user_id);
+
+-- Note: the leaderboard reads every entry via the service-role key (which
+-- bypasses RLS), mirroring how the pick'em leaderboard aggregates all picks.
+
 -- ─── Fantasy: solo-vs-AI roster + weekly lineups ──────────────────────────────
 -- One row per user. Stores their persistent fantasy roster as an array of
 -- fighter slugs that match FighterStat.slug from the Google-Sheets data layer.

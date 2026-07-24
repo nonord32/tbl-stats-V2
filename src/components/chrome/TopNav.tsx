@@ -10,7 +10,7 @@ const LINKS: { label: string; href: string }[] = [
   { label: 'Standings', href: '/teams' },
   { label: 'Playoffs', href: '/playoffs' },
   { label: 'Schedule', href: '/schedule' },
-  { label: "Pick'em", href: '/picks' },
+  { label: 'Bracket', href: '/bracket' },
   { label: 'Leaderboard', href: '/leaderboard' },
 ];
 

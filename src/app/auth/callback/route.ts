@@ -13,7 +13,7 @@ import { createServerClient } from '@supabase/ssr';
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
-  const next = searchParams.get('next') ?? '/picks';
+  const next = searchParams.get('next') ?? '/bracket';
 
   // Honor Vercel's x-forwarded-host so the redirect lands on the user-facing
   // domain (tblstats.com) rather than an internal Vercel hostname.

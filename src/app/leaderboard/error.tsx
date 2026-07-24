@@ -16,8 +16,8 @@ export default function LeaderboardError({
       description="We couldn't load the standings right now. Try again in a moment."
       error={error}
       reset={reset}
-      secondaryHref="/picks"
-      secondaryLabel="Picks"
+      secondaryHref="/bracket"
+      secondaryLabel="Bracket"
     />
   );
 }

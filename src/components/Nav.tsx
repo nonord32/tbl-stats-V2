@@ -79,8 +79,8 @@ const BOTTOM_NAV_ITEMS = [
     ),
   },
   {
-    href: '/picks',
-    label: 'Picks',
+    href: '/bracket',
+    label: 'Bracket',
     exact: false,
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -140,8 +140,8 @@ export function Nav() {
             <Link href="/schedule" className={`nav-link ${isActive('/schedule') ? 'active' : ''}`}>
               Schedule
             </Link>
-            <Link href="/picks" className={`nav-link ${isActive('/picks') ? 'active' : ''}`}>
-              Picks
+            <Link href="/bracket" className={`nav-link ${isActive('/bracket') ? 'active' : ''}`}>
+              Bracket
             </Link>
             <Link href="/leaderboard" className={`nav-link ${isActive('/leaderboard') ? 'active' : ''}`}>
               Leaderboard

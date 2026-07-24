@@ -165,3 +165,29 @@ export interface LeaderboardEntry {
   exact_picks: number;
   win_pct: number | null;
 }
+
+// ─── Bracket Challenge types ──────────────────────────────────────────────────
+// One predicted playoff bracket per user. Winners are team slugs aligned to the
+// fixed bracket slots (see supabase/schema.sql for slot ordering).
+export interface BracketEntry {
+  user_id: string;
+  qf_winners: string[];       // length 4, aligned to QF slots [1v8, 4v5, 3v6, 2v7]
+  sf_winners: string[];       // length 2, aligned to SF slots [top, bottom]
+  champion: string | null;    // predicted Final winner (team slug)
+  final_total: number | null; // tiebreaker: predicted combined score of the Final
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BracketLeaderRow {
+  user_id: string;
+  username: string;
+  display_name: string | null;
+  points: number;
+  qf_correct: number;
+  sf_correct: number;
+  champ_correct: boolean;
+  final_total: number | null;   // this entrant's tiebreaker guess
+  tiebreak_diff: number | null; // |guess − actual| once the Final is played
+  rank: number;
+}

@@ -3,12 +3,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getAllData, extractUniqueMatches } from '@/lib/data';
-import { getCurrentWeek, getDisplayedCurrentWeek, scheduleForWeek } from '@/lib/week';
+import { getDisplayedCurrentWeek } from '@/lib/week';
 import { sortStandings } from '@/lib/standings';
 import { getGameStartUTC } from '@/lib/gameTime';
 import { getFullTeamName, getTeamLogoPathByName, getCityName } from '@/lib/teams';
 import { HallOfChampions } from '@/components/home/HallOfChampions';
-import { PickemPromo } from '@/components/home/PickemPromo';
 import type { FighterStat, ScheduleEntry, TeamStanding, MatchResult } from '@/types';
 
 export const metadata: Metadata = {
@@ -1208,13 +1207,6 @@ export default async function HomePage() {
     .slice(1)
     .filter((s) => referenceWeek != null && Number(s.week) === referenceWeek);
 
-  // Pick'em promo — only surfaced when there's actually an open pick window.
-  const pickemWeek = getCurrentWeek(schedule);
-  const pickemMatches =
-    pickemWeek !== null
-      ? scheduleForWeek(schedule, pickemWeek).filter((s) => s.status === 'Upcoming')
-      : [];
-
   // Sort by Net Points — drives "Top Six" and the league-wide leaderboard.
   const fightersByNetPts = [...fighters].sort((a, b) => b.netPts - a.netPts);
   const topSix = fightersByNetPts.slice(0, 6);
@@ -1326,9 +1318,6 @@ export default async function HomePage() {
         <StandingsTwoCol teams={topTeams} />
       </div>
 
-      {pickemWeek !== null && pickemMatches.length > 0 && (
-        <PickemPromo week={pickemWeek} matches={pickemMatches} />
-      )}
       <WeekendResults results={completed} />
       {awards.length > 0 && (
         <div className="home-awards-section" style={{ padding: '0 32px 40px' }}>

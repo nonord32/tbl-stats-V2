@@ -1,10 +1,11 @@
 'use client';
-// src/app/picks/error.tsx
-// Isolates pick'em failures so a Supabase outage doesn't take down other pages.
+// src/app/bracket/error.tsx
+// Isolates Bracket Challenge failures so a Supabase outage doesn't take down
+// other pages.
 
 import { ErrorFallback } from '@/components/ErrorFallback';
 
-export default function PicksError({
+export default function BracketError({
   error,
   reset,
 }: {
@@ -13,8 +14,8 @@ export default function PicksError({
 }) {
   return (
     <ErrorFallback
-      title="Picks are temporarily unavailable"
-      description="We couldn't load your picks right now. Try again in a moment."
+      title="The Bracket Challenge is temporarily unavailable"
+      description="We couldn't load your bracket right now. Try again in a moment."
       error={error}
       reset={reset}
       secondaryHref="/leaderboard"

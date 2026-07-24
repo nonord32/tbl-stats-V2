@@ -43,11 +43,11 @@ export async function middleware(request: NextRequest) {
 // own cookie lifecycle and we previously had to early-return for them.
 export const config = {
   matcher: [
-    '/picks/:path*',
+    '/bracket/:path*',
     '/admin/:path*',
     '/leaderboard/:path*',
     '/fantasy/:path*',
-    '/api/picks/:path*',
+    '/api/bracket/:path*',
     '/api/resolve/:path*',
     '/api/whoami/:path*',
     '/api/profile/:path*',

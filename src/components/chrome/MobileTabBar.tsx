@@ -6,7 +6,7 @@
 //   Standings → /teams, /teams/[slug]
 //   Playoffs → /playoffs
 //   Schedule → /schedule, /matches/[id]
-//   Pick'em  → /picks, /leaderboard
+//   Bracket  → /bracket, /leaderboard
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -89,12 +89,12 @@ const TABS: TabDef[] = [
     ),
   },
   {
-    label: "Pick'em",
-    href: '/picks',
-    match: (p) => p.startsWith('/picks') || p.startsWith('/leaderboard'),
+    label: 'Bracket',
+    href: '/bracket',
+    match: (p) => p.startsWith('/bracket') || p.startsWith('/leaderboard'),
     icon: (a) => (
       <svg {...iconProps(a)}>
-        <path d="M4 6l5 12 4-10 3 6 4-8" />
+        <path d="M4 5h5v14H4M9 8h4M9 16h4M13 12h4M17 6h3v12h-3" />
       </svg>
     ),
   },

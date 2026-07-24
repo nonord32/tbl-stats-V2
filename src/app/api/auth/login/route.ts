@@ -8,9 +8,9 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
 // Only allow same-origin path redirects (no protocol-relative URLs, no
-// open-redirect vectors). Falls back to /picks for any unsafe input.
+// open-redirect vectors). Falls back to /bracket for any unsafe input.
 function safeNextPath(raw: string | undefined | null): string {
-  const fallback = '/picks';
+  const fallback = '/bracket';
   if (!raw) return fallback;
   if (!raw.startsWith('/')) return fallback;
   if (raw.startsWith('//')) return fallback;

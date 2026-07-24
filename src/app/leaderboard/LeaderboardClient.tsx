@@ -1,19 +1,14 @@
 'use client';
 // src/app/leaderboard/LeaderboardClient.tsx
 //
-// Gazette/newspaper-styled season pick'em leaderboard.
-//   ┌──────────────────────────────────────────────────────────────────────┐
-//   │ Eyebrow · Big serif title · subtitle      Pool / Scope controls →    │
-//   ├──────────────────────────────────────────────────────────────────────┤
-//   │ SEASON STANDINGS         │  YOUR POSITION                            │
-//   │ rank · player · pts ·    │  big rank, gap from #1, week pts,         │
-//   │ wk · acc · strk · trend  │  accuracy, streak                         │
-//   │                          │  THIS WEEK'S PICKS · matchups + my pick   │
-//   └──────────────────────────────────────────────────────────────────────┘
+// Gazette/newspaper-styled Bracket Challenge leaderboard. Ranks every entrant by
+// bracket points (1 pt QF · 2 pt SF · 4 pt Final), with the combined-final-score
+// guess as the NCAA-style tiebreaker. Scoring is computed live from the playoff
+// results, so standings fill in round by round.
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { getCityName, getTeamLogoPathByName } from '@/lib/teams';
+import type { BracketLeaderRow } from '@/types';
 
 // Privacy: show first name + last initial. Usernames stay as-is.
 function privacyName(displayName: string | null, username: string): string {
@@ -26,153 +21,78 @@ function privacyName(displayName: string | null, username: string): string {
   return `${first} ${lastInitial}.`;
 }
 
-function shortAbbr(team: string): string {
-  const city = getCityName(team).toUpperCase();
-  const map: Record<string, string> = {
-    'NEW YORK': 'NYC',
-    NYC: 'NYC',
-    'LOS ANGELES': 'LA',
-    'LAS VEGAS': 'LV',
-    'SAN ANTONIO': 'SA',
-    ATLANTA: 'ATL',
-    BOSTON: 'BOS',
-    DALLAS: 'DAL',
-    HOUSTON: 'HOU',
-    MIAMI: 'MIA',
-    NASHVILLE: 'NSH',
-    PHILADELPHIA: 'PHI',
-    PHOENIX: 'PHX',
-  };
-  return map[city] ?? city.slice(0, 3);
-}
-
-export interface LeaderRow {
-  user_id: string;
-  display_name: string | null;
-  username: string;
-  total_picks: number;
-  total_points: number;
-  correct_winners: number;
-  exact_picks: number;
-  win_pct: number | null;
-  rank: number;
-  trend: number | null;
-  streak_kind: 'W' | 'L' | null;
-  streak_count: number;
-  last_week_points: number;
-}
-
-export interface ThisWeekMatchup {
-  matchIndex: number;
-  team1: string;
-  team2: string;
-  status: string;
-  date: string;
-  time: string;
-  pickedTeam: string | null;
-  pointsEarned: number | null;
-  resolved: boolean;
-  team1Score: number | null;
-  team2Score: number | null;
-}
-
-interface LeaderboardClientProps {
+export interface LeaderboardClientProps {
   currentUserId: string | null;
-  allTimeEntries: LeaderRow[];
-  weekEntries: Record<number, LeaderRow[]>;
-  resolvedWeeks: number[];
-  thisWeek: number | null;
-  thisWeekMatchups: ThisWeekMatchup[];
+  entries: BracketLeaderRow[];
   totalEntrants: number;
+  maxPoints: number;
+  championName: string | null;
+  finalTotalActual: number | null;
+  bracketOpen: boolean;
 }
 
-const ROW_LIMIT = 25;
+const ROW_LIMIT = 50;
 
 export function LeaderboardClient({
   currentUserId,
-  allTimeEntries,
-  weekEntries,
-  resolvedWeeks,
-  thisWeek,
-  thisWeekMatchups,
+  entries,
   totalEntrants,
+  maxPoints,
+  championName,
+  finalTotalActual,
+  bracketOpen,
 }: LeaderboardClientProps) {
-  const [scope, setScope] = useState<'season' | number>('season');
-
-  // Local override of the signed-in user's handle so the rename UI can update
-  // optimistically without forcing a full server refetch.
   const [myUsernameOverride, setMyUsernameOverride] = useState<string | null>(null);
 
-  const overrideRows = (rows: LeaderRow[]): LeaderRow[] => {
-    if (!currentUserId || !myUsernameOverride) return rows;
-    return rows.map((r) =>
+  const rows = useMemo(() => {
+    if (!currentUserId || !myUsernameOverride) return entries;
+    return entries.map((r) =>
       r.user_id === currentUserId ? { ...r, username: myUsernameOverride } : r
     );
-  };
-  const entries =
-    scope === 'season'
-      ? overrideRows(allTimeEntries)
-      : overrideRows(weekEntries[scope] ?? []);
-  const visible = entries.slice(0, ROW_LIMIT);
+  }, [entries, currentUserId, myUsernameOverride]);
+
+  const visible = rows.slice(0, ROW_LIMIT);
 
   const me = useMemo(() => {
     if (!currentUserId) return null;
-    const base = allTimeEntries.find((e) => e.user_id === currentUserId) ?? null;
-    if (base && myUsernameOverride) return { ...base, username: myUsernameOverride };
-    return base;
-  }, [currentUserId, allTimeEntries, myUsernameOverride]);
-  const leader = allTimeEntries[0] ?? null;
-  const gapFromLeader = me && leader ? me.total_points - leader.total_points : null;
+    return rows.find((e) => e.user_id === currentUserId) ?? null;
+  }, [rows, currentUserId]);
 
-  const lastResolvedWeek =
-    resolvedWeeks.length > 0 ? resolvedWeeks[resolvedWeeks.length - 1] : null;
-  const headerWeekLabel = thisWeek
-    ? `Week ${thisWeek}`
-    : lastResolvedWeek
-    ? `Week ${lastResolvedWeek}`
-    : 'Pre-season';
-  const totalWeeks = resolvedWeeks.length || 0;
+  const leader = rows[0] ?? null;
+  const gapFromLeader = me && leader ? me.points - leader.points : null;
+
+  const statusLabel = championName
+    ? `Champion: ${championName}`
+    : finalTotalActual != null
+    ? 'Final decided'
+    : bracketOpen
+    ? 'Entries open'
+    : 'In progress';
 
   return (
     <div className="tbl-page-body lb-root">
       {/* ── Page header ──────────────────────────────────────────────────── */}
       <header className="lb-header">
         <div>
-          <div className="tbl-eyebrow">Season Pick&apos;em</div>
+          <div className="tbl-eyebrow">Bracket Challenge</div>
           <h1 className="tbl-page-header__title lb-title">Leaderboard</h1>
           <div className="lb-header__sub">
-            {headerWeekLabel}
-            {totalWeeks > 0 && <> · {totalWeeks} of {totalWeeks} weeks scored</>}
+            {statusLabel}
             {totalEntrants > 0 && (
               <>
                 {' · '}
-                {totalEntrants.toLocaleString()} active{' '}
+                {totalEntrants.toLocaleString()}{' '}
                 {totalEntrants === 1 ? 'entry' : 'entries'}
               </>
             )}
-            {' · top '}
-            {ROW_LIMIT} displayed
+            {' · '}
+            {maxPoints} pts possible
           </div>
         </div>
         <div className="lb-header__controls">
-          <label className="lb-control">
-            <span className="lb-control__label">Scope</span>
-            <select
-              className="filter-select lb-control__select"
-              value={scope === 'season' ? 'season' : String(scope)}
-              onChange={(e) => {
-                const v = e.target.value;
-                setScope(v === 'season' ? 'season' : Number(v));
-              }}
-            >
-              <option value="season">Season</option>
-              {[...resolvedWeeks].reverse().map((w) => (
-                <option key={w} value={String(w)}>
-                  Week {w}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Link href="/bracket" className="tbl-btn tbl-btn--primary">
+            {bracketOpen ? 'Fill your bracket' : 'View your bracket'}
+          </Link>
         </div>
       </header>
 
@@ -181,17 +101,13 @@ export function LeaderboardClient({
         {/* Left: standings */}
         <section className="lb-panel">
           <div className="tbl-section-rule">
-            <span>
-              {scope === 'season' ? 'Season Standings' : `Week ${scope} Standings`}
-            </span>
-            <span>
-              Top {Math.min(ROW_LIMIT, entries.length || ROW_LIMIT)} displayed
-            </span>
+            <span>Standings</span>
+            <span>Top {Math.min(ROW_LIMIT, rows.length || ROW_LIMIT)} displayed</span>
           </div>
 
-          {entries.length === 0 ? (
+          {rows.length === 0 ? (
             <div className="lb-empty">
-              No picks have been resolved yet. Check back after the first match.
+              No brackets submitted yet. Be the first — fill yours out before the playoffs tip off.
             </div>
           ) : (
             <div className="table-wrap">
@@ -201,10 +117,10 @@ export function LeaderboardClient({
                     <th className="lb-th lb-th--rank">#</th>
                     <th className="lb-th">Player</th>
                     <th className="lb-th lb-th--num">Pts</th>
-                    <th className="lb-th lb-th--num col-hide-mobile">Wk</th>
-                    <th className="lb-th lb-th--num col-hide-mobile">Acc</th>
-                    <th className="lb-th lb-th--num col-hide-mobile">Strk</th>
-                    <th className="lb-th lb-th--num">Trend</th>
+                    <th className="lb-th lb-th--num col-hide-mobile">QF</th>
+                    <th className="lb-th lb-th--num col-hide-mobile">SF</th>
+                    <th className="lb-th lb-th--num col-hide-mobile">Champ</th>
+                    <th className="lb-th lb-th--num">TB</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -220,38 +136,26 @@ export function LeaderboardClient({
                           </div>
                           <div className="lb-player__handle">@{entry.username}</div>
                         </td>
-                        <td className="lb-pts">{entry.total_points}</td>
+                        <td className="lb-pts">{entry.points}</td>
+                        <td className="lb-num col-hide-mobile">{entry.qf_correct}/4</td>
+                        <td className="lb-num col-hide-mobile">{entry.sf_correct}/2</td>
                         <td className="lb-num col-hide-mobile">
-                          {entry.last_week_points}
-                        </td>
-                        <td className="lb-num col-hide-mobile">
-                          {entry.win_pct !== null ? `${Math.round(entry.win_pct)}%` : '—'}
-                        </td>
-                        <td className="lb-num col-hide-mobile">
-                          {entry.streak_kind ? (
-                            <span
-                              className={
-                                entry.streak_kind === 'W'
-                                  ? 'tbl-streak tbl-streak--win'
-                                  : 'tbl-streak tbl-streak--loss'
-                              }
-                            >
-                              {entry.streak_kind}
-                              {entry.streak_count}
-                            </span>
+                          {entry.champ_correct ? (
+                            <span className="tbl-streak tbl-streak--win">✓</span>
                           ) : (
                             <span className="lb-num__muted">—</span>
                           )}
                         </td>
                         <td className="lb-num">
-                          {entry.trend === null ? (
-                            <span className="lb-num__muted">—</span>
-                          ) : entry.trend > 0 ? (
-                            <span className="lb-trend lb-trend--up">+{entry.trend}</span>
-                          ) : entry.trend < 0 ? (
-                            <span className="lb-trend lb-trend--down">{entry.trend}</span>
+                          {entry.final_total != null ? (
+                            <>
+                              {entry.final_total}
+                              {entry.tiebreak_diff != null && (
+                                <span className="lb-num__muted"> ({entry.tiebreak_diff})</span>
+                              )}
+                            </>
                           ) : (
-                            <span className="lb-trend lb-trend--flat">—</span>
+                            <span className="lb-num__muted">—</span>
                           )}
                         </td>
                       </tr>
@@ -263,7 +167,7 @@ export function LeaderboardClient({
           )}
         </section>
 
-        {/* Right: your-position + this-week picks */}
+        {/* Right: your-position */}
         <aside className="lb-aside">
           <div className="lb-card">
             <div className="tbl-section-rule">
@@ -284,13 +188,18 @@ export function LeaderboardClient({
 
           <div className="lb-card">
             <div className="tbl-section-rule">
-              <span>This Week&apos;s Picks</span>
-              <span>{thisWeek ? `Week ${thisWeek}` : '—'}</span>
+              <span>How scoring works</span>
+              <span>{maxPoints} max</span>
             </div>
-            <ThisWeekPanel
-              matchups={thisWeekMatchups}
-              hasUser={!!currentUserId}
-            />
+            <div className="lb-scoring">
+              <ScoreLine label="Each quarterfinal winner" value="1 pt" />
+              <ScoreLine label="Each semifinal winner" value="2 pts" />
+              <ScoreLine label="Champion (the Final)" value="4 pts" />
+              <ScoreLine
+                label="Tiebreaker"
+                value="Closest to the combined final score"
+              />
+            </div>
           </div>
         </aside>
       </div>
@@ -305,7 +214,7 @@ function YourPosition({
   totalEntrants,
   onRename,
 }: {
-  me: LeaderRow;
+  me: BracketLeaderRow;
   gapFromLeader: number | null;
   totalEntrants: number;
   onRename: (next: string) => void;
@@ -350,9 +259,9 @@ function YourPosition({
         <div className="lb-you__eyebrow">
           You · Rank {me.rank} of {totalEntrants.toLocaleString()}
         </div>
-        <div className="lb-you__pts tbl-display">{me.total_points}</div>
+        <div className="lb-you__pts tbl-display">{me.points}</div>
         <div className="lb-you__sub">
-          Season Points
+          Bracket Points
           {gapFromLeader !== null && gapFromLeader !== 0 && (
             <>
               {' · '}
@@ -415,17 +324,12 @@ function YourPosition({
       </div>
 
       <div className="lb-you__stats">
-        <Stat label="This Week" value={String(me.last_week_points)} />
+        <Stat label="QF" value={`${me.qf_correct}/4`} />
+        <Stat label="SF" value={`${me.sf_correct}/2`} />
         <Stat
-          label="Accuracy"
-          value={me.win_pct !== null ? `${Math.round(me.win_pct)}%` : '—'}
-        />
-        <Stat
-          label="Streak"
-          value={
-            me.streak_kind ? `${me.streak_kind}${me.streak_count}` : '—'
-          }
-          tone={me.streak_kind === 'W' ? 'win' : me.streak_kind === 'L' ? 'loss' : undefined}
+          label="Champ"
+          value={me.champ_correct ? '✓' : '—'}
+          tone={me.champ_correct ? 'win' : undefined}
         />
       </div>
     </div>
@@ -459,123 +363,40 @@ function Stat({
   );
 }
 
+function ScoreLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'baseline',
+        gap: 12,
+        padding: '8px 0',
+        borderBottom: '1px solid var(--tbl-rule, rgba(0,0,0,0.08))',
+        fontFamily: 'var(--tbl-font-mono)',
+        fontSize: 12,
+      }}
+    >
+      <span style={{ color: 'var(--tbl-ink-soft)' }}>{label}</span>
+      <span style={{ fontWeight: 700, color: 'var(--tbl-ink)' }}>{value}</span>
+    </div>
+  );
+}
+
 function SignedOutPanel() {
   return (
     <div className="lb-you lb-you--out">
       <div className="lb-you__sub" style={{ fontSize: 12 }}>
-        Sign in and lock in your picks to see your standing here.
+        Sign in and fill out your bracket to see your standing here.
       </div>
       <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
         <Link href="/login" className="tbl-btn">
           Sign in
         </Link>
-        <Link href="/picks" className="tbl-btn tbl-btn--primary">
-          Make picks
+        <Link href="/bracket" className="tbl-btn tbl-btn--primary">
+          Fill your bracket
         </Link>
       </div>
     </div>
   );
 }
-
-// ── This-Week panel ──────────────────────────────────────────────────────────
-function ThisWeekPanel({
-  matchups,
-  hasUser,
-}: {
-  matchups: ThisWeekMatchup[];
-  hasUser: boolean;
-}) {
-  if (matchups.length === 0) {
-    return (
-      <div className="lb-empty">
-        No matchups scheduled. Check back when the next week is posted.
-      </div>
-    );
-  }
-  return (
-    <div className="lb-week">
-      {matchups.map((m) => (
-        <Link key={m.matchIndex} href={`/matches/${m.matchIndex}`} className="lb-week__row">
-          <div className="lb-week__teams">
-            <TeamMini name={m.team1} />
-            <span className="lb-week__vs">vs</span>
-            <TeamMini name={m.team2} />
-          </div>
-          <div className="lb-week__pick">
-            {m.pickedTeam ? (
-              <PickBadge
-                pickedTeam={m.pickedTeam}
-                pointsEarned={m.pointsEarned}
-                resolved={m.resolved}
-              />
-            ) : hasUser ? (
-              <span className="lb-week__none">No pick</span>
-            ) : (
-              <span className="lb-week__none">{m.time || m.date}</span>
-            )}
-          </div>
-        </Link>
-      ))}
-      {hasUser && (
-        <Link href="/picks" className="lb-week__cta">
-          Manage your picks →
-        </Link>
-      )}
-      {!hasUser && (
-        <Link href="/picks" className="lb-week__cta">
-          Make your picks →
-        </Link>
-      )}
-    </div>
-  );
-}
-
-function TeamMini({ name }: { name: string }) {
-  const logo = getTeamLogoPathByName(name);
-  return (
-    <span className="lb-week__team">
-      {logo && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={logo} alt="" className="lb-week__logo" />
-      )}
-      <span className="lb-week__abbr">{shortAbbr(name)}</span>
-    </span>
-  );
-}
-
-function PickBadge({
-  pickedTeam,
-  pointsEarned,
-  resolved,
-}: {
-  pickedTeam: string;
-  pointsEarned: number | null;
-  resolved: boolean;
-}) {
-  const abbr = shortAbbr(pickedTeam);
-  if (!resolved) {
-    return (
-      <span className="lb-pick lb-pick--locked">
-        <span className="lb-pick__abbr">{abbr}</span>
-        <span className="lb-pick__pts">—</span>
-      </span>
-    );
-  }
-  const pts = pointsEarned ?? 0;
-  const tone = pts >= 2 ? 'win-strong' : pts >= 1 ? 'win' : 'loss';
-  return (
-    <span
-      className={
-        tone === 'win-strong'
-          ? 'lb-pick lb-pick--win-strong'
-          : tone === 'win'
-          ? 'lb-pick lb-pick--win'
-          : 'lb-pick lb-pick--loss'
-      }
-    >
-      <span className="lb-pick__abbr">{abbr}</span>
-      <span className="lb-pick__pts">{pts}</span>
-    </span>
-  );
-}
-
