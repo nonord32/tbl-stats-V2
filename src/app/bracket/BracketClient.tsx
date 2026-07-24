@@ -78,7 +78,11 @@ export function BracketClient({ seeds, bracket, entry, open, lockISO }: BracketC
   const [saved, setSaved] = useState<boolean>(!!entry);
   const [error, setError] = useState('');
 
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Persistence uses a "latest-wins" queue instead of a debounce: every click
+  // fires the save immediately (the highlight already updated optimistically),
+  // and if you click again while a request is in flight the newest state is
+  // queued and sent the moment the previous one returns. No waiting, no races,
+  // and out-of-order responses can't clobber a newer pick.
   const lastSaved = useRef<string>(
     JSON.stringify({
       qf: entry?.qf_winners ?? [],
@@ -87,8 +91,46 @@ export function BracketClient({ seeds, bracket, entry, open, lockISO }: BracketC
       total: entry?.final_total ?? null,
     })
   );
+  const pending = useRef<{ payload: object; sig: string } | null>(null);
+  const inFlight = useRef(false);
 
-  function scheduleSave(nextQf: string[], nextSf: string[], nextChamp: string, nextTotal: string) {
+  async function flush() {
+    if (inFlight.current) return;
+    const job = pending.current;
+    if (!job) return;
+    pending.current = null;
+    inFlight.current = true;
+    setSaving(true);
+    setError('');
+    let ok = false;
+    try {
+      const res = await fetch('/api/bracket', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(job.payload),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok) {
+        lastSaved.current = job.sig;
+        ok = true;
+      } else {
+        setError(json.error ?? 'Failed to save your bracket');
+      }
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      inFlight.current = false;
+      if (pending.current) {
+        // A newer pick landed while saving — send it right away.
+        flush();
+      } else {
+        setSaving(false);
+        if (ok) setSaved(true);
+      }
+    }
+  }
+
+  function persist(nextQf: string[], nextSf: string[], nextChamp: string, nextTotal: string) {
     if (!open) return;
     const totalNum = nextTotal.trim() === '' ? null : Number(nextTotal);
     const payload = {
@@ -97,38 +139,11 @@ export function BracketClient({ seeds, bracket, entry, open, lockISO }: BracketC
       champion: nextChamp || null,
       final_total: totalNum != null && Number.isFinite(totalNum) ? Math.round(totalNum) : null,
     };
-    const sig = JSON.stringify({
-      qf: nextQf.filter(Boolean).length === 0 ? [] : nextQf,
-      sf: nextSf.filter(Boolean).length === 0 ? [] : nextSf,
-      champ: payload.champion,
-      total: payload.final_total,
-    });
+    const sig = JSON.stringify(payload);
     if (sig === lastSaved.current) return;
+    pending.current = { payload, sig };
     setSaved(false);
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(async () => {
-      setSaving(true);
-      setError('');
-      try {
-        const res = await fetch('/api/bracket', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        const json = await res.json();
-        if (!res.ok) {
-          setSaving(false);
-          setError(json.error ?? 'Failed to save your bracket');
-        } else {
-          lastSaved.current = sig;
-          setSaving(false);
-          setSaved(true);
-        }
-      } catch {
-        setSaving(false);
-        setError('Network error. Please try again.');
-      }
-    }, 500);
+    flush();
   }
 
   // Clear downstream picks a change just invalidated so the bracket stays a
@@ -153,7 +168,7 @@ export function BracketClient({ seeds, bracket, entry, open, lockISO }: BracketC
     setQf(nextQf);
     setSf(sf2);
     setChamp(champ2);
-    scheduleSave(nextQf, sf2, champ2, finalTotal);
+    persist(nextQf, sf2, champ2, finalTotal);
   }
 
   function pickSf(slot: number, slug: string) {
@@ -163,21 +178,21 @@ export function BracketClient({ seeds, bracket, entry, open, lockISO }: BracketC
     const { sf2, champ2 } = sanitize(qf, nextSf, champ);
     setSf(sf2);
     setChamp(champ2);
-    scheduleSave(qf, sf2, champ2, finalTotal);
+    persist(qf, sf2, champ2, finalTotal);
   }
 
   function pickChamp(slug: string) {
     if (!open) return;
     const next = champ === slug ? '' : slug;
     setChamp(next);
-    scheduleSave(qf, sf, next, finalTotal);
+    persist(qf, sf, next, finalTotal);
   }
 
   function onFinalTotal(v: string) {
     if (!open) return;
     const clean = v.replace(/[^0-9]/g, '').slice(0, 3);
     setFinalTotal(clean);
-    scheduleSave(qf, sf, champ, clean);
+    persist(qf, sf, champ, clean);
   }
 
   // ── Participants per round (from the user's own picks) ─────────────────────
