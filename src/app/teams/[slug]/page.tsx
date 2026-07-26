@@ -4,7 +4,8 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getTeamBySlug, calcTeamStreak, toSlug } from '@/lib/data';
+import { getAllData, getTeamBySlug, calcTeamStreak, toSlug } from '@/lib/data';
+import { sortStandings } from '@/lib/standings';
 import {
   getTeamLogoPath,
   getFullTeamName,
@@ -18,17 +19,31 @@ import type { ScheduleEntry } from '@/types';
 
 export const revalidate = 300;
 
+// 1 → "1st", 2 → "2nd", 11 → "11th", etc.
+function ordinal(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`;
+}
+
 export async function generateMetadata({
   params,
 }: {
   params: { slug: string };
 }): Promise<Metadata> {
-  const result = await getTeamBySlug(params.slug);
-  if (!result) return { title: 'Team Not Found' };
-  const { team } = result;
+  // getAllData is React-cached, so this shares the fetch with the page render.
+  const data = await getAllData();
+  const team = data.teams.find((t) => t.slug === params.slug);
+  if (!team) return { title: 'Team Not Found' };
+  // "Standing" = the team's 1-based rank in the resolved league standings.
+  const ordered = sortStandings(data.teams, data.teamMatches);
+  const rank = ordered.findIndex((t) => t.slug === params.slug) + 1;
+  const netPts = `${team.diff >= 0 ? '+' : ''}${team.diff.toFixed(1)}`;
+  const standing =
+    rank > 0 ? `sit ${ordinal(rank)} in the TBL standings` : 'compete in the TBL';
   return {
-    title: `${team.team} — Team Standings`,
-    description: `${team.team} TBL record: ${team.record}, PF ${team.pf.toFixed(1)}, PA ${team.pa.toFixed(1)}, Diff ${team.diff >= 0 ? '+' : ''}${team.diff.toFixed(1)}. Full box scores and round-by-round breakdown.`,
+    title: `${team.team} — TBL Roster, Standings & Team Stats`,
+    description: `${team.team} ${standing} at ${team.record} with ${netPts} net points (${team.pf.toFixed(1)} PF / ${team.pa.toFixed(1)} PA). Full roster, results, and round-by-round team stats from the 2026 Team Boxing League season.`,
     openGraph: {
       url: `https://tblstats.com/teams/${params.slug}`,
       title: `${team.team} | TBL Stats`,

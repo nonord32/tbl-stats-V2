@@ -20,15 +20,19 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const result = await getFighterBySlug(params.slug);
   if (!result) return { title: 'Fighter Not Found' };
-  const { fighter } = result;
+  const { fighter, warRank } = result;
   const tSlug = fighter.team
     .toLowerCase()
     .replace(/\s+/g, '-')
     .replace(/[^a-z0-9-]/g, '');
   const metaTeamName = getFullTeamName(tSlug);
+  const netPts = `${fighter.netPts >= 0 ? '+' : ''}${fighter.netPts.toFixed(0)}`;
+  // "Standing" for a fighter is their rank on the WAR leaderboard; fall back to
+  // a plain phrasing if the fighter isn't ranked (warRank === 0).
+  const warStanding = warRank > 0 ? `ranks #${warRank} in WAR` : 'competes';
   return {
-    title: `${fighter.name} — ${metaTeamName}`,
-    description: `${fighter.name} TBL stats: ${fighter.record} record, WAR ${fighter.war.toFixed(2)}, NPPR ${fighter.nppr.toFixed(2)}, Net Points ${fighter.netPts.toFixed(0)}. ${fighter.weightClass} · ${fighter.gender}.`,
+    title: `${fighter.name} — TBL Record, Stats & Fight History`,
+    description: `${fighter.name} of ${metaTeamName} is ${fighter.record} with ${netPts} net points and ${warStanding} across the Team Boxing League. Full fight history, career averages, and round-by-round stats — ${fighter.weightClass} · ${fighter.gender}.`,
     openGraph: {
       url: `https://tblstats.com/fighters/${params.slug}`,
       title: `${fighter.name} | TBL Stats`,

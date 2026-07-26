@@ -4,6 +4,7 @@
 // stay private, so this redirects back to the leaderboard. Entries are read with
 // the service-role key because RLS restricts the normal client to a user's own
 // row.
+import type { Metadata } from 'next';
 import { redirect, notFound } from 'next/navigation';
 import { createClient as createServiceClient, type SupabaseClient } from '@supabase/supabase-js';
 import { getAllData } from '@/lib/data';
@@ -13,6 +14,20 @@ import { BracketClient } from '../BracketClient';
 import type { BracketEntry } from '@/types';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { user: string };
+}): Promise<Metadata> {
+  const username = decodeURIComponent(params.user);
+  return {
+    title: `${username}'s Bracket — TBL Playoff Predictions`,
+    description: `${username}'s Team Boxing League playoff bracket — quarterfinal, semifinal, and championship picks, plus their spot on the bracket leaderboard.`,
+    // Personal spectator pages shouldn't clutter the search index.
+    robots: { index: false, follow: true },
+  };
+}
 
 interface ProfileRow {
   id: string;

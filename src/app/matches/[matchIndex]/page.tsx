@@ -24,9 +24,16 @@ export async function generateMetadata({
   const { match } = result;
   const t1 = getFullTeamName(toSlug(match.team1));
   const t2 = getFullTeamName(toSlug(match.team2));
+  // match.result is from team1's perspective.
+  const winnerClause =
+    match.result === 'W'
+      ? ` ${t1} take it.`
+      : match.result === 'L'
+      ? ` ${t2} take it.`
+      : ' The teams battle to a draw.';
   return {
-    title: `${t1} vs ${t2} — Box Score`,
-    description: `${t1} ${match.score1.toFixed(1)} – ${match.score2.toFixed(1)} ${t2}. Full round-by-round box score from the 2026 TBL Season.`,
+    title: `${t1} vs ${t2} — TBL Results & Full Card`,
+    description: `${t1} ${match.score1.toFixed(1)} – ${match.score2.toFixed(1)} ${t2}.${winnerClause} Full round-by-round box score and fight card from the 2026 Team Boxing League season.`,
     openGraph: {
       url: `https://tblstats.com/matches/${mi}`,
       title: `${t1} vs ${t2} | TBL Stats`,
