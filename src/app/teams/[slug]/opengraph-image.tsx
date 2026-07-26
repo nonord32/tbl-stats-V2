@@ -4,7 +4,7 @@
 import { ImageResponse } from 'next/og';
 import { getAllData, getTeamBySlug } from '@/lib/data';
 import { sortStandings } from '@/lib/standings';
-import { getCityName } from '@/lib/teams';
+import { getCityName, getTeamLogoPath } from '@/lib/teams';
 import {
   OG_SIZE,
   OG_CONTENT_TYPE,
@@ -14,6 +14,7 @@ import {
   splitName,
   ordinal,
   loadOgFonts,
+  ogLogoUrl,
 } from '@/app/_og/card';
 
 export const size = OG_SIZE;
@@ -43,12 +44,15 @@ export default async function TeamOG({ params }: { params: { slug: string } }) {
     .join('  ·  ')
     .toUpperCase();
 
+  const logoUrl = ogLogoUrl(getTeamLogoPath(team.slug)) || undefined;
+
   return new ImageResponse(
     (
       <EntityCard
         eyebrow={eyebrow}
         name={front}
         nameTwoTone={back}
+        logoUrl={logoUrl}
         sub={
           <div
             style={{

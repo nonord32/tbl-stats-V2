@@ -4,7 +4,7 @@
 // the site's dark "gazette" band.
 import { ImageResponse } from 'next/og';
 import { getFighterBySlug } from '@/lib/data';
-import { getFullTeamName } from '@/lib/teams';
+import { getFullTeamName, getTeamLogoPathByName } from '@/lib/teams';
 import {
   OG_SIZE,
   OG_CONTENT_TYPE,
@@ -13,6 +13,7 @@ import {
   EntityCard,
   FallbackCard,
   loadOgFonts,
+  ogLogoUrl,
 } from '@/app/_og/card';
 
 export const size = OG_SIZE;
@@ -42,11 +43,14 @@ export default async function FighterOG({ params }: { params: { slug: string } }
   const netPts = `${fighter.netPts >= 0 ? '+' : ''}${fighter.netPts.toFixed(0)}`;
   const winPct = `${(fighter.winPct * 100).toFixed(0)}%`;
 
+  const logoUrl = ogLogoUrl(getTeamLogoPathByName(fighter.team)) || undefined;
+
   return new ImageResponse(
     (
       <EntityCard
         eyebrow={eyebrow}
         name={fighter.name}
+        logoUrl={logoUrl}
         sub={
           <>
             <div style={{ fontFamily: 'Playfair', fontWeight: 700, fontSize: 30, color: ACCENT }}>

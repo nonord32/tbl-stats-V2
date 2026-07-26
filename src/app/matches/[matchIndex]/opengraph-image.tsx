@@ -5,7 +5,7 @@
 // uses the shared TBL palette + fonts + corner branding.
 import { ImageResponse } from 'next/og';
 import { getMatchByIndex, toSlug } from '@/lib/data';
-import { getFullTeamName } from '@/lib/teams';
+import { getFullTeamName, getTeamLogoPathByName } from '@/lib/teams';
 import {
   OG_SIZE,
   OG_CONTENT_TYPE,
@@ -16,6 +16,7 @@ import {
   FAINT,
   splitName,
   loadOgFonts,
+  ogLogoUrl,
 } from '@/app/_og/card';
 
 export const size = OG_SIZE;
@@ -93,12 +94,9 @@ export default async function MatchOG({ params }: { params: { matchIndex: string
     .join(' · ')
     .toUpperCase();
 
-  // Absolute URLs for logos — next/og can't read /public via relative paths.
-  const base =
-    process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL || 'https://tblstats.com';
-  const baseUrl = base.startsWith('http') ? base : `https://${base}`;
-  const team1Logo = `${baseUrl}/logos/${team1Slug}.png`;
-  const team2Logo = `${baseUrl}/logos/${team2Slug}.png`;
+  // True-PNG logos (the /logos/*.png files are actually WebP, which Satori drops).
+  const team1Logo = ogLogoUrl(getTeamLogoPathByName(match.team1));
+  const team2Logo = ogLogoUrl(getTeamLogoPathByName(match.team2));
 
   const scoreColor1 = team1Won ? ACCENT : CREAM;
   const scoreColor2 = team2Won ? ACCENT : CREAM;
@@ -120,8 +118,10 @@ export default async function MatchOG({ params }: { params: { matchIndex: string
         width: 360,
       }}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={logo} alt="" width={132} height={132} style={{ objectFit: 'contain' }} />
+      {logo ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={logo} alt="" width={132} height={132} style={{ objectFit: 'contain' }} />
+      ) : null}
       <div
         style={{
           display: 'flex',

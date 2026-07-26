@@ -64,6 +64,23 @@ export function ordinal(n: number): string {
   return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`;
 }
 
+// next/og can't read /public via relative paths, so logos/images need an
+// absolute URL. Mirror the base-URL resolution the match card already uses.
+export function ogAssetUrl(path: string): string {
+  const base =
+    process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL || 'https://tblstats.com';
+  const baseUrl = base.startsWith('http') ? base : `https://${base}`;
+  return `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+// The site's /logos/*.png files are actually WebP/HEIF, which Satori's PNG
+// renderer silently drops. /og/logos/* holds true-PNG copies for the cards.
+// Pass a "/logos/x.png" path (or '') and get an absolute OG logo URL (or '').
+export function ogLogoUrl(logoPath: string): string {
+  if (!logoPath) return '';
+  return ogAssetUrl(logoPath.replace('/logos/', '/og/logos/'));
+}
+
 export interface Stat {
   label: string;
   value: string;
@@ -151,28 +168,37 @@ export function EntityCard({
   nameTwoTone,
   sub,
   stats,
+  logoUrl,
 }: {
   eyebrow: string;
   name: string;
   nameTwoTone?: string;
   sub?: ReactNode;
   stats: Stat[];
+  logoUrl?: string;
 }) {
   const full = nameTwoTone ? `${name} ${nameTwoTone}` : name;
   return (
     <CardShell>
-      <div
-        style={{
-          display: 'flex',
-          fontFamily: 'PlexMono',
-          fontWeight: 700,
-          fontSize: 24,
-          letterSpacing: '0.26em',
-          textTransform: 'uppercase',
-          color: ACCENT,
-        }}
-      >
-        {eyebrow}
+      {/* Header: eyebrow left, team logo badge right */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div
+          style={{
+            display: 'flex',
+            fontFamily: 'PlexMono',
+            fontWeight: 700,
+            fontSize: 24,
+            letterSpacing: '0.26em',
+            textTransform: 'uppercase',
+            color: ACCENT,
+          }}
+        >
+          {eyebrow}
+        </div>
+        {logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logoUrl} alt="" width={124} height={124} style={{ objectFit: 'contain' }} />
+        ) : null}
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column' }}>
