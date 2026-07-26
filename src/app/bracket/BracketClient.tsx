@@ -10,6 +10,7 @@
 // read-only scorecard grading each pick against the live results.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { getFullTeamName, getTeamLogoPathByName } from '@/lib/teams';
 import type { Seed, Bracket } from '@/lib/playoffs';
 import type { BracketEntry } from '@/types';
@@ -28,6 +29,9 @@ interface BracketClientProps {
   entry: BracketEntry | null;
   open: boolean;
   lockISO: string | null;
+  /** When set, this is a read-only spectator view of someone else's locked
+   *  bracket (reached from the leaderboard) rather than the viewer's own. */
+  ownerName?: string;
 }
 
 // Which two QF slots feed each SF slot: QF0+QF1 → SF0, QF2+QF3 → SF1.
@@ -53,8 +57,9 @@ function useNow(tickMs = 30_000) {
   return now;
 }
 
-export function BracketClient({ seeds, bracket, entry, open, lockISO }: BracketClientProps) {
+export function BracketClient({ seeds, bracket, entry, open, lockISO, ownerName }: BracketClientProps) {
   const now = useNow();
+  const spectator = !!ownerName;
 
   const bySlug = useMemo(() => {
     const m = new Map<string, Seed>();
@@ -282,10 +287,10 @@ export function BracketClient({ seeds, bracket, entry, open, lockISO }: BracketC
               fontWeight: 700,
             }}
           >
-            Postseason · MegaBrawl IV
+            {spectator ? 'Bracket Challenge · Entry' : 'Postseason · MegaBrawl IV'}
           </div>
           <div className="tbl-display" style={{ fontSize: 56, lineHeight: 0.95, marginTop: 8 }}>
-            Bracket Challenge
+            {spectator ? `${ownerName}` : 'Bracket Challenge'}
           </div>
           <div
             style={{
@@ -298,7 +303,9 @@ export function BracketClient({ seeds, bracket, entry, open, lockISO }: BracketC
               marginTop: 10,
             }}
           >
-            Fill the whole bracket · 1 pt QF · 2 pt SF · 4 pt Final · Tiebreaker: final score
+            {spectator
+              ? 'Locked entry · 1 pt QF · 2 pt SF · 4 pt Final'
+              : 'Fill the whole bracket · 1 pt QF · 2 pt SF · 4 pt Final · Tiebreaker: final score'}
           </div>
         </div>
 
@@ -350,7 +357,9 @@ export function BracketClient({ seeds, bracket, entry, open, lockISO }: BracketC
           }}
         >
           <span style={{ color: error ? 'var(--tbl-red)' : 'var(--tbl-ink-soft)' }}>
-            {open
+            {spectator
+              ? `Viewing @${ownerName}'s locked bracket`
+              : open
               ? complete
                 ? 'Bracket complete — you can still edit until it locks'
                 : 'Pick every matchup, a champion, and the tiebreaker before it locks'
@@ -361,7 +370,13 @@ export function BracketClient({ seeds, bracket, entry, open, lockISO }: BracketC
               color: open && complete ? 'var(--tbl-green)' : 'var(--tbl-ink-soft)',
             }}
           >
-            {statusText || (open && complete ? '✓ Complete' : '')}
+            {spectator ? (
+              <Link href="/leaderboard" style={{ color: 'var(--tbl-accent)', textDecoration: 'none' }}>
+                ← Leaderboard
+              </Link>
+            ) : (
+              statusText || (open && complete ? '✓ Complete' : '')
+            )}
           </span>
         </div>
 

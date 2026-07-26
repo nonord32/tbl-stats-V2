@@ -5409,6 +5409,9 @@ body:has(.fv2) {
   line-height: 1.1;
 }
 .lb-row.is-me .lb-player__name { color: var(--tbl-accent); }
+.lb-player__link { text-decoration: none; color: inherit; display: block; }
+.lb-player__link:hover .lb-player__name { color: var(--tbl-accent); }
+.lb-player__link:hover .lb-player__handle { color: var(--tbl-accent); }
 .lb-player__handle {
   font-family: var(--tbl-font-mono);
   font-size: 10px;

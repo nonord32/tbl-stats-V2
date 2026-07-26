@@ -140,11 +140,27 @@ export function LeaderboardClient({
                       <tr key={entry.user_id} className={isMe ? 'lb-row is-me' : 'lb-row'}>
                         <td className="lb-rank">{entry.rank}</td>
                         <td className="lb-player">
-                          <div className="lb-player__name">
-                            {privacyName(entry.display_name, entry.username)}
-                            {isMe && <span className="lb-player__you">(you)</span>}
-                          </div>
-                          <div className="lb-player__handle">@{entry.username}</div>
+                          {revealPicks ? (
+                            <Link
+                              href={`/bracket/${encodeURIComponent(entry.username)}`}
+                              className="lb-player__link"
+                              title={`View @${entry.username}'s bracket`}
+                            >
+                              <div className="lb-player__name">
+                                {privacyName(entry.display_name, entry.username)}
+                                {isMe && <span className="lb-player__you">(you)</span>}
+                              </div>
+                              <div className="lb-player__handle">@{entry.username} →</div>
+                            </Link>
+                          ) : (
+                            <>
+                              <div className="lb-player__name">
+                                {privacyName(entry.display_name, entry.username)}
+                                {isMe && <span className="lb-player__you">(you)</span>}
+                              </div>
+                              <div className="lb-player__handle">@{entry.username}</div>
+                            </>
+                          )}
                         </td>
                         <td className="lb-pts">{entry.points}</td>
                         <td className="lb-num col-hide-mobile">{entry.qf_correct}/4</td>
