@@ -45,16 +45,15 @@ export async function generateMetadata({
     title: `${team.team} — TBL Roster, Standings & Team Stats`,
     description: `${team.team} ${standing} at ${team.record} with ${netPts} net points (${team.pf.toFixed(1)} PF / ${team.pa.toFixed(1)} PA). Full roster, results, and round-by-round team stats from the 2026 Team Boxing League season.`,
     openGraph: {
+      // og:image / twitter:image are supplied by the sibling opengraph-image.tsx.
       url: `https://tblstats.com/teams/${params.slug}`,
       title: `${team.team} | TBL Stats`,
-      description: `${team.record} · ${team.pf.toFixed(1)} PF · ${team.pa.toFixed(1)} PA`,
-      images: [{ url: '/og-image.png', width: 1200, height: 630 }],
+      description: `${team.record} · ${netPts} net pts · ${team.pf.toFixed(1)} PF / ${team.pa.toFixed(1)} PA`,
     },
     twitter: {
       card: 'summary_large_image',
       title: `${team.team} | TBL Stats`,
-      description: `${team.team} · ${team.record} · ${team.pf.toFixed(1)} PF · ${team.pa.toFixed(1)} PA`,
-      images: ['/og-image.png'],
+      description: `${team.record} · ${netPts} net pts · ${team.pf.toFixed(1)} PF / ${team.pa.toFixed(1)} PA`,
     },
   };
 }

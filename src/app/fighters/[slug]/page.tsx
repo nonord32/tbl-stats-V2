@@ -34,16 +34,15 @@ export async function generateMetadata({
     title: `${fighter.name} — TBL Record, Stats & Fight History`,
     description: `${fighter.name} of ${metaTeamName} is ${fighter.record} with ${netPts} net points and ${warStanding} across the Team Boxing League. Full fight history, career averages, and round-by-round stats — ${fighter.weightClass} · ${fighter.gender}.`,
     openGraph: {
+      // og:image / twitter:image are supplied by the sibling opengraph-image.tsx.
       url: `https://tblstats.com/fighters/${params.slug}`,
       title: `${fighter.name} | TBL Stats`,
-      description: `${fighter.record} · WAR ${fighter.war.toFixed(2)} · ${metaTeamName}`,
-      images: [{ url: '/og-image.png', width: 1200, height: 630 }],
+      description: `${fighter.record} · ${netPts} net pts · ${metaTeamName}`,
     },
     twitter: {
       card: 'summary_large_image',
       title: `${fighter.name} | TBL Stats`,
-      description: `${fighter.record} · WAR ${fighter.war.toFixed(2)} · ${metaTeamName}`,
-      images: ['/og-image.png'],
+      description: `${fighter.record} · ${netPts} net pts · ${metaTeamName}`,
     },
   };
 }

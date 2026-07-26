@@ -1,26 +1,26 @@
 // src/app/matches/[matchIndex]/opengraph-image.tsx
-// Dynamic Open Graph card for /matches/<id> — when the URL is shared on
-// iMessage / Twitter / Discord, the preview renders the actual teams,
-// score, week, and date. Mirrors the dark gazette match-hero band.
+// Dynamic Open Graph card for /matches/<id> — shared on iMessage / Twitter /
+// Discord it renders the actual teams, score, week, and date over the site's
+// dark gazette match-hero band. Keeps the dual-team scoreboard layout but now
+// uses the shared TBL palette + fonts + corner branding.
 import { ImageResponse } from 'next/og';
 import { getMatchByIndex, toSlug } from '@/lib/data';
 import { getFullTeamName } from '@/lib/teams';
+import {
+  OG_SIZE,
+  OG_CONTENT_TYPE,
+  INK,
+  CREAM,
+  ACCENT,
+  MUTED,
+  FAINT,
+  splitName,
+  loadOgFonts,
+} from '@/app/_og/card';
 
-export const runtime = 'edge';
-export const size = { width: 1200, height: 630 };
-export const contentType = 'image/png';
+export const size = OG_SIZE;
+export const contentType = OG_CONTENT_TYPE;
 export const alt = 'TBL Stats — Match Box Score';
-
-const INK = '#14110b';
-const PAPER = '#f4ede0';
-const ACCENT_BRIGHT = '#ff5b1f';
-const MUTED = 'rgba(244,237,224,0.55)';
-
-function splitName(full: string): [string, string] {
-  const parts = full.split(' ');
-  if (parts.length < 2) return [full, ''];
-  return [parts.slice(0, -1).join(' '), parts[parts.length - 1]];
-}
 
 function formatDate(date: string): string {
   try {
@@ -34,16 +34,12 @@ function formatDate(date: string): string {
   }
 }
 
-export default async function MatchOG({
-  params,
-}: {
-  params: { matchIndex: string };
-}) {
+export default async function MatchOG({ params }: { params: { matchIndex: string } }) {
+  const fonts = loadOgFonts();
   const mi = parseInt(params.matchIndex, 10);
   const result = isNaN(mi) ? null : await getMatchByIndex(mi);
 
-  // Fallback card if match is missing — keeps social previews from showing
-  // a broken image when someone shares a bad URL.
+  // Fallback card keeps social previews from breaking on a bad URL.
   if (!result) {
     return new ImageResponse(
       (
@@ -53,18 +49,19 @@ export default async function MatchOG({
             width: '100%',
             height: '100%',
             background: INK,
-            color: PAPER,
+            color: CREAM,
             alignItems: 'center',
             justifyContent: 'center',
-            fontFamily: 'serif',
-            fontSize: 72,
-            letterSpacing: '0.04em',
+            fontFamily: 'Playfair',
+            fontWeight: 900,
+            fontSize: 96,
+            letterSpacing: '-0.02em',
           }}
         >
           TBL Stats
         </div>
       ),
-      { ...size },
+      { ...OG_SIZE, fonts },
     );
   }
 
@@ -84,15 +81,12 @@ export default async function MatchOG({
   const team2Won = hasScore && !isDraw && match.result === 'L';
 
   const status = hasScore ? 'Final' : 'Scheduled';
-  const dateStr = formatDate(match.date);
   const eyebrow = [
     status,
     scheduleEntry?.week ? `Week ${scheduleEntry.week}` : null,
-    dateStr,
+    formatDate(match.date),
     scheduleEntry?.venueName
-      ? `${scheduleEntry.venueName}${
-          scheduleEntry.venueCity ? ` · ${scheduleEntry.venueCity}` : ''
-        }`
+      ? `${scheduleEntry.venueName}${scheduleEntry.venueCity ? ` · ${scheduleEntry.venueCity}` : ''}`
       : null,
   ]
     .filter(Boolean)
@@ -101,15 +95,68 @@ export default async function MatchOG({
 
   // Absolute URLs for logos — next/og can't read /public via relative paths.
   const base =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.VERCEL_URL ||
-    'https://tblstats.com';
+    process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL || 'https://tblstats.com';
   const baseUrl = base.startsWith('http') ? base : `https://${base}`;
   const team1Logo = `${baseUrl}/logos/${team1Slug}.png`;
   const team2Logo = `${baseUrl}/logos/${team2Slug}.png`;
 
-  const scoreColor1 = team1Won ? ACCENT_BRIGHT : PAPER;
-  const scoreColor2 = team2Won ? ACCENT_BRIGHT : PAPER;
+  const scoreColor1 = team1Won ? ACCENT : CREAM;
+  const scoreColor2 = team2Won ? ACCENT : CREAM;
+
+  const teamColumn = (
+    logo: string,
+    front: string,
+    back: string,
+    won: boolean,
+    resultLabel: string,
+    align: 'flex-start' | 'flex-end',
+  ) => (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: align,
+        justifyContent: 'center',
+        width: 360,
+      }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={logo} alt="" width={132} height={132} style={{ objectFit: 'contain' }} />
+      <div
+        style={{
+          display: 'flex',
+          fontFamily: 'Playfair',
+          fontWeight: 900,
+          fontSize: 52,
+          lineHeight: 0.96,
+          letterSpacing: '-0.02em',
+          marginTop: 18,
+          textAlign: align === 'flex-end' ? 'right' : 'left',
+          color: won || isDraw ? CREAM : FAINT,
+        }}
+      >
+        {front}
+        {back ? <span style={{ opacity: 0.65 }}>&nbsp;{back}</span> : null}
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          marginTop: 14,
+          fontFamily: 'PlexMono',
+          fontWeight: 700,
+          fontSize: 18,
+          letterSpacing: '0.22em',
+          textTransform: 'uppercase',
+          color: won ? ACCENT : isDraw ? FAINT : MUTED,
+        }}
+      >
+        {resultLabel}
+      </div>
+    </div>
+  );
+
+  const label1 = team1Won ? 'Winner' : team2Won ? 'Loser' : isDraw ? 'Draw' : ' ';
+  const label2 = team2Won ? 'Winner' : team1Won ? 'Loser' : isDraw ? 'Draw' : ' ';
 
   return new ImageResponse(
     (
@@ -120,9 +167,10 @@ export default async function MatchOG({
           width: '100%',
           height: '100%',
           background: INK,
-          color: PAPER,
-          padding: '60px 80px',
-          fontFamily: 'serif',
+          color: CREAM,
+          padding: '56px 72px',
+          justifyContent: 'space-between',
+          fontFamily: 'Playfair',
         }}
       >
         {/* Eyebrow */}
@@ -130,89 +178,34 @@ export default async function MatchOG({
           style={{
             display: 'flex',
             justifyContent: 'center',
-            color: ACCENT_BRIGHT,
-            fontSize: 22,
-            letterSpacing: '0.28em',
+            fontFamily: 'PlexMono',
             fontWeight: 700,
+            fontSize: 22,
+            letterSpacing: '0.26em',
             textTransform: 'uppercase',
-            fontFamily: 'monospace',
+            color: ACCENT,
           }}
         >
           {eyebrow}
         </div>
 
-        {/* Main row: team1 | score | team2 */}
+        {/* Team 1 · score · Team 2 */}
         <div
           style={{
             display: 'flex',
-            flex: 1,
             alignItems: 'center',
             justifyContent: 'space-between',
-            marginTop: 30,
           }}
         >
-          {/* Team 1 */}
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'flex-end',
-              justifyContent: 'center',
-              width: 370,
-            }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={team1Logo}
-              alt=""
-              width={140}
-              height={140}
-              style={{ objectFit: 'contain' }}
-            />
-            <div
-              style={{
-                fontSize: 56,
-                fontWeight: 700,
-                lineHeight: 1,
-                marginTop: 18,
-                textAlign: 'right',
-                color: team1Won ? PAPER : isDraw ? PAPER : 'rgba(244,237,224,0.85)',
-              }}
-            >
-              {team1Front}
-              {team1Back ? (
-                <span style={{ opacity: 0.7 }}> {team1Back}</span>
-              ) : (
-                ''
-              )}
-            </div>
-            <div
-              style={{
-                marginTop: 14,
-                fontSize: 18,
-                letterSpacing: '0.22em',
-                textTransform: 'uppercase',
-                fontWeight: 700,
-                fontFamily: 'monospace',
-                color: team1Won
-                  ? ACCENT_BRIGHT
-                  : isDraw
-                  ? 'rgba(244,237,224,0.75)'
-                  : MUTED,
-              }}
-            >
-              {team1Won ? 'Winner' : team2Won ? 'Loser' : isDraw ? 'Draw' : ' '}
-            </div>
-          </div>
-
-          {/* Score */}
+          {teamColumn(team1Logo, team1Front, team1Back, team1Won, label1, 'flex-end')}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: 180,
+              fontFamily: 'Playfair',
               fontWeight: 900,
+              fontSize: 168,
               lineHeight: 1,
               whiteSpace: 'nowrap',
             }}
@@ -220,95 +213,51 @@ export default async function MatchOG({
             {hasScore ? (
               <>
                 <span style={{ color: scoreColor1 }}>{totalA.toFixed(0)}</span>
-                <span
-                  style={{
-                    margin: '0 28px',
-                    fontStyle: 'italic',
-                    color: 'rgba(244,237,224,0.35)',
-                  }}
-                >
-                  —
-                </span>
+                <span style={{ margin: '0 26px', color: 'rgba(244,237,224,0.35)' }}>–</span>
                 <span style={{ color: scoreColor2 }}>{totalB.toFixed(0)}</span>
               </>
             ) : (
-              <span style={{ fontStyle: 'italic', opacity: 0.6 }}>vs</span>
+              <span style={{ fontStyle: 'italic', opacity: 0.6, fontSize: 96 }}>vs</span>
             )}
           </div>
+          {teamColumn(team2Logo, team2Front, team2Back, team2Won, label2, 'flex-start')}
+        </div>
 
-          {/* Team 2 */}
+        {/* Footer: branding in the corner */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
           <div
             style={{
               display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'flex-start',
-              justifyContent: 'center',
-              width: 370,
+              fontFamily: 'PlexMono',
+              fontWeight: 700,
+              fontSize: 15,
+              letterSpacing: '0.22em',
+              textTransform: 'uppercase',
+              color: MUTED,
             }}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={team2Logo}
-              alt=""
-              width={140}
-              height={140}
-              style={{ objectFit: 'contain' }}
-            />
-            <div
-              style={{
-                fontSize: 56,
-                fontWeight: 700,
-                lineHeight: 1,
-                marginTop: 18,
-                textAlign: 'left',
-                color: team2Won ? PAPER : isDraw ? PAPER : 'rgba(244,237,224,0.85)',
-              }}
-            >
-              {team2Front}
-              {team2Back ? (
-                <span style={{ opacity: 0.7 }}> {team2Back}</span>
-              ) : (
-                ''
-              )}
+            Team Boxing League
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+            <div style={{ fontFamily: 'Playfair', fontWeight: 900, fontSize: 34, color: CREAM }}>
+              tblstats.com
             </div>
             <div
               style={{
-                marginTop: 14,
-                fontSize: 18,
+                fontFamily: 'PlexMono',
+                fontWeight: 700,
+                fontSize: 15,
                 letterSpacing: '0.22em',
                 textTransform: 'uppercase',
-                fontWeight: 700,
-                fontFamily: 'monospace',
-                color: team2Won
-                  ? ACCENT_BRIGHT
-                  : isDraw
-                  ? 'rgba(244,237,224,0.75)'
-                  : MUTED,
+                color: MUTED,
               }}
             >
-              {team2Won ? 'Winner' : team1Won ? 'Loser' : isDraw ? 'Draw' : ' '}
+              The Official Record · 2026
             </div>
           </div>
         </div>
-
-        {/* Footer */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            color: MUTED,
-            fontSize: 18,
-            letterSpacing: '0.32em',
-            textTransform: 'uppercase',
-            fontWeight: 700,
-            fontFamily: 'monospace',
-            marginTop: 20,
-          }}
-        >
-          TBL Stats · The Official Record · 2026
-        </div>
       </div>
     ),
-    { ...size },
+    { ...OG_SIZE, fonts },
   );
 }
