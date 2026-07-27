@@ -215,8 +215,30 @@ function Match({
   h2hWinners: Map<string, string[]>;
 }) {
   const { a, b, status } = match;
-  if (!a || !b) {
+  // Neither participant known yet — both feeding games are still open.
+  if (!a && !b) {
     return <TBDMatch />;
+  }
+  // Exactly one participant known: an upstream game is decided but its sibling
+  // isn't, so a team has advanced into this slot and is waiting on an opponent.
+  // Render the advancer in its bracket-correct position with a TBD opposite it,
+  // rather than collapsing the whole cell to "TBD vs TBD".
+  if (!a || !b) {
+    return (
+      <div className="po-match">
+        {a ? (
+          <SeedRow seed={a} advanced h2hWinners={h2hWinners} />
+        ) : (
+          <div className="po-tbd po-tbd--slot">TBD</div>
+        )}
+        <div className="po-match__rule">vs</div>
+        {b ? (
+          <SeedRow seed={b} advanced h2hWinners={h2hWinners} />
+        ) : (
+          <div className="po-tbd po-tbd--slot">TBD</div>
+        )}
+      </div>
+    );
   }
   // Lower seed = higher seed line (gets host designation).
   const host = a.seed < b.seed ? a : b;
@@ -251,6 +273,7 @@ function SeedRow({
   highlight,
   winner,
   eliminated,
+  advanced,
   score,
   h2hWinners,
 }: {
@@ -258,6 +281,7 @@ function SeedRow({
   highlight?: boolean;
   winner?: boolean;
   eliminated?: boolean;
+  advanced?: boolean;
   score?: number;
   h2hWinners: Map<string, string[]>;
 }) {
@@ -269,6 +293,7 @@ function SeedRow({
     highlight ? 'po-seed--high' : '',
     winner ? 'po-seed--winner' : '',
     eliminated ? 'po-seed--out' : '',
+    advanced ? 'po-seed--adv' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -294,7 +319,11 @@ function SeedRow({
         <span className="po-seed__abbr">{shortAbbr(seed.team.slug, seed.team.team)}</span>
         <span className="po-seed__rec">{seed.team.record}</span>
       </span>
-      {score != null && <span className="po-seed__score">{score}</span>}
+      {score != null ? (
+        <span className="po-seed__score">{score}</span>
+      ) : advanced ? (
+        <span className="po-seed__adv-tag">ADV</span>
+      ) : null}
     </Link>
   );
 }
@@ -340,8 +369,9 @@ function FinalMatch({
     );
   }
 
-  // Finalists set but not yet played, or still awaiting semifinal winners.
-  if (a && b) {
+  // Finalists set, or one finalist locked while the other semifinal is still
+  // open — Match renders the half-filled case (advancer vs TBD) on its own.
+  if (a || b) {
     return (
       <div className="po-match po-match--final">
         <div className="po-final__line">MegaBrawl IV</div>

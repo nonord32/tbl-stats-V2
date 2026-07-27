@@ -5803,6 +5803,27 @@ body:has(.fv2) {
   font-weight: 900;
 }
 .po-seed--out { opacity: 0.5; }
+
+/* A team that has advanced into a slot and is awaiting its opponent. */
+.po-seed--adv {
+  background: color-mix(in srgb, var(--tbl-accent) 6%, transparent);
+  box-shadow: inset 3px 0 0 var(--tbl-accent);
+}
+.po-seed__adv-tag {
+  font-family: var(--tbl-font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--tbl-accent);
+  text-align: right;
+}
+
+/* TBD placeholder used inside a half-filled match cell (advancer vs TBD),
+   sized to sit alongside a real seed row rather than centered like po--tbd. */
+.po-tbd--slot {
+  padding: 8px 10px 8px 12px;
+  font-size: 18px;
+}
 .po-seed__score {
   font-family: var(--tbl-font-serif);
   font-weight: 900;
