@@ -6354,6 +6354,49 @@ body:has(.fv2) {
 
 .eo-again { margin-top: 32px; }
 
-@media (max-width: 560px) {
+/* ── Mobile ─────────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .eo-page {
+    padding: 18px 12px 40px;
+    /* Clear the fixed mobile tab bar. */
+    padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px) + 32px);
+  }
+  .eo-title { font-size: 44px; }
+  .eo-lede { font-size: 15px; margin: 14px auto 22px; }
+
   .eo-modes { grid-template-columns: 1fr; }
+  .eo-mode { padding: 18px; }
+  .eo-mode__cta { width: 100%; text-align: center; }
+
+  /* Keep the current team visible while scrolling the fighter list. */
+  .eo-picker__team {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    box-shadow: 0 2px 0 var(--tbl-ink);
+    margin: 0 -12px 14px;   /* full-bleed against the page's 12px padding */
+    padding: 10px 12px;
+  }
+  .eo-picker__logo { width: 34px; height: 34px; }
+  .eo-picker__teamname { font-size: 17px; }
+
+  /* Two comfortable, thumb-sized columns of fighters. */
+  .eo-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .eo-fighter { padding: 12px 6px; min-height: 132px; }
+  .eo-fighter__img { width: 64px; height: 64px; }
+  .eo-fighter__name { font-size: 13px; }
+  .eo-fighter__stats { font-size: 9px; gap: 2px 6px; }
+
+  /* Denser roster board so all 12 slots aren't an endless scroll. */
+  .eo-board,
+  .eo-board--compact { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .eo-slot { padding: 6px 8px; }
+  .eo-slot__img { width: 30px; height: 30px; }
+  .eo-slot__name { font-size: 11px; }
+
+  /* Result / game log fit narrow screens. */
+  .eo-record { font-size: clamp(72px, 30vw, 120px); }
+  .eo-game { grid-template-columns: 30px 1fr auto 24px; gap: 8px; padding: 8px 10px; }
+  .eo-game__opp { font-size: 13px; }
+  .eo-again { width: 100%; }
 }
