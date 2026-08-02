@@ -1,16 +1,20 @@
 'use client';
 
 // src/app/8-0/EightOhClient.tsx
-// The interactive "/8-0" game. Two versions, chosen on the intro screen:
-//   • Stats shown   — fighter cards display net points / NPPR / W-L / WAR while picking.
-//   • Stats hidden   — a blind challenge; stats are revealed only on the result screen.
+// The interactive "/8-0" game — a dark, standalone build-a-roster game.
 //
-// Flow: intro → picking (12 rounds; each round deals a random team and you pick
-// one of its fighters to fill an open weight-class slot) → result (simulate an
-// 8-game regular season and report the record; 8-0 is perfect).
+// Two versions, chosen on the intro screen:
+//   • Stats shown  — each fighter row shows net points / NPPR / WAR / record while picking.
+//   • Blind pick   — no numbers while picking; stats revealed on the result screen.
+//
+// Flow: intro → picking (each round deals a random team; pick one of its fighters — shown as a
+// row list, no photos — to fill an open weight-class slot) → result (simulate an 8-game regular
+// season and report the record; 8-0 is perfect).
+//
+// Fighters who fought in multiple weight classes can be placed in either eligible slot (you
+// choose on pick) and moved between eligible slots afterward from the roster board.
 
 import { useCallback, useMemo, useState } from 'react';
-import { FighterPortrait } from '@/components/FighterPortrait';
 import { getTeamLogoPath, getTeamColor } from '@/lib/teams';
 import {
   simulateSeason,
@@ -36,6 +40,8 @@ export function EightOhClient({ game }: Props) {
   const [taken, setTaken] = useState<Set<string>>(() => new Set());
   const [currentTeam, setCurrentTeam] = useState<string | null>(null);
   const [result, setResult] = useState<SeasonResult | null>(null);
+  // Fighter slug whose weight-class chooser is expanded (dual-class pick).
+  const [choosing, setChoosing] = useState<string | null>(null);
 
   const fightersByTeam = useMemo(() => {
     const map = new Map<string, GameFighter[]>();
@@ -48,23 +54,18 @@ export function EightOhClient({ game }: Props) {
     return map;
   }, [fighters]);
 
-  const openSlots = useMemo(
-    () => slots.filter((s) => !roster[s.id]),
-    [slots, roster],
-  );
-  const openSlotIds = useMemo(() => new Set(openSlots.map((s) => s.id)), [openSlots]);
-  const filledCount = slots.length - openSlots.length;
+  const slotById = useMemo(() => {
+    const m = new Map<string, Slot>();
+    for (const s of slots) m.set(s.id, s);
+    return m;
+  }, [slots]);
 
-  /** Fighters on `teamSlug` that are un-taken and fit at least one open slot. */
-  const eligibleFor = useCallback(
-    (teamSlug: string | null): GameFighter[] => {
-      const source = teamSlug ? (fightersByTeam.get(teamSlug) ?? []) : fighters;
-      return source.filter(
-        (f) => !taken.has(f.slug) && f.slotIds.some((id) => openSlotIds.has(id)),
-      );
-    },
-    [fightersByTeam, fighters, taken, openSlotIds],
-  );
+  const openSlotIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const slot of slots) if (!roster[slot.id]) s.add(slot.id);
+    return s;
+  }, [slots, roster]);
+  const filledCount = slots.length - openSlotIds.size;
 
   /** Teams that still have at least one pickable fighter for the open slots. */
   const dealableTeams = useCallback(
@@ -86,10 +87,9 @@ export function EightOhClient({ game }: Props) {
 
   const dealTeam = useCallback(
     (openIds: Set<string>, takenSet: Set<string>) => {
+      setChoosing(null);
       const teams = dealableTeams(openIds, takenSet);
       if (teams.length === 0) {
-        // Fallback: no single team can fill a remaining slot — open the pick to
-        // any team so the roster can always be completed. (Practically never hit.)
         setCurrentTeam(null);
         return;
       }
@@ -104,6 +104,7 @@ export function EightOhClient({ game }: Props) {
       setRoster({});
       setTaken(new Set());
       setResult(null);
+      setChoosing(null);
       setPhase('picking');
       dealTeam(new Set(slots.map((s) => s.id)), new Set());
     },
@@ -115,20 +116,21 @@ export function EightOhClient({ game }: Props) {
     setRoster({});
     setTaken(new Set());
     setCurrentTeam(null);
+    setChoosing(null);
     setResult(null);
   }, []);
 
-  const pick = useCallback(
-    (f: GameFighter) => {
-      // Assign to the first open slot (canonical order) this fighter can fill.
-      const slot = slots.find((s) => !roster[s.id] && f.slotIds.includes(s.id));
-      if (!slot) return;
+  /** Place a fighter into a specific slot, then advance (deal next team or finish). */
+  const place = useCallback(
+    (f: GameFighter, slotId: string) => {
+      if (roster[slotId] || !f.slotIds.includes(slotId)) return;
 
-      const nextRoster = { ...roster, [slot.id]: f };
+      const nextRoster = { ...roster, [slotId]: f };
       const nextTaken = new Set(taken);
       nextTaken.add(f.slug);
       setRoster(nextRoster);
       setTaken(nextTaken);
+      setChoosing(null);
 
       const remaining = slots.filter((s) => !nextRoster[s.id]);
       if (remaining.length === 0) {
@@ -143,27 +145,52 @@ export function EightOhClient({ game }: Props) {
     [slots, roster, taken, opponents, dealTeam],
   );
 
+  /** Click a pickable fighter row: pick directly if one open slot, else open the chooser. */
+  const onPick = useCallback(
+    (f: GameFighter, openEligible: string[]) => {
+      if (openEligible.length === 1) place(f, openEligible[0]);
+      else setChoosing((cur) => (cur === f.slug ? null : f.slug));
+    },
+    [place],
+  );
+
+  /** Move an already-placed multi-class fighter from one slot to another open eligible slot. */
+  const moveFighter = useCallback(
+    (fromId: string, toId: string) => {
+      const f = roster[fromId];
+      if (!f || roster[toId] || !f.slotIds.includes(toId)) return;
+      const next = { ...roster };
+      delete next[fromId];
+      next[toId] = f;
+      setRoster(next);
+    },
+    [roster],
+  );
+
   if (phase === 'intro') {
     return <Intro slotCount={slots.length} onStart={start} />;
   }
 
   if (phase === 'result' && result) {
-    return (
-      <Result
-        slots={slots}
-        roster={roster}
-        result={result}
-        onReset={reset}
-      />
-    );
+    return <Result slots={slots} roster={roster} result={result} onReset={reset} />;
   }
 
-  // Picking
-  const choices = eligibleFor(currentTeam);
+  // Picking — the dealt team's entire roster (pickable + greyed non-pickable).
+  const teamFighters = currentTeam ? (fightersByTeam.get(currentTeam) ?? []) : fighters;
+  const rows = teamFighters
+    .map((f) => {
+      const openEligible = f.slotIds.filter((id) => openSlotIds.has(id));
+      const isTaken = taken.has(f.slug);
+      return { f, openEligible, isTaken, pickable: !isTaken && openEligible.length > 0 };
+    })
+    // Pickable first, then by rating (a light, useful default order).
+    .sort((a, b) => Number(b.pickable) - Number(a.pickable) || b.f.rating - a.f.rating);
+
   const teamColor = currentTeam ? getTeamColor(currentTeam) : '';
+  const teamName = teamFighters[0]?.team ?? currentTeam ?? '';
 
   return (
-    <main className="eo-page">
+    <div className="eo-page eo-root">
       <header className="eo-head">
         <h1 className="eo-title">
           8<span className="eo-title__dash">–</span>0
@@ -172,10 +199,7 @@ export function EightOhClient({ game }: Props) {
           {statsVisible ? 'Stats shown' : 'Blind pick'} · Pick {filledCount + 1} of {slots.length}
         </p>
         <div className="eo-progress" aria-hidden>
-          <div
-            className="eo-progress__bar"
-            style={{ width: `${(filledCount / slots.length) * 100}%` }}
-          />
+          <div className="eo-progress__bar" style={{ width: `${(filledCount / slots.length) * 100}%` }} />
         </div>
       </header>
 
@@ -187,7 +211,7 @@ export function EightOhClient({ game }: Props) {
               <img className="eo-picker__logo" src={getTeamLogoPath(currentTeam)} alt="" />
               <div>
                 <div className="eo-picker__eyebrow">You&apos;re on the clock</div>
-                <div className="eo-picker__teamname">{choices[0]?.team ?? currentTeam}</div>
+                <div className="eo-picker__teamname">{teamName}</div>
               </div>
             </>
           ) : (
@@ -195,34 +219,75 @@ export function EightOhClient({ game }: Props) {
           )}
         </div>
 
-        <div className="eo-grid">
-          {choices.map((f) => (
-            <button key={f.slug} className="eo-fighter" onClick={() => pick(f)}>
-              <FighterPortrait
-                slug={f.slug}
-                teamLogoSrc={getTeamLogoPath(f.teamSlug)}
-                alt={f.name}
-                className="eo-fighter__img"
-              />
-              <div className="eo-fighter__name">{f.name}</div>
-              <div className="eo-fighter__class">
-                {f.classes.join(' / ')} · {f.gender === 'Female' ? 'F' : 'M'}
+        <div className="eo-list">
+          {rows.map(({ f, openEligible, isTaken, pickable }) => {
+            const expanded = choosing === f.slug;
+            return (
+              <div key={f.slug} className={`eo-row${pickable ? '' : ' eo-row--disabled'}`}>
+                <button
+                  type="button"
+                  className="eo-row__main"
+                  disabled={!pickable}
+                  aria-expanded={pickable && openEligible.length > 1 ? expanded : undefined}
+                  onClick={() => pickable && onPick(f, openEligible)}
+                >
+                  <span className="eo-row__id">
+                    <span className="eo-row__name">{f.name}</span>
+                    <span className="eo-row__classes">{f.classes.join(' · ')}</span>
+                    <span className="eo-row__meta">
+                      {f.city} · {f.gender === 'Female' ? 'F' : 'M'}
+                      {!pickable && (
+                        <span className="eo-row__tag">{isTaken ? 'Rostered' : 'Slot filled'}</span>
+                      )}
+                      {pickable && openEligible.length > 1 && (
+                        <span className="eo-row__tag eo-row__tag--pick">Choose class</span>
+                      )}
+                    </span>
+                  </span>
+                  {statsVisible && (
+                    <span className="eo-row__stats">
+                      <Stat v={f.netPts.toFixed(1)} l="NET PTS" />
+                      <Stat v={f.nppr.toFixed(2)} l="NPPR" />
+                      <Stat v={f.war.toFixed(1)} l="WAR" />
+                      <Stat v={f.record} l="REC" />
+                    </span>
+                  )}
+                </button>
+
+                {pickable && expanded && openEligible.length > 1 && (
+                  <div className="eo-row__choose">
+                    <span className="eo-row__choose-label">Fill slot:</span>
+                    {openEligible.map((id) => (
+                      <button key={id} type="button" className="eo-chip" onClick={() => place(f, id)}>
+                        {slotById.get(id)?.label ?? id}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-              {statsVisible && (
-                <div className="eo-fighter__stats">
-                  <span>{f.record}</span>
-                  <span>{f.netPts.toFixed(1)} NP</span>
-                  <span>{f.nppr.toFixed(2)} NPPR</span>
-                  <span>{f.war.toFixed(1)} WAR</span>
-                </div>
-              )}
-            </button>
-          ))}
+            );
+          })}
         </div>
       </section>
 
-      <RosterBoard slots={slots} roster={roster} statsVisible={statsVisible} compact />
-    </main>
+      <RosterBoard
+        slots={slots}
+        roster={roster}
+        statsVisible={statsVisible}
+        openSlotIds={openSlotIds}
+        onMove={moveFighter}
+        compact
+      />
+    </div>
+  );
+}
+
+function Stat({ v, l }: { v: string; l: string }) {
+  return (
+    <span className="eo-stat">
+      <span className="eo-stat__v">{v}</span>
+      <span className="eo-stat__l">{l}</span>
+    </span>
   );
 }
 
@@ -230,7 +295,7 @@ export function EightOhClient({ game }: Props) {
 
 function Intro({ slotCount, onStart }: { slotCount: number; onStart: (visible: boolean) => void }) {
   return (
-    <main className="eo-page eo-intro">
+    <div className="eo-page eo-root eo-intro">
       <h1 className="eo-title eo-title--xl">
         8<span className="eo-title__dash">–</span>0
       </h1>
@@ -243,19 +308,19 @@ function Intro({ slotCount, onStart }: { slotCount: number; onStart: (visible: b
         <button className="eo-mode" onClick={() => onStart(true)}>
           <span className="eo-mode__title">Stats shown</span>
           <span className="eo-mode__desc">
-            See net points, NPPR, record and WAR while you pick. Play the odds.
+            See net points, NPPR, WAR and record while you pick. Play the odds.
           </span>
           <span className="eo-btn eo-btn--primary eo-mode__cta">Play with stats</span>
         </button>
         <button className="eo-mode" onClick={() => onStart(false)}>
           <span className="eo-mode__title">Blind pick</span>
           <span className="eo-mode__desc">
-            No numbers — just names, teams and faces. Stats revealed at the end.
+            No numbers — just names and teams. Stats revealed at the end.
           </span>
           <span className="eo-btn eo-btn--ghost eo-mode__cta">Play blind</span>
         </button>
       </div>
-    </main>
+    </div>
   );
 }
 
@@ -265,37 +330,56 @@ function RosterBoard({
   slots,
   roster,
   statsVisible,
+  openSlotIds,
+  onMove,
   compact,
 }: {
   slots: Slot[];
   roster: Record<string, GameFighter>;
   statsVisible: boolean;
+  openSlotIds?: Set<string>;
+  onMove?: (fromId: string, toId: string) => void;
   compact?: boolean;
 }) {
   return (
     <section className={`eo-board${compact ? ' eo-board--compact' : ''}`}>
       {slots.map((s) => {
         const f = roster[s.id];
+        // Other eligible slots this fighter could move to that are currently open.
+        const moveTargets =
+          f && openSlotIds && onMove
+            ? f.slotIds.filter((id) => id !== s.id && openSlotIds.has(id))
+            : [];
         return (
           <div key={s.id} className={`eo-slot${f ? ' eo-slot--filled' : ''}`}>
             <div className="eo-slot__label">{s.label}</div>
             {f ? (
-              <div className="eo-slot__fighter">
-                <FighterPortrait
-                  slug={f.slug}
-                  teamLogoSrc={getTeamLogoPath(f.teamSlug)}
-                  alt={f.name}
-                  className="eo-slot__img"
-                />
-                <div className="eo-slot__meta">
-                  <div className="eo-slot__name">{f.name}</div>
-                  <div className="eo-slot__team">{f.city}</div>
-                  {statsVisible && (
-                    <div className="eo-slot__stats">
-                      {f.record} · {f.netPts.toFixed(1)} NP · {f.nppr.toFixed(2)} NPPR
-                    </div>
-                  )}
-                </div>
+              <div className="eo-slot__body">
+                <div className="eo-slot__name">{f.name}</div>
+                <div className="eo-slot__team">{f.city}</div>
+                {statsVisible && (
+                  <div className="eo-slot__stats">
+                    {f.record} · {f.netPts.toFixed(1)} NP · {f.nppr.toFixed(2)} NPPR
+                  </div>
+                )}
+                {moveTargets.length > 0 && (
+                  <div className="eo-slot__move">
+                    {moveTargets.map((id) => {
+                      const label = slots.find((x) => x.id === id)?.weightClass ?? id;
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          className="eo-move-btn"
+                          onClick={() => onMove!(s.id, id)}
+                          title={`Move ${f.name} to ${label}`}
+                        >
+                          → {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="eo-slot__empty">Empty</div>
@@ -321,7 +405,7 @@ function Result({
   onReset: () => void;
 }) {
   return (
-    <main className="eo-page eo-result">
+    <div className="eo-page eo-root eo-result">
       <header className="eo-result__head">
         <div className="eo-result__eyebrow">Your regular season</div>
         <div className={`eo-record${result.perfect ? ' eo-record--perfect' : ''}`}>
@@ -358,6 +442,6 @@ function Result({
       <button className="eo-btn eo-btn--primary eo-again" onClick={onReset}>
         Build another roster
       </button>
-    </main>
+    </div>
   );
 }

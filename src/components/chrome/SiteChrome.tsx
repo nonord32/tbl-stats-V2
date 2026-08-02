@@ -12,6 +12,7 @@ import { GazetteFooter } from './GazetteFooter';
 
 function hideChromeFor(pathname: string | null): boolean {
   if (!pathname) return false;
+  if (pathname === '/8-0') return true; // standalone dark game
   return pathname === '/fantasy' || pathname.startsWith('/fantasy/');
 }
 
