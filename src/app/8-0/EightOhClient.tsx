@@ -420,20 +420,6 @@ function Result({
         </p>
       </header>
 
-      <section className="eo-games">
-        <h2 className="eo-section-title">Game log</h2>
-        {result.games.map((g, i) => (
-          <div key={i} className={`eo-game${g.won ? ' eo-game--w' : ' eo-game--l'}`}>
-            <span className="eo-game__num">G{i + 1}</span>
-            <span className="eo-game__opp">{g.opponentCity}</span>
-            <span className="eo-game__score">
-              {g.yourTotal.toFixed(1)} – {g.theirTotal.toFixed(1)}
-            </span>
-            <span className="eo-game__res">{g.won ? 'W' : 'L'}</span>
-          </div>
-        ))}
-      </section>
-
       <section className="eo-reveal">
         <h2 className="eo-section-title">Your roster</h2>
         <RosterBoard slots={slots} roster={roster} statsVisible />
