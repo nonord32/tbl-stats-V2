@@ -1,50 +1,19 @@
 'use client';
 // src/app/fighters/[slug]/FightHistory.tsx
-// Phase-aware Form strip + Fight History for a fighter profile. When the
-// fighter has playoff bouts, a Full Season / Regular Season / Playoffs toggle
-// scopes both the form pills and the bout list; otherwise it renders exactly
-// as before.
+// Form strip + Fight History for a fighter profile.
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import Link from 'next/link';
 import type { FightHistory as FightHistoryEntry } from '@/types';
 import { toSlug } from '@/lib/data';
-import { calcFighterStreak, type Phase } from '@/lib/phaseStats';
+import { calcFighterStreak } from '@/lib/phaseStats';
 import { getTeamLogoPathByName } from '@/lib/teams';
 import { SectionRule } from '@/components/chrome/SectionRule';
 
-const PHASE_LABELS: Record<Phase, string> = {
-  all: 'Full Season',
-  regular: 'Regular Season',
-  playoffs: 'Playoffs',
-};
-
 export function FightHistory({ history }: { history: FightHistoryEntry[] }) {
-  const [phase, setPhase] = useState<Phase>('all');
-  const hasPlayoffs = useMemo(() => history.some((h) => h.phase === 'playoffs'), [history]);
-
-  const scoped = useMemo(
-    () => (phase === 'all' ? history : history.filter((h) => h.phase === phase)),
-    [history, phase]
-  );
-  const streak = useMemo(() => calcFighterStreak(scoped), [scoped]);
+  const streak = useMemo(() => calcFighterStreak(history), [history]);
   // Last 10 bouts oldest → newest for the form strip (history is newest-first).
-  const formLast10 = [...scoped].slice(0, 10).reverse();
-
-  const phaseToggle = hasPlayoffs ? (
-    <label className="gz-filter" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-      <span className="gz-filter__label">View</span>
-      <select
-        className="gz-filter__select"
-        value={phase}
-        onChange={(e) => setPhase(e.target.value as Phase)}
-      >
-        {(['all', 'regular', 'playoffs'] as Phase[]).map((p) => (
-          <option key={p} value={p}>{PHASE_LABELS[p]}</option>
-        ))}
-      </select>
-    </label>
-  ) : null;
+  const formLast10 = [...history].slice(0, 10).reverse();
 
   return (
     <>
@@ -89,13 +58,12 @@ export function FightHistory({ history }: { history: FightHistoryEntry[] }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 200 }}>
               <SectionRule
-                left={`Fight History${phase === 'all' ? ' · 2026 Season' : ` · ${PHASE_LABELS[phase]}`}`}
-                right={`${scoped.length} ${scoped.length === 1 ? 'bout' : 'bouts'} shown`}
+                left="Fight History · 2026 Season"
+                right={`${history.length} ${history.length === 1 ? 'bout' : 'bouts'} shown`}
               />
             </div>
-            {phaseToggle && <div style={{ paddingBottom: 12 }}>{phaseToggle}</div>}
           </div>
-          {scoped.length === 0 ? (
+          {history.length === 0 ? (
             <p
               style={{
                 fontFamily: 'var(--tbl-font-mono)',
@@ -109,7 +77,7 @@ export function FightHistory({ history }: { history: FightHistoryEntry[] }) {
             <>
               {/* Mobile: card-list view (hidden on desktop) */}
               <div className="gz-fighter-history-cards">
-                {scoped.map((h, i) => {
+                {history.map((h, i) => {
                   const oppLogo = getTeamLogoPathByName(h.opponentTeam);
                   const isWin = h.result === 'W';
                   const roundLabel = String(h.round).startsWith('R')
@@ -208,7 +176,7 @@ export function FightHistory({ history }: { history: FightHistoryEntry[] }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {scoped.map((h, i) => {
+                    {history.map((h, i) => {
                       const oppSlug = h.opponentTeam
                         .toLowerCase()
                         .replace(/\s+/g, '-')
