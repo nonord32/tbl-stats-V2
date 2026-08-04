@@ -6,8 +6,10 @@ create table public.profiles (
   id uuid references auth.users(id) on delete cascade primary key,
   username text unique,              -- auto-generated from email prefix; nullable for safety
   display_name text,
+  hidden boolean default false not null,  -- admin flag: hide this player from public leaderboards
   created_at timestamptz default now() not null
 );
+-- For existing installs: alter table public.profiles add column if not exists hidden boolean default false not null;
 
 alter table public.profiles enable row level security;
 

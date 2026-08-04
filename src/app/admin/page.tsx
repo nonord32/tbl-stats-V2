@@ -18,6 +18,7 @@ interface AdminProfileRow {
   id: string;
   display_name: string | null;
   username: string | null;
+  hidden: boolean | null;
 }
 
 export default async function AdminPage() {
@@ -62,7 +63,7 @@ export default async function AdminPage() {
       : Promise.resolve<AdminPickRow[]>([]),
     supabase
       ? safeQuery<AdminProfileRow[]>(
-          supabase.from('profiles').select('id, display_name, username'),
+          supabase.from('profiles').select('id, display_name, username, hidden'),
           [],
           'admin.profiles'
         )
@@ -84,6 +85,19 @@ export default async function AdminPage() {
     .filter((s) => s.matchIndex !== undefined)
     .map((s) => ({ matchIndex: s.matchIndex!, week: s.week, team1: s.team1, team2: s.team2 }));
 
+  // Player roster for the hide-from-leaderboard controls. Sorted by display
+  // name / username so the list is easy to scan.
+  const players = profilesData
+    .map((p) => ({
+      userId: p.id,
+      displayName: p.display_name ?? '',
+      username: p.username ?? '',
+      hidden: !!p.hidden,
+    }))
+    .sort((a, b) =>
+      (a.displayName || a.username).localeCompare(b.displayName || b.username)
+    );
+
   const picks = rawPicks.map((p) => {
     const profile = profileMap.get(p.user_id);
     const match = allMatchList.find((m) => m.matchIndex === p.match_index);
@@ -100,5 +114,5 @@ export default async function AdminPage() {
     };
   });
 
-  return <AdminClient matches={matchList} picks={picks} dbError={dbError} dbDebug={dbDebug} />;
+  return <AdminClient matches={matchList} picks={picks} players={players} dbError={dbError} dbDebug={dbDebug} />;
 }

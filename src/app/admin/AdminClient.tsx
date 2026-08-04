@@ -20,6 +20,13 @@ interface PickRow {
   resolved: boolean;
 }
 
+interface PlayerRow {
+  userId: string;
+  displayName: string;
+  username: string;
+  hidden: boolean;
+}
+
 interface DbDebug {
   picksCount: number;
   picksError: string | null;
@@ -28,7 +35,7 @@ interface DbDebug {
   serviceKeySet: boolean;
 }
 
-export function AdminClient({ matches, picks: initialPicks, dbError, dbDebug }: { matches: MatchEntry[]; picks: PickRow[]; dbError: string | null; dbDebug: DbDebug }) {
+export function AdminClient({ matches, picks: initialPicks, players: initialPlayers, dbError, dbDebug }: { matches: MatchEntry[]; picks: PickRow[]; players: PlayerRow[]; dbError: string | null; dbDebug: DbDebug }) {
   const [secret, setSecret] = useState('');
   const [authed, setAuthed] = useState(false);
 
@@ -37,6 +44,12 @@ export function AdminClient({ matches, picks: initialPicks, dbError, dbDebug }: 
   const [picks, setPicks] = useState<PickRow[]>(initialPicks);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Players list + hide/show-from-leaderboard controls.
+  const [players, setPlayers] = useState<PlayerRow[]>(initialPlayers);
+  const [playerFilter, setPlayerFilter] = useState('');
+  const [togglingPlayer, setTogglingPlayer] = useState<string | null>(null);
+  const [playerError, setPlayerError] = useState<string | null>(null);
 
   // Picks table filters
   const [userFilter, setUserFilter] = useState('');
@@ -136,6 +149,45 @@ export function AdminClient({ matches, picks: initialPicks, dbError, dbDebug }: 
     }
   }
 
+  const filteredPlayers = useMemo(() => {
+    const q = playerFilter.trim().toLowerCase();
+    if (!q) return players;
+    return players.filter((p) =>
+      (p.displayName || '').toLowerCase().includes(q) ||
+      (p.username || '').toLowerCase().includes(q)
+    );
+  }, [players, playerFilter]);
+
+  const hiddenCount = useMemo(() => players.filter((p) => p.hidden).length, [players]);
+
+  async function handleToggleHidden(p: PlayerRow) {
+    const nextHidden = !p.hidden;
+    setTogglingPlayer(p.userId);
+    setPlayerError(null);
+    try {
+      const res = await fetch('/api/admin/toggle-hidden', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${secret}`,
+        },
+        body: JSON.stringify({ user_id: p.userId, hidden: nextHidden }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPlayerError(json.error || `Update failed (${res.status})`);
+        return;
+      }
+      setPlayers((prev) =>
+        prev.map((row) => (row.userId === p.userId ? { ...row, hidden: nextHidden } : row))
+      );
+    } catch {
+      setPlayerError('Network error while updating player.');
+    } finally {
+      setTogglingPlayer(null);
+    }
+  }
+
   if (!authed) {
     return (
       <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
@@ -199,6 +251,108 @@ export function AdminClient({ matches, picks: initialPicks, dbError, dbDebug }: 
             Picks and fantasy lineups score automatically from sheet state on page load. No manual resolve needed — just update the sheet.
           </p>
         </div>
+
+        {/* Players — hide/show from leaderboard */}
+        <section style={{ marginTop: 16, marginBottom: 32 }}>
+          <h2 style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>
+            Players ({players.length}{hiddenCount > 0 ? ` · ${hiddenCount} hidden` : ''})
+          </h2>
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', marginBottom: 16 }}>
+            Hidden players are removed from the public leaderboard. Their picks are kept.
+          </p>
+          {players.length === 0 ? (
+            <div className="card" style={{ padding: 24 }}>
+              <p style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-muted)' }}>No players found.</p>
+            </div>
+          ) : (
+            <div className="card">
+              <div className="card-header">
+                <div className="filters">
+                  <input
+                    type="search"
+                    className="filter-search"
+                    placeholder="Search player…"
+                    value={playerFilter}
+                    onChange={(e) => setPlayerFilter(e.target.value)}
+                    aria-label="Filter players by name"
+                  />
+                  {playerFilter && (
+                    <button type="button" onClick={() => setPlayerFilter('')} className="filter-clear">
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="table-wrap">
+                {playerError && (
+                  <div style={{ padding: '8px 16px', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--result-l)' }}>
+                    {playerError}
+                  </div>
+                )}
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Player</th>
+                      <th>Username</th>
+                      <th className="num-cell">Status</th>
+                      <th className="num-cell">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredPlayers.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} style={{ padding: 24, textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
+                          No players match the current filter.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredPlayers.map((p) => {
+                        const isToggling = togglingPlayer === p.userId;
+                        return (
+                          <tr key={p.userId} style={{ opacity: p.hidden ? 0.55 : 1 }}>
+                            <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600 }}>
+                              {p.displayName || '—'}
+                            </td>
+                            <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
+                              {p.username ? `@${p.username}` : '—'}
+                            </td>
+                            <td className="num-cell" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: p.hidden ? 'var(--result-l)' : 'var(--result-w)' }}>
+                              {p.hidden ? 'Hidden' : 'Visible'}
+                            </td>
+                            <td className="num-cell">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleHidden(p)}
+                                disabled={isToggling}
+                                style={{
+                                  fontFamily: 'var(--font-mono)',
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  letterSpacing: '0.08em',
+                                  textTransform: 'uppercase',
+                                  color: p.hidden ? 'var(--result-w)' : 'var(--text-muted)',
+                                  background: 'transparent',
+                                  border: `1px solid ${p.hidden ? 'var(--result-w)' : 'var(--border)'}`,
+                                  borderRadius: 'var(--radius)',
+                                  padding: '4px 10px',
+                                  cursor: isToggling ? 'wait' : 'pointer',
+                                  opacity: isToggling ? 0.5 : 1,
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {isToggling ? 'Saving…' : p.hidden ? 'Show' : 'Hide'}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </section>
 
         {/* All picks table */}
         <section style={{ marginTop: 16 }}>

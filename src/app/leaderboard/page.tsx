@@ -27,6 +27,7 @@ interface ProfileRow {
   id: string;
   display_name: string | null;
   username: string;
+  hidden: boolean | null;
 }
 
 export default async function LeaderboardPage() {
@@ -60,7 +61,7 @@ export default async function LeaderboardPage() {
       : Promise.resolve<EntryRow[]>([]),
     service
       ? safeQuery<ProfileRow[]>(
-          service.from('profiles').select('id, display_name, username'),
+          service.from('profiles').select('id, display_name, username, hidden'),
           [],
           'leaderboard.profiles'
         )
@@ -70,7 +71,12 @@ export default async function LeaderboardPage() {
   const profileMap = new Map(profileRows.map((p) => [p.id, p]));
   const finalTotalActual = actualFinalTotal(bracket);
 
-  const rows: BracketLeaderRow[] = entryRows.map((r) => {
+  // Drop entries whose profile is admin-hidden so they never appear publicly.
+  const visibleEntryRows = entryRows.filter(
+    (r) => !profileMap.get(r.user_id)?.hidden
+  );
+
+  const rows: BracketLeaderRow[] = visibleEntryRows.map((r) => {
     const entry: BracketEntry = {
       user_id: r.user_id,
       qf_winners: r.qf_winners ?? [],
