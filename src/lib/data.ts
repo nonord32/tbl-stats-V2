@@ -24,6 +24,15 @@ const SHEETS = {
   // can reorder or drop columns freely without breaking the site.
   fighters:
     'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=1273687161&single=true&output=csv',
+  // Per-phase fighter stats live on dedicated tabs ("Fighter Stats - Regular"
+  // and "Fighter Stats - Playoffs"). Same layout as the joint tab (parsed by
+  // header name, so column order is irrelevant); WAR is sourced from the joint
+  // `fighters` tab and merged in, so these tabs don't need a WAR column.
+  // TODO: replace the gid below with the real published-CSV gid for each tab.
+  fightersRegular:
+    'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=REGULAR_GID&single=true&output=csv',
+  fightersPlayoffs:
+    'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=PLAYOFFS_GID&single=true&output=csv',
   // Same tab as `fighters`; kept as a fallback for the Instagram-merge step
   // in case the primary parse misses the column for any reason.
   fighterSocials:
@@ -697,9 +706,17 @@ export const getAllData = cache(async (): Promise<ParsedSheetData> => {
   // Each CSV fetch has its own fallback so one bad source (rename, network,
   // rate limit) can't take down every page that uses getAllData.
   const emptyRows: string[][] = [];
-  const [fighterRawRows, socialsRawRows, teamRawRows, matchRawRows, scheduleRawRows, highlightsRawRows, awardsRawRows] = await Promise.all([
+  const [fighterRawRows, fighterRegularRawRows, fighterPlayoffsRawRows, socialsRawRows, teamRawRows, matchRawRows, scheduleRawRows, highlightsRawRows, awardsRawRows] = await Promise.all([
     fetchRawCSV(SHEETS.fighters).catch((err) => {
       console.error('[getAllData] fighters CSV fetch failed:', err);
+      return emptyRows;
+    }),
+    fetchRawCSV(SHEETS.fightersRegular).catch((err) => {
+      console.error('[getAllData] fightersRegular CSV fetch failed:', err);
+      return emptyRows;
+    }),
+    fetchRawCSV(SHEETS.fightersPlayoffs).catch((err) => {
+      console.error('[getAllData] fightersPlayoffs CSV fetch failed:', err);
       return emptyRows;
     }),
     fetchRawCSV(SHEETS.fighterSocials).catch((err) => {
@@ -749,6 +766,35 @@ export const getAllData = cache(async (): Promise<ParsedSheetData> => {
     }
   } catch (err) {
     console.error('[getAllData] parseFighterSocials threw:', err);
+  }
+
+  // Per-phase fighter stats from the dedicated tabs. Parsed with the same
+  // forgiving, header-name-based parser as the joint tab. WAR isn't
+  // reconstructable per-phase (its formula is sheet-only and league-wide), so
+  // we carry the season WAR from the joint `fighters` tab across by slug; the
+  // Instagram URL is carried too so the fighter modal keeps its social link
+  // when a phase view is selected. Empty arrays (tab unpublished/missing) let
+  // callers fall back to recomputing from fighterHistory.
+  const warBySlug = new Map(fighters.map((f) => [f.slug, f.war]));
+  const igBySlug = new Map(fighters.map((f) => [f.slug, f.instagram]));
+  const carryFromJoint = (arr: FighterStat[]): FighterStat[] =>
+    arr.map((f) => ({
+      ...f,
+      war: warBySlug.get(f.slug) ?? 0,
+      instagram: f.instagram ?? igBySlug.get(f.slug),
+    }));
+
+  let fightersRegular: FighterStat[] = [];
+  try {
+    fightersRegular = carryFromJoint(parseFighters(fighterRegularRawRows).fighters);
+  } catch (err) {
+    console.error('[getAllData] parseFighters (regular) threw:', err);
+  }
+  let fightersPlayoffs: FighterStat[] = [];
+  try {
+    fightersPlayoffs = carryFromJoint(parseFighters(fighterPlayoffsRawRows).fighters);
+  } catch (err) {
+    console.error('[getAllData] parseFighters (playoffs) threw:', err);
   }
 
   let teams: TeamStanding[] = [];
@@ -806,7 +852,17 @@ export const getAllData = cache(async (): Promise<ParsedSheetData> => {
     // else: keep the sheet value from parseTeams
   });
 
-  return { fighters, teams, teamMatches, fighterHistory, schedule, highlights, awards, lastUpdated };
+  return {
+    fighters,
+    fightersByPhase: { regular: fightersRegular, playoffs: fightersPlayoffs },
+    teams,
+    teamMatches,
+    fighterHistory,
+    schedule,
+    highlights,
+    awards,
+    lastUpdated,
+  };
 });
 
 export async function getFighterBySlug(slug: string) {

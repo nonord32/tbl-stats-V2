@@ -46,6 +46,7 @@ export default async function FightersPage() {
       ) : (
         <FightersClient
           fighters={data.fighters}
+          fightersByPhase={data.fightersByPhase}
           fighterHistory={data.fighterHistory}
           schedule={data.schedule}
           lastUpdated={data.lastUpdated}

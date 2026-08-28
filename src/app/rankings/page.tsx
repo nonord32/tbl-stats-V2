@@ -72,6 +72,7 @@ export default async function RankingsPage() {
       ) : (
         <RankingsClient
           fighters={data.fighters}
+          fightersByPhase={data.fightersByPhase}
           fighterHistory={data.fighterHistory}
           lastUpdated={data.lastUpdated}
         />

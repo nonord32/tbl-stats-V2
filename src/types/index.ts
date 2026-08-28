@@ -128,8 +128,17 @@ export interface AwardEntry {
   notes: string;
 }
 
+// Pre-aggregated, phase-scoped fighter stats. Each array is parsed from its
+// own dedicated sheet tab ("Fighter Stats - Regular" / "Fighter Stats -
+// Playoffs"). WAR is carried over from the joint tab (see getAllData).
+export type FightersByPhase = Record<'regular' | 'playoffs', FighterStat[]>;
+
 export interface ParsedSheetData {
   fighters: FighterStat[];
+  // Phase-scoped fighter stats pulled from the dedicated per-phase tabs.
+  // Empty arrays when those tabs are unpublished/missing — callers fall back
+  // to recomputing from fighterHistory in that case.
+  fightersByPhase: FightersByPhase;
   teams: TeamStanding[];
   teamMatches: Record<string, TeamMatch[]>;
   fighterHistory: Record<string, FightHistory[]>;

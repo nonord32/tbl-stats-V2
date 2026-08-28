@@ -1,19 +1,21 @@
 // src/lib/phaseStats.ts
 // Per-phase (regular season vs playoffs) stat aggregation.
 //
-// Aggregate fighter/team stats are pre-computed season-wide in the source
-// sheet. To split them by phase we recompute the derivable stats from the
-// per-bout fight history and per-match team data — both of which now carry a
-// `phase` tag (see parseMatchData in data.ts).
+// Fighter stats: each phase has its own pre-aggregated source tab ("Fighter
+// Stats - Regular" / "Fighter Stats - Playoffs"), parsed in data.ts into
+// `fightersByPhase`. Those already carry season WAR (merged from the joint
+// tab), so per-phase views show real WAR too. If a phase tab is missing we
+// fall back to recomputing counting/rate stats from the per-bout fight
+// history (war = 0 in that case) — see aggregateFightersByPhase.
 //
-// WAR is the one metric we can't reconstruct here: its formula lives only in
-// the sheet and needs a league-wide replacement baseline. Phase-filtered
-// fighters therefore carry war = 0, and the rankings UI drops the WAR
-// category when viewing a single phase.
+// Team stats: there are no per-phase team tabs, so team standings are still
+// recomputed from the phase-tagged per-match data (see parseMatchData in
+// data.ts and aggregateTeamStandingsByPhase below).
 
 import type {
   FighterStat,
   FightHistory,
+  FightersByPhase,
   TeamStanding,
   TeamMatch,
   GamePhase,
@@ -59,16 +61,27 @@ function rebuildFighter(base: FighterStat, bouts: FightHistory[]): FighterStat {
   };
 }
 
-// Fighters with their stats scoped to the given phase. `'all'` passes the
-// sheet stats through untouched (keeps the real, sheet-computed WAR).
-// For a single phase, only fighters with at least one bout in that phase are
-// returned, each recomputed from their filtered history.
+// Fighters with their stats scoped to the given phase.
+//
+// `'all'` passes the joint sheet stats through untouched (real, sheet-computed
+// WAR). For a single phase we prefer the pre-aggregated numbers from that
+// phase's dedicated tab (`fightersByPhase`), which already carry season WAR
+// merged in from the joint tab. If that tab is empty (unpublished/missing), we
+// fall back to recomputing counting/rate stats from each fighter's
+// phase-filtered bout history — the original behavior — so a missing tab never
+// blanks the page (WAR is unavailable in that fallback and shows as 0).
 export function aggregateFightersByPhase(
   fighters: FighterStat[],
+  fightersByPhase: FightersByPhase,
   fighterHistory: Record<string, FightHistory[]>,
   phase: Phase
 ): FighterStat[] {
   if (phase === 'all') return fighters;
+
+  const preAggregated = fightersByPhase[phase] ?? [];
+  if (preAggregated.length > 0) return preAggregated;
+
+  // Fallback: reconstruct from bout history when the phase tab has no data.
   const out: FighterStat[] = [];
   for (const f of fighters) {
     const bouts = (fighterHistory[f.slug] ?? []).filter((b) => b.phase === phase);

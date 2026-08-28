@@ -25,6 +25,7 @@ export default async function EightOhPage() {
   const data = await getAllData();
   const regularFighters = aggregateFightersByPhase(
     data.fighters,
+    data.fightersByPhase,
     data.fighterHistory,
     'regular',
   );

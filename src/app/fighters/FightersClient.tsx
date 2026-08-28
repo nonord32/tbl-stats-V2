@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import type { FighterStat, FightHistory, ScheduleEntry } from '@/types';
+import type { FighterStat, FightHistory, FightersByPhase, ScheduleEntry } from '@/types';
 import { calcFighterStreak, toSlug } from '@/lib/data';
 import {
   getFighterWeightClasses,
@@ -24,6 +24,7 @@ const PHASE_LABELS: Record<Phase, string> = {
 
 interface Props {
   fighters: FighterStat[];
+  fightersByPhase: FightersByPhase;
   fighterHistory: Record<string, FightHistory[]>;
   schedule: ScheduleEntry[];
   seoText?: string;
@@ -173,7 +174,7 @@ function FighterModal({
   );
 }
 
-export function FightersClient({ fighters, fighterHistory, schedule, seoText, lastUpdated }: Props) {
+export function FightersClient({ fighters, fightersByPhase, fighterHistory, schedule, seoText, lastUpdated }: Props) {
   const formattedUpdate = lastUpdated || null;
   const [sortKey, setSortKey] = useState<SortKey>('netPts');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -190,16 +191,16 @@ export function FightersClient({ fighters, fighterHistory, schedule, seoText, la
   // through the regular season.
   const playoffsLive = useMemo(() => hasPlayoffData(fighterHistory, {}), [fighterHistory]);
 
-  // WAR can't be recomputed per-phase (its formula lives only in the source
-  // sheet), so it's shown as "—" outside the Full Season view.
-  const showWar = phase === 'all';
+  // WAR now comes from the dedicated per-phase tabs (season WAR merged in from
+  // the joint tab), so it's shown in every view.
+  const showWar = true;
 
-  // Fighter stats scoped to the selected phase. 'all' passes the sheet stats
-  // through untouched; a single phase recomputes counting/rate stats from that
-  // phase's bouts and returns only fighters who competed in it.
+  // Fighter stats scoped to the selected phase. 'all' passes the joint sheet
+  // stats through; a single phase uses that phase's pre-aggregated tab (with a
+  // recompute-from-history fallback when the tab is empty).
   const phaseFighters = useMemo(
-    () => aggregateFightersByPhase(fighters, fighterHistory, phase),
-    [fighters, fighterHistory, phase]
+    () => aggregateFightersByPhase(fighters, fightersByPhase, fighterHistory, phase),
+    [fighters, fightersByPhase, fighterHistory, phase]
   );
 
   const matchIndexToWeek = useMemo(() => {

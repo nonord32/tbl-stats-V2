@@ -5,7 +5,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import type { FighterStat, FightHistory } from '@/types';
+import type { FighterStat, FightHistory, FightersByPhase } from '@/types';
 import { aggregateFightersByPhase, hasPlayoffData, type Phase } from '@/lib/phaseStats';
 import { compareWeightClass } from '@/lib/weightClasses';
 import { getPrimaryWeightClass, getFighterWeightClasses } from '@/lib/fighters';
@@ -14,6 +14,7 @@ import { getTeamLogoPathByName, getCityName } from '@/lib/teams';
 
 interface Props {
   fighters: FighterStat[];
+  fightersByPhase: FightersByPhase;
   fighterHistory: Record<string, FightHistory[]>;
   lastUpdated: string;
 }
@@ -44,7 +45,7 @@ const PHASE_LABELS: Record<Phase, string> = {
   playoffs: 'Playoffs',
 };
 
-export function RankingsClient({ fighters, fighterHistory, lastUpdated }: Props) {
+export function RankingsClient({ fighters, fightersByPhase, fighterHistory, lastUpdated }: Props) {
   const [gender, setGender] = useState<Gender>('All');
   const [weightClass, setWeightClass] = useState<string>('All');
   const [phase, setPhase] = useState<Phase>('all');
@@ -56,15 +57,16 @@ export function RankingsClient({ fighters, fighterHistory, lastUpdated }: Props)
     [fighterHistory]
   );
 
-  // WAR can't be recomputed per-phase (sheet-only formula), so it's only shown
-  // in the Full Season view; phase views drop the WAR category.
-  const showWar = phase === 'all';
-  const categories = showWar ? CATEGORIES : CATEGORIES.filter((c) => c.key !== 'war');
+  // WAR now comes from the dedicated per-phase tabs (season WAR merged in from
+  // the joint tab), so the WAR category is shown in every view.
+  const categories = CATEGORIES;
 
-  // Stats scoped to the selected phase. 'all' passes the sheet stats through.
+  // Stats scoped to the selected phase. 'all' passes the joint sheet stats
+  // through; a single phase uses that phase's pre-aggregated tab (with a
+  // recompute-from-history fallback when the tab is empty).
   const phaseFighters = useMemo(
-    () => aggregateFightersByPhase(fighters, fighterHistory, phase),
-    [fighters, fighterHistory, phase]
+    () => aggregateFightersByPhase(fighters, fightersByPhase, fighterHistory, phase),
+    [fighters, fightersByPhase, fighterHistory, phase]
   );
 
   // Each fighter is ranked under their *primary* class (most fights, ties →
@@ -149,7 +151,7 @@ export function RankingsClient({ fighters, fighterHistory, lastUpdated }: Props)
         title="Rankings"
         subtitle={
           <>
-            {showWar ? 'Four Categories' : 'Three Categories'}
+            Four Categories
             {phase !== 'all' ? ` · ${PHASE_LABELS[phase]}` : ''}
             <span className="rankings-desktop-only"> · Top Five in Each</span>
             <span className="rankings-mobile-only"> · Top Three Each</span>
