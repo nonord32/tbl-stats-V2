@@ -8,18 +8,10 @@ import { calcTeamStreak, toSlug } from '@/lib/data';
 import {
   aggregateTeamStandingsByPhase,
   filterTeamMatchesByPhase,
-  hasPlayoffData,
-  type Phase,
 } from '@/lib/phaseStats';
 import { getTeamColor, getTeamLogoPath, getFullTeamName, getCityName } from '@/lib/teams';
 import { sortStandings, getH2HTiebreakerWinners } from '@/lib/standings';
 import { PageHeader } from '@/components/chrome/PageHeader';
-
-const PHASE_LABELS: Record<Phase, string> = {
-  all: 'Full Season',
-  regular: 'Regular Season',
-  playoffs: 'Playoffs',
-};
 
 type SortKey = 'record' | 'pf' | 'pa' | 'diff' | 'streak';
 
@@ -238,31 +230,24 @@ export function TeamsClient({ teams: allTeams, teamMatches: allMatches, clinch, 
   const [sortKey, setSortKey] = useState<SortKey>('record');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [modalTeam, setModalTeam] = useState<TeamStanding | null>(null);
-  const [phase, setPhase] = useState<Phase>('all');
+  // Standings are always regular-season only — this table decides playoff
+  // seeding, so playoff games never fold into it. Recomputed from the
+  // regular-season match data, which stays frozen once the playoffs begin.
+  const clinchFor = (slug: string): 'x' | 'z' | undefined => clinch?.[slug];
+  const anyClinch = !!clinch && Object.keys(clinch).length > 0;
 
-  // Clinch markers reflect the full-season playoff race, so only show them on
-  // the default (full-season) standings view.
-  const clinchFor = (slug: string): 'x' | 'z' | undefined =>
-    phase === 'all' ? clinch?.[slug] : undefined;
-  const anyClinch = phase === 'all' && !!clinch && Object.keys(clinch).length > 0;
-
-  // Phase toggle only appears once playoff games exist.
-  const playoffsLive = useMemo(() => hasPlayoffData({}, allMatches), [allMatches]);
-
-  // Teams/matches scoped to the selected phase. 'all' passes the sheet data
-  // through unchanged, so the standings page is identical until playoffs start.
   const teams = useMemo(
-    () => aggregateTeamStandingsByPhase(allTeams, allMatches, phase),
-    [allTeams, allMatches, phase]
+    () => aggregateTeamStandingsByPhase(allTeams, allMatches, 'regular'),
+    [allTeams, allMatches]
   );
   const teamMatches = useMemo(
-    () => filterTeamMatchesByPhase(allMatches, phase),
-    [allMatches, phase]
+    () => filterTeamMatchesByPhase(allMatches, 'regular'),
+    [allMatches]
   );
 
-  // The playoff-cutoff line and games-back column only make sense for a
-  // standings table that decides seeding — not for the playoff-only view.
-  const showCutoff = phase !== 'playoffs';
+  // The playoff-cutoff line and games-back column always apply here — this is
+  // the seeding table.
+  const showCutoff = true;
 
   const handleSort = (key: SortKey) => {
     if (key === sortKey) {
@@ -302,21 +287,6 @@ export function TeamsClient({ teams: allTeams, teamMatches: allMatches, clinch, 
   // Mobile card list mirrors the desktop "record" sort.
   const sortedByWins = recordSorted;
 
-  const phaseToggle = playoffsLive ? (
-    <label className="gz-filter" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-      <span className="gz-filter__label">View</span>
-      <select
-        className="gz-filter__select"
-        value={phase}
-        onChange={(e) => setPhase(e.target.value as Phase)}
-      >
-        {(['all', 'regular', 'playoffs'] as Phase[]).map((p) => (
-          <option key={p} value={p}>{PHASE_LABELS[p]}</option>
-        ))}
-      </select>
-    </label>
-  ) : null;
-
   return (
     <div className="page teams-page">
       {/* Mobile-only Gazette header + card list */}
@@ -324,10 +294,9 @@ export function TeamsClient({ teams: allTeams, teamMatches: allMatches, clinch, 
         <PageHeader
           eyebrow="The League"
           title="Standings"
-          subtitle={`${teams.length} Clubs · ${phase === 'all' ? 'Sorted by Wins' : PHASE_LABELS[phase]}`}
+          subtitle={`${teams.length} Clubs · Sorted by Wins`}
           right={
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-              {phaseToggle}
               <Link href="/playoffs" className="teams-playoffs-link">
                 Playoff Picture →
               </Link>
@@ -439,7 +408,7 @@ export function TeamsClient({ teams: allTeams, teamMatches: allMatches, clinch, 
           <div>
             <h1>Team Standings</h1>
             <div className="subtitle">
-              {phase === 'all' ? 'Team Rankings' : PHASE_LABELS[phase]} · 2026 TBL Season
+              Team Rankings · 2026 TBL Season
               {formattedUpdate && (
                 <span style={{ marginLeft: 10, fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>
                   · Updated {formattedUpdate}
@@ -448,7 +417,6 @@ export function TeamsClient({ teams: allTeams, teamMatches: allMatches, clinch, 
             </div>
           </div>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-            {phaseToggle}
             <Link href="/playoffs" className="teams-playoffs-link">
               Playoff Picture →
             </Link>

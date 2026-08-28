@@ -28,11 +28,10 @@ const SHEETS = {
   // and "Fighter Stats - Playoffs"). Same layout as the joint tab (parsed by
   // header name, so column order is irrelevant); WAR is sourced from the joint
   // `fighters` tab and merged in, so these tabs don't need a WAR column.
-  // TODO: replace the gid below with the real published-CSV gid for each tab.
   fightersRegular:
-    'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=REGULAR_GID&single=true&output=csv',
+    'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=205381418&single=true&output=csv',
   fightersPlayoffs:
-    'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=PLAYOFFS_GID&single=true&output=csv',
+    'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=1252344887&single=true&output=csv',
   // Same tab as `fighters`; kept as a fallback for the Instagram-merge step
   // in case the primary parse misses the column for any reason.
   fighterSocials:
