@@ -3,8 +3,10 @@
 
 import { cache } from 'react';
 import Papa from 'papaparse';
+import { buildFighters } from './warStats';
 import type {
   FighterStat,
+  FighterIdentity,
   TeamStanding,
   TeamMatch,
   FightHistory,
@@ -19,22 +21,11 @@ import type {
 
 // ─── Sheet URLs ────────────────────────────────────────────────────────────────
 const SHEETS = {
-  // Primary fighter data lives on the "Fighter Stats" tab. Columns are
-  // looked up by header name (not position), so the source spreadsheet
-  // can reorder or drop columns freely without breaking the site.
+  // The "Fighter Stats" tab is no longer the source of fighter stats — every
+  // stat (incl. WAR) is now derived in code from the Data/`matches` tab. This
+  // tab is still fetched only for two non-stat things: each fighter's Instagram
+  // URL and the "Last Updated" date.
   fighters:
-    'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=1273687161&single=true&output=csv',
-  // Per-phase fighter stats live on dedicated tabs ("Fighter Stats - Regular"
-  // and "Fighter Stats - Playoffs"). Same layout as the joint tab (parsed by
-  // header name, so column order is irrelevant); WAR is sourced from the joint
-  // `fighters` tab and merged in, so these tabs don't need a WAR column.
-  fightersRegular:
-    'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=205381418&single=true&output=csv',
-  fightersPlayoffs:
-    'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=1252344887&single=true&output=csv',
-  // Same tab as `fighters`; kept as a fallback for the Instagram-merge step
-  // in case the primary parse misses the column for any reason.
-  fighterSocials:
     'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=1273687161&single=true&output=csv',
   teams:
     'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=1404001793&single=true&output=csv',
@@ -333,6 +324,7 @@ function parseTeams(rows: string[][]): TeamStanding[] {
 function parseMatchData(rows: string[][]): {
   teamMatches: Record<string, TeamMatch[]>;
   fighterHistory: Record<string, FightHistory[]>;
+  fighterIdentity: Record<string, FighterIdentity>;
 } {
   // Scan for the header row — the sheet may have a title/notes row before headers.
   const headerRowIndex = Math.max(0, findHeaderRow(rows, [
@@ -341,6 +333,25 @@ function parseMatchData(rows: string[][]): {
   const objects = toObjects(rows, headerRowIndex);
   const teamMatches: Record<string, TeamMatch[]> = {};
   const fighterHistory: Record<string, FightHistory[]> = {};
+
+  // Fighter identity (name/team/gender) captured from the fighter's own rows, so
+  // the roster can be rebuilt from the Data tab alone (the per-bout history only
+  // stores the opponent's name/team). Team can theoretically vary across the
+  // season, so we tally per-team appearances and pick the most frequent.
+  const fighterIdentity: Record<string, FighterIdentity> = {};
+  const teamCounts: Record<string, Record<string, number>> = {};
+  const recordIdentity = (fighter: string, ownTeam: string, gender: string) => {
+    if (!fighter || fighter.trim().toUpperCase() === 'N/A') return;
+    const slug = toSlug(fighter);
+    if (!teamCounts[slug]) teamCounts[slug] = {};
+    if (ownTeam) teamCounts[slug][ownTeam] = (teamCounts[slug][ownTeam] ?? 0) + 1;
+    const prev = fighterIdentity[slug];
+    fighterIdentity[slug] = {
+      name: prev?.name || fighter,
+      gender: prev?.gender || gender,
+      team: prev?.team || ownTeam, // finalized to the most-frequent team below
+    };
+  };
 
   // Fallback team-column detection — the Data tab currently has the team
   // column mislabeled as "Fighter Name" (duplicate of column A), so
@@ -470,6 +481,8 @@ function parseMatchData(rows: string[][]): {
         });
       };
 
+      recordIdentity(fighter1, team1, gender);
+      recordIdentity(fighter2, team2, gender);
       addHistory(fighter1, fighter2, team2, r1, netPts1);
       addHistory(fighter2, fighter1, team1, r2, netPts2);
     });
@@ -542,7 +555,21 @@ function parseMatchData(rows: string[][]): {
     teamMatches[team].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   });
 
-  return { teamMatches, fighterHistory };
+  // Finalize each fighter's team to the one they appeared for most often.
+  Object.keys(fighterIdentity).forEach((slug) => {
+    const counts = teamCounts[slug] || {};
+    let bestTeam = fighterIdentity[slug].team;
+    let best = -1;
+    for (const [t, c] of Object.entries(counts)) {
+      if (c > best) {
+        best = c;
+        bestTeam = t;
+      }
+    }
+    fighterIdentity[slug].team = bestTeam;
+  });
+
+  return { teamMatches, fighterHistory, fighterIdentity };
 }
 
 // ─── Streak Calculators ────────────────────────────────────────────────────────
@@ -705,21 +732,9 @@ export const getAllData = cache(async (): Promise<ParsedSheetData> => {
   // Each CSV fetch has its own fallback so one bad source (rename, network,
   // rate limit) can't take down every page that uses getAllData.
   const emptyRows: string[][] = [];
-  const [fighterRawRows, fighterRegularRawRows, fighterPlayoffsRawRows, socialsRawRows, teamRawRows, matchRawRows, scheduleRawRows, highlightsRawRows, awardsRawRows] = await Promise.all([
+  const [fighterRawRows, teamRawRows, matchRawRows, scheduleRawRows, highlightsRawRows, awardsRawRows] = await Promise.all([
     fetchRawCSV(SHEETS.fighters).catch((err) => {
       console.error('[getAllData] fighters CSV fetch failed:', err);
-      return emptyRows;
-    }),
-    fetchRawCSV(SHEETS.fightersRegular).catch((err) => {
-      console.error('[getAllData] fightersRegular CSV fetch failed:', err);
-      return emptyRows;
-    }),
-    fetchRawCSV(SHEETS.fightersPlayoffs).catch((err) => {
-      console.error('[getAllData] fightersPlayoffs CSV fetch failed:', err);
-      return emptyRows;
-    }),
-    fetchRawCSV(SHEETS.fighterSocials).catch((err) => {
-      console.error('[getAllData] fighterSocials CSV fetch failed:', err);
       return emptyRows;
     }),
     fetchRawCSV(SHEETS.teams).catch((err) => {
@@ -746,54 +761,22 @@ export const getAllData = cache(async (): Promise<ParsedSheetData> => {
 
   // Wrap every parser so a single header-rename or malformed row doesn't
   // throw out of the data layer. Each returns the empty shape of its output.
-  let fighters: FighterStat[] = [];
+  //
+  // The Fighter Stats tab now supplies only the "Last Updated" date and each
+  // fighter's Instagram URL — every actual fighter stat is derived from the
+  // Data tab further below. Both reads are defensive so a socials/date failure
+  // never blocks the derived stats.
   let lastUpdated = '';
   try {
-    const parsed = parseFighters(fighterRawRows);
-    fighters = parsed.fighters;
-    lastUpdated = parsed.lastUpdated;
+    lastUpdated = parseFighters(fighterRawRows).lastUpdated;
   } catch (err) {
-    console.error('[getAllData] parseFighters threw:', err);
+    console.error('[getAllData] parseFighters (lastUpdated) threw:', err);
   }
-
-  // Merge Instagram URLs from the Fighter Stats tab (col AJ). Done as a
-  // separate pass so a socials-sheet failure never blocks the core stats.
+  let socials = new Map<string, string>();
   try {
-    const socials = parseFighterSocials(socialsRawRows);
-    if (socials.size > 0) {
-      fighters = fighters.map((f) => (socials.has(f.slug) ? { ...f, instagram: socials.get(f.slug) } : f));
-    }
+    socials = parseFighterSocials(fighterRawRows);
   } catch (err) {
     console.error('[getAllData] parseFighterSocials threw:', err);
-  }
-
-  // Per-phase fighter stats from the dedicated tabs. Parsed with the same
-  // forgiving, header-name-based parser as the joint tab. WAR isn't
-  // reconstructable per-phase (its formula is sheet-only and league-wide), so
-  // we carry the season WAR from the joint `fighters` tab across by slug; the
-  // Instagram URL is carried too so the fighter modal keeps its social link
-  // when a phase view is selected. Empty arrays (tab unpublished/missing) let
-  // callers fall back to recomputing from fighterHistory.
-  const warBySlug = new Map(fighters.map((f) => [f.slug, f.war]));
-  const igBySlug = new Map(fighters.map((f) => [f.slug, f.instagram]));
-  const carryFromJoint = (arr: FighterStat[]): FighterStat[] =>
-    arr.map((f) => ({
-      ...f,
-      war: warBySlug.get(f.slug) ?? 0,
-      instagram: f.instagram ?? igBySlug.get(f.slug),
-    }));
-
-  let fightersRegular: FighterStat[] = [];
-  try {
-    fightersRegular = carryFromJoint(parseFighters(fighterRegularRawRows).fighters);
-  } catch (err) {
-    console.error('[getAllData] parseFighters (regular) threw:', err);
-  }
-  let fightersPlayoffs: FighterStat[] = [];
-  try {
-    fightersPlayoffs = carryFromJoint(parseFighters(fighterPlayoffsRawRows).fighters);
-  } catch (err) {
-    console.error('[getAllData] parseFighters (playoffs) threw:', err);
   }
 
   let teams: TeamStanding[] = [];
@@ -805,13 +788,38 @@ export const getAllData = cache(async (): Promise<ParsedSheetData> => {
 
   let teamMatches: Record<string, TeamMatch[]> = {};
   let fighterHistory: Record<string, FightHistory[]> = {};
+  let fighterIdentity: Record<string, FighterIdentity> = {};
   try {
     const parsed = parseMatchData(matchRawRows);
     teamMatches = parsed.teamMatches;
     fighterHistory = parsed.fighterHistory;
+    fighterIdentity = parsed.fighterIdentity;
   } catch (err) {
     console.error('[getAllData] parseMatchData threw:', err);
   }
+
+  // ─── Derive the fighter roster + all stats (incl. WAR) from the Data tab ───
+  // buildFighters recomputes wins/losses/record/net-pts/NPPR/win%/rounds from
+  // each fighter's bouts and computes WAR from league baselines — one derivation
+  // per scope. Instagram (the only non-Data-tab field) is merged in by slug.
+  const uniqueMatches = extractUniqueMatches(teamMatches);
+  const mergeInstagram = (arr: FighterStat[]): FighterStat[] =>
+    socials.size === 0
+      ? arr
+      : arr.map((f) =>
+          socials.has(f.slug) ? { ...f, instagram: socials.get(f.slug) } : f,
+        );
+  const fighters = mergeInstagram(
+    buildFighters(fighterIdentity, fighterHistory, uniqueMatches, 'all'),
+  );
+  const fightersByPhase = {
+    regular: mergeInstagram(
+      buildFighters(fighterIdentity, fighterHistory, uniqueMatches, 'regular'),
+    ),
+    playoffs: mergeInstagram(
+      buildFighters(fighterIdentity, fighterHistory, uniqueMatches, 'playoffs'),
+    ),
+  };
 
   // Recompute team streaks from the bout-by-bout match data so draws ("D1")
   // surface even when the upstream Standings sheet only tracks W/L.
@@ -853,7 +861,7 @@ export const getAllData = cache(async (): Promise<ParsedSheetData> => {
 
   return {
     fighters,
-    fightersByPhase: { regular: fightersRegular, playoffs: fightersPlayoffs },
+    fightersByPhase,
     teams,
     teamMatches,
     fighterHistory,

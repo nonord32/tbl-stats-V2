@@ -42,37 +42,12 @@ export function hasPlayoffData(
   return false;
 }
 
-// Recompute a single fighter's counting/rate stats from phase-filtered bouts.
-// Identity fields (name, team, slug, etc.) are preserved from the sheet stat.
-function rebuildFighter(base: FighterStat, bouts: FightHistory[]): FighterStat {
-  const wins = bouts.filter((b) => b.result === 'W').length;
-  const losses = bouts.filter((b) => b.result === 'L').length;
-  const rounds = bouts.length;
-  const netPts = bouts.reduce((s, b) => s + b.netPts, 0);
-  const decisions = wins + losses;
-  return {
-    ...base,
-    wins,
-    losses,
-    record: `${wins}-${losses}`,
-    war: 0, // not reconstructable per-phase — sheet-only formula
-    nppr: rounds > 0 ? netPts / rounds : 0,
-    netPts,
-    winPct: decisions > 0 ? wins / decisions : 0,
-    rounds,
-  };
-}
-
 // Fighters with their stats scoped to the given phase.
 //
-// `'all'` passes the joint sheet stats through untouched (the full, season-wide
-// combined stats, incl. real WAR). For a single phase we prefer the
-// pre-aggregated numbers from that phase's dedicated tab (`fightersByPhase`),
-// which already carry season WAR merged in from the joint tab. If that tab is
-// empty (unpublished/missing), we fall back to recomputing counting/rate stats
-// from each fighter's phase-filtered bout history — the original behavior — so
-// a missing tab never blanks the page (WAR is unavailable in that fallback and
-// shows as 0).
+// Every fighter roster is now derived from the Data tab in `getAllData`
+// (see `buildFighters` in warStats.ts): `fighters` is the season/all-scope set,
+// and `fightersByPhase` holds the Regular and Playoffs sets — each already
+// carries its own scope-correct WAR. So this is just a selector.
 export function aggregateFightersByPhase(
   fighters: FighterStat[],
   fightersByPhase: FightersByPhase,
@@ -80,18 +55,8 @@ export function aggregateFightersByPhase(
   phase: Phase
 ): FighterStat[] {
   if (phase === 'all') return fighters;
-
-  const preAggregated = fightersByPhase[phase] ?? [];
-  if (preAggregated.length > 0) return preAggregated;
-
-  // Fallback: reconstruct from bout history when the phase tab has no data.
-  const out: FighterStat[] = [];
-  for (const f of fighters) {
-    const bouts = (fighterHistory[f.slug] ?? []).filter((b) => b.phase === phase);
-    if (bouts.length === 0) continue;
-    out.push(rebuildFighter(f, bouts));
-  }
-  return out;
+  void fighterHistory; // no longer needed — rosters are pre-derived per scope
+  return fightersByPhase[phase] ?? [];
 }
 
 // Team standings scoped to the given phase. `'all'` passes the sheet standings

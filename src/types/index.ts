@@ -21,6 +21,14 @@ export interface FighterStat {
   instagram?: string;
 }
 
+// Fighter identity (name/team/gender) derived from the Data tab, used to
+// rebuild the fighter roster without the Fighter Stats tabs.
+export interface FighterIdentity {
+  name: string;
+  team: string;
+  gender: string;
+}
+
 export interface MatchRow {
   date: string;
   team1: string;
