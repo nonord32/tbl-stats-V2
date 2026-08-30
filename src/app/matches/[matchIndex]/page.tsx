@@ -4,7 +4,9 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getMatchByIndex, toSlug } from '@/lib/data';
+import { getMatchByIndex, getAllData, toSlug } from '@/lib/data';
+import { getBracketContext } from '@/lib/bracketData';
+import { playoffRoundLabelsByMatch } from '@/lib/playoffs';
 import { getFullTeamName, getTeamLogoPathByName } from '@/lib/teams';
 import { SectionRule } from '@/components/chrome/SectionRule';
 import { HighlightsSection } from '@/components/HighlightsSection';
@@ -81,6 +83,15 @@ export default async function MatchPage({
 
   const { match, scheduleEntry, highlights } = result!;
 
+  // For playoff games, label the round (Quarterfinals / Semifinals / MegaBrawl)
+  // instead of the week number.
+  const playoffRound =
+    match.phase === 'playoffs'
+      ? playoffRoundLabelsByMatch(getBracketContext(await getAllData()).bracket).get(
+          match.matchIndex
+        )
+      : undefined;
+
   const team1Slug = toSlug(match.team1);
   const team2Slug = toSlug(match.team2);
   const team1Full = getFullTeamName(team1Slug);
@@ -146,7 +157,7 @@ export default async function MatchPage({
 
   const heroStatus = [
     team1Won || team2Won || isDraw ? 'Final' : 'Scheduled',
-    scheduleEntry?.week ? `Week ${scheduleEntry.week}` : null,
+    playoffRound ?? (scheduleEntry?.week ? `Week ${scheduleEntry.week}` : null),
     formattedDate,
     scheduleEntry?.venueName
       ? `${scheduleEntry.venueName}${scheduleEntry.venueCity ? ` · ${scheduleEntry.venueCity}` : ''}`

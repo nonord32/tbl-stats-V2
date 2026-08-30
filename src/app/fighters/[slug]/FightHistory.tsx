@@ -10,8 +10,22 @@ import { calcFighterStreak } from '@/lib/phaseStats';
 import { getTeamLogoPathByName } from '@/lib/teams';
 import { SectionRule } from '@/components/chrome/SectionRule';
 
-export function FightHistory({ history }: { history: FightHistoryEntry[] }) {
+export function FightHistory({
+  history,
+  roundLabels = {},
+}: {
+  history: FightHistoryEntry[];
+  // matchIndex → playoff round label ("Quarterfinals" / "Semifinals" / "MegaBrawl")
+  roundLabels?: Record<number, string>;
+}) {
   const streak = useMemo(() => calcFighterStreak(history), [history]);
+  // For a bout, the label shown in the "week" slot: the playoff round for
+  // playoff bouts (falling back to "Playoffs" if the round can't be resolved),
+  // otherwise the regular-season week number.
+  const weekSlot = (h: FightHistoryEntry): string | null => {
+    if (h.phase === 'playoffs') return roundLabels[h.matchIndex] ?? 'Playoffs';
+    return h.week != null ? `Wk ${h.week}` : null;
+  };
   // Last 10 bouts oldest → newest for the form strip (history is newest-first).
   const formLast10 = [...history].slice(0, 10).reverse();
 
@@ -116,10 +130,9 @@ export function FightHistory({ history }: { history: FightHistoryEntry[] }) {
                           {h.opponent}
                         </Link>
                         <div className="gz-fighter-history-row__meta">
-                          {h.week != null ? `Wk ${h.week} · ` : ''}
+                          {weekSlot(h) ? `${weekSlot(h)} · ` : ''}
                           {h.date} · {roundLabel}
                           {h.roundPhase ? ` · ${h.roundPhase}` : ''}
-                          {h.phase === 'playoffs' ? ' · Playoffs' : ''}
                         </div>
                       </div>
                       <div
@@ -205,7 +218,11 @@ export function FightHistory({ history }: { history: FightHistoryEntry[] }) {
                             )}
                           </td>
                           <td style={{ padding: '10px 6px', color: 'var(--tbl-ink-soft)' }}>
-                            {h.week != null ? h.week : '—'}
+                            {h.phase === 'playoffs'
+                              ? roundLabels[h.matchIndex] ?? 'Playoffs'
+                              : h.week != null
+                              ? h.week
+                              : '—'}
                           </td>
                           <td
                             style={{

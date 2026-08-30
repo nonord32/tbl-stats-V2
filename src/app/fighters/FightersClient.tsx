@@ -17,7 +17,6 @@ import { aggregateFightersByPhase, hasPlayoffData, type Phase } from '@/lib/phas
 type SortKey = 'war' | 'nppr' | 'netPts' | 'winPct' | 'rounds' | 'record' | 'name';
 
 const PHASE_LABELS: Record<Phase, string> = {
-  all: 'Full Season',
   regular: 'Regular Season',
   playoffs: 'Playoffs',
 };
@@ -184,7 +183,7 @@ export function FightersClient({ fighters, fightersByPhase, fighterHistory, sche
   const [genderFilter, setGenderFilter] = useState('');
   const [weekFilter, setWeekFilter] = useState('');
   const [minRoundsFilter, setMinRoundsFilter] = useState('');
-  const [phase, setPhase] = useState<Phase>('all');
+  const [phase, setPhase] = useState<Phase>('regular');
   const [modalFighter, setModalFighter] = useState<FighterStat | null>(null);
 
   // The View toggle only appears once playoff games exist, so nothing changes
@@ -195,9 +194,9 @@ export function FightersClient({ fighters, fightersByPhase, fighterHistory, sche
   // the joint tab), so it's shown in every view.
   const showWar = true;
 
-  // Fighter stats scoped to the selected phase. 'all' passes the joint sheet
-  // stats through; a single phase uses that phase's pre-aggregated tab (with a
-  // recompute-from-history fallback when the tab is empty).
+  // Fighter stats scoped to the selected phase (Regular or Playoffs), from that
+  // phase's pre-aggregated tab (with a recompute-from-history fallback when the
+  // tab is empty).
   const phaseFighters = useMemo(
     () => aggregateFightersByPhase(fighters, fightersByPhase, fighterHistory, phase),
     [fighters, fightersByPhase, fighterHistory, phase]
@@ -412,7 +411,7 @@ export function FightersClient({ fighters, fightersByPhase, fighterHistory, sche
               onChange={(e) => setPhase(e.target.value as Phase)}
               aria-label="Filter by season phase"
             >
-              {(['all', 'regular', 'playoffs'] as Phase[]).map((p) => (
+              {(['regular', 'playoffs'] as Phase[]).map((p) => (
                 <option key={p} value={p}>{PHASE_LABELS[p]}</option>
               ))}
             </select>
@@ -519,7 +518,7 @@ export function FightersClient({ fighters, fightersByPhase, fighterHistory, sche
                   onChange={(e) => setPhase(e.target.value as Phase)}
                   aria-label="Filter by season phase"
                 >
-                  {(['all', 'regular', 'playoffs'] as Phase[]).map((p) => (
+                  {(['regular', 'playoffs'] as Phase[]).map((p) => (
                     <option key={p} value={p}>{PHASE_LABELS[p]}</option>
                   ))}
                 </select>

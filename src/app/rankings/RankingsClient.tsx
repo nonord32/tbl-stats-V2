@@ -40,7 +40,6 @@ const CATEGORIES: Category[] = [
 ];
 
 const PHASE_LABELS: Record<Phase, string> = {
-  all: 'Full Season',
   regular: 'Regular Season',
   playoffs: 'Playoffs',
 };
@@ -48,7 +47,7 @@ const PHASE_LABELS: Record<Phase, string> = {
 export function RankingsClient({ fighters, fightersByPhase, fighterHistory, lastUpdated }: Props) {
   const [gender, setGender] = useState<Gender>('All');
   const [weightClass, setWeightClass] = useState<string>('All');
-  const [phase, setPhase] = useState<Phase>('all');
+  const [phase, setPhase] = useState<Phase>('regular');
 
   // The phase toggle only appears once playoff games exist, so the page is
   // unchanged through the regular season.
@@ -110,7 +109,7 @@ export function RankingsClient({ fighters, fightersByPhase, fighterHistory, last
             value={phase}
             onChange={(e) => setPhase(e.target.value as Phase)}
           >
-            {(['all', 'regular', 'playoffs'] as Phase[]).map((p) => (
+            {(['regular', 'playoffs'] as Phase[]).map((p) => (
               <option key={p} value={p}>{PHASE_LABELS[p]}</option>
             ))}
           </select>
@@ -152,7 +151,7 @@ export function RankingsClient({ fighters, fightersByPhase, fighterHistory, last
         subtitle={
           <>
             Four Categories
-            {phase !== 'all' ? ` · ${PHASE_LABELS[phase]}` : ''}
+            {` · ${PHASE_LABELS[phase]}`}
             <span className="rankings-desktop-only"> · Top Five in Each</span>
             <span className="rankings-mobile-only"> · Top Three Each</span>
             {lastUpdated ? ` · Updated ${lastUpdated}` : ''}

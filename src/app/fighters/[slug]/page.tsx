@@ -4,7 +4,9 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getFighterBySlug } from '@/lib/data';
+import { getFighterBySlug, getAllData } from '@/lib/data';
+import { getBracketContext } from '@/lib/bracketData';
+import { playoffRoundLabelsByMatch } from '@/lib/playoffs';
 import {
   getTeamLogoPathByName,
   getFullTeamName,
@@ -56,6 +58,12 @@ export default async function FighterPage({
   if (!result) notFound();
 
   const { fighter, history, streak, warRank } = result;
+
+  // matchIndex → playoff round label ("Quarterfinals" / "Semifinals" /
+  // "MegaBrawl"), so playoff bouts read the round instead of a week number.
+  const roundLabels = Object.fromEntries(
+    playoffRoundLabelsByMatch(getBracketContext(await getAllData()).bracket)
+  );
 
   const teamSlug = fighter.team
     .toLowerCase()
@@ -295,7 +303,7 @@ export default async function FighterPage({
         </div>
       </div>
 
-      <FightHistory history={history} />
+      <FightHistory history={history} roundLabels={roundLabels} />
     </>
   );
 }

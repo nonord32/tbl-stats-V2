@@ -1,9 +1,8 @@
 'use client';
 // src/app/teams/[slug]/RecentMatches.tsx
-// Phase-aware season matches list for a team profile. Shows every match the
-// team has played this season. When the team has playoff games, a Full Season
-// / Regular Season / Playoffs toggle scopes the list and a small W-L summary;
-// otherwise it renders the full list as-is.
+// Phase-aware season matches list for a team profile. When the team has playoff
+// games, a Regular Season / Playoffs toggle scopes the list and a small W-L
+// summary; otherwise it renders the (regular-season) list as-is.
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -14,7 +13,6 @@ import { getFullTeamName } from '@/lib/teams';
 import { SectionRule } from '@/components/chrome/SectionRule';
 
 const PHASE_LABELS: Record<Phase, string> = {
-  all: 'Full Season',
   regular: 'Regular Season',
   playoffs: 'Playoffs',
 };
@@ -106,11 +104,11 @@ function MatchCard({ match }: { match: TeamMatch }) {
 }
 
 export function RecentMatches({ matches }: { matches: TeamMatch[] }) {
-  const [phase, setPhase] = useState<Phase>('all');
+  const [phase, setPhase] = useState<Phase>('regular');
   const hasPlayoffs = useMemo(() => matches.some((m) => m.phase === 'playoffs'), [matches]);
 
   const scoped = useMemo(
-    () => (phase === 'all' ? matches : matches.filter((m) => m.phase === phase)),
+    () => matches.filter((m) => m.phase === phase),
     [matches, phase]
   );
 
@@ -128,7 +126,7 @@ export function RecentMatches({ matches }: { matches: TeamMatch[] }) {
         value={phase}
         onChange={(e) => setPhase(e.target.value as Phase)}
       >
-        {(['all', 'regular', 'playoffs'] as Phase[]).map((p) => (
+        {(['regular', 'playoffs'] as Phase[]).map((p) => (
           <option key={p} value={p}>{PHASE_LABELS[p]}</option>
         ))}
       </select>
@@ -140,7 +138,7 @@ export function RecentMatches({ matches }: { matches: TeamMatch[] }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 160 }}>
           <SectionRule
-            left={phase === 'all' ? 'This Season' : `${PHASE_LABELS[phase]} · ${summary}`}
+            left={`${PHASE_LABELS[phase]} · ${summary}`}
             right="Click for box score"
           />
         </div>

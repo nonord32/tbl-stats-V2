@@ -21,6 +21,9 @@ interface Props {
   schedule: ScheduleEntry[];
   currentWeek: number | null;
   scores: Record<number, ScoreInfo>;
+  // week number → playoff round label ("Quarterfinals" / "Semifinals" /
+  // "MegaBrawl") for playoff weeks; other weeks are absent.
+  weekLabels?: Record<number, string>;
 }
 
 function short(team: string): string {
@@ -219,7 +222,10 @@ function GameCard({ entry, score }: GameCardProps) {
   return body;
 }
 
-export function ScheduleClient({ schedule, currentWeek, scores }: Props) {
+export function ScheduleClient({ schedule, currentWeek, scores, weekLabels = {} }: Props) {
+  // Section/label text for a week: the playoff round name if it's a playoff
+  // week, otherwise "Week N".
+  const weekHeading = (wk: number): string => weekLabels[wk] ?? `Week ${wk}`;
   // Default: show current week + last week only. Flip to "All" via the filter.
   const defaultWeek = currentWeek != null ? String(currentWeek) : 'All';
   const [weekFilter, setWeekFilter] = useState<string>(defaultWeek);
@@ -292,7 +298,7 @@ export function ScheduleClient({ schedule, currentWeek, scores }: Props) {
           <option value="All">All</option>
           {allWeeks.map((w) => (
             <option key={w} value={String(w)}>
-              {w}
+              {weekLabels[w] ?? w}
             </option>
           ))}
         </select>
@@ -320,7 +326,7 @@ export function ScheduleClient({ schedule, currentWeek, scores }: Props) {
       <PageHeader
         eyebrow="Fight Card"
         title="Schedule"
-        subtitle={`${weekFilter === 'All' ? 'All Weeks' : `Week ${weekFilter}`} · ${clubFilter === 'All' ? 'All Clubs' : clubFilter}`}
+        subtitle={`${weekFilter === 'All' ? 'All Weeks' : weekHeading(parseInt(weekFilter, 10))} · ${clubFilter === 'All' ? 'All Clubs' : clubFilter}`}
         right={filterSlot}
       />
       <div className="tbl-page-body">
@@ -371,7 +377,7 @@ export function ScheduleClient({ schedule, currentWeek, scores }: Props) {
                     className="tbl-display"
                     style={{ fontSize: 30 }}
                   >
-                    Week {wk}
+                    {weekHeading(wk)}
                   </div>
                   {label && (
                     <div

@@ -2,6 +2,8 @@
 import type { Metadata } from 'next';
 import { getAllData, extractUniqueMatches } from '@/lib/data';
 import { getDisplayedCurrentWeek } from '@/lib/week';
+import { getBracketContext } from '@/lib/bracketData';
+import { playoffRoundLabelsByMatch } from '@/lib/playoffs';
 import { ScheduleClient } from './ScheduleClient';
 
 export const revalidate = 300;
@@ -40,6 +42,18 @@ export default async function SchedulePage() {
     };
   }
 
+  // Week number → playoff round label ("Quarterfinals" / "Semifinals" /
+  // "MegaBrawl"), for weeks that contain a completed playoff game. Upcoming
+  // playoff weeks stay labeled by week number until a game in them is played
+  // (that's the only point at which the round can be identified from results).
+  const roundByMatch = playoffRoundLabelsByMatch(getBracketContext(data).bracket);
+  const weekLabels: Record<number, string> = {};
+  for (const s of schedule) {
+    if (s.matchIndex != null && roundByMatch.has(s.matchIndex)) {
+      weekLabels[s.week] = roundByMatch.get(s.matchIndex)!;
+    }
+  }
+
   const BASE = 'https://tblstats.com';
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -60,7 +74,7 @@ export default async function SchedulePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <ScheduleClient schedule={schedule} currentWeek={currentWeek} scores={scores} />
+      <ScheduleClient schedule={schedule} currentWeek={currentWeek} scores={scores} weekLabels={weekLabels} />
     </>
   );
 }

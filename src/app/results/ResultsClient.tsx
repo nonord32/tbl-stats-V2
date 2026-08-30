@@ -10,7 +10,6 @@ import type { MatchResult, BoxScoreRound, HighlightEntry } from '@/types';
 import type { Phase } from '@/lib/phaseStats';
 
 const PHASE_LABELS: Record<Phase, string> = {
-  all: 'All',
   regular: 'Regular Season',
   playoffs: 'Playoffs',
 };
@@ -324,11 +323,11 @@ function RoundByRound({
 
 export function ResultsClient({ matches, lastUpdated, highlights = [] }: Props) {
   const formattedUpdate = lastUpdated || null;
-  const [phase, setPhase] = useState<Phase>('all');
+  const [phase, setPhase] = useState<Phase>('regular');
 
   const playoffsLive = useMemo(() => matches.some((m) => m.phase === 'playoffs'), [matches]);
   const visibleMatches = useMemo(
-    () => (phase === 'all' ? matches : matches.filter((m) => m.phase === phase)),
+    () => matches.filter((m) => m.phase === phase),
     [matches, phase]
   );
 
@@ -361,7 +360,7 @@ export function ResultsClient({ matches, lastUpdated, highlights = [] }: Props) 
           <div>
             <h1>Results</h1>
             <div className="subtitle">
-              {phase === 'all' ? 'All Matches' : PHASE_LABELS[phase]} · 2026 TBL Season
+              {PHASE_LABELS[phase]} · 2026 TBL Season
               {formattedUpdate && (
                 <span style={{ marginLeft: 10, fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>
                   · Updated {formattedUpdate}
@@ -377,7 +376,7 @@ export function ResultsClient({ matches, lastUpdated, highlights = [] }: Props) 
                 value={phase}
                 onChange={(e) => setPhase(e.target.value as Phase)}
               >
-                {(['all', 'regular', 'playoffs'] as Phase[]).map((p) => (
+                {(['regular', 'playoffs'] as Phase[]).map((p) => (
                   <option key={p} value={p}>{PHASE_LABELS[p]}</option>
                 ))}
               </select>

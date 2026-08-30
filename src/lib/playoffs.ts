@@ -30,6 +30,13 @@ export type SlotStatus = 'played' | 'pending' | 'tbd';
 
 export type Round = 'QF' | 'SF' | 'F';
 
+// Human-facing round names. The final is branded "MegaBrawl".
+export const ROUND_LABELS: Record<Round, string> = {
+  QF: 'Quarterfinals',
+  SF: 'Semifinals',
+  F: 'MegaBrawl',
+};
+
 export interface BracketMatch {
   round: Round;
   a?: Seed;
@@ -55,6 +62,18 @@ interface GameOutcome {
   // by slug and re-align to the slot's a/b at render time.
   scoreBySlug: Record<string, number>;
   matchIndex: number;
+}
+
+// Map a completed playoff game's matchIndex → its round label ("Quarterfinals",
+// "Semifinals", "MegaBrawl"), derived from a built bracket. Only games that have
+// actually been played carry a matchIndex, so only those are labeled — a
+// not-yet-played round can't be identified from results alone.
+export function playoffRoundLabelsByMatch(bracket: Bracket): Map<number, string> {
+  const out = new Map<number, string>();
+  for (const slot of [...bracket.qf, ...bracket.sf, bracket.final]) {
+    if (slot.matchIndex != null) out.set(slot.matchIndex, ROUND_LABELS[slot.round]);
+  }
+  return out;
 }
 
 // Index completed playoff games by the unordered slug pair of the two teams,
