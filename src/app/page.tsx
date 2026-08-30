@@ -5,6 +5,11 @@ import Link from 'next/link';
 import { getAllData, extractUniqueMatches } from '@/lib/data';
 import { getDisplayedCurrentWeek } from '@/lib/week';
 import { sortStandings } from '@/lib/standings';
+import {
+  aggregateFightersByPhase,
+  aggregateTeamStandingsByPhase,
+  filterTeamMatchesByPhase,
+} from '@/lib/phaseStats';
 import { getGameStartUTC } from '@/lib/gameTime';
 import { getFullTeamName, getTeamLogoPathByName, getCityName } from '@/lib/teams';
 import { HallOfChampions } from '@/components/home/HallOfChampions';
@@ -1175,8 +1180,25 @@ function MobileStandings({ teams }: { teams: TeamStanding[] }) {
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 export default async function HomePage() {
-  const { fighters, teams, schedule, teamMatches, awards } = await getAllData();
+  const { fighters, fightersByPhase, fighterHistory, teams, schedule, teamMatches, awards } =
+    await getAllData();
+  // Hall-of-Champions links resolve against the full roster (incl. playoff-only
+  // fighters), so keep this from the joint fighter list.
   const fighterSlugs = new Set(fighters.map((f) => f.slug));
+
+  // Home leaders and standings default to REGULAR-SEASON stats (not full
+  // season), matching the default view on the Fighters / Rankings / Teams
+  // pages. During the regular season this equals the full-season data; it only
+  // diverges once playoff games are tagged, keeping playoff results out of the
+  // home snippets.
+  const regularFighters = aggregateFightersByPhase(
+    fighters,
+    fightersByPhase,
+    fighterHistory,
+    'regular',
+  );
+  const regularTeams = aggregateTeamStandingsByPhase(teams, teamMatches, 'regular');
+  const regularTeamMatches = filterTeamMatchesByPhase(teamMatches, 'regular');
 
   const currentWeek = getDisplayedCurrentWeek(schedule);
   // "Upcoming" stays on the schedule entry until results are entered, so a
@@ -1208,7 +1230,7 @@ export default async function HomePage() {
     .filter((s) => referenceWeek != null && Number(s.week) === referenceWeek);
 
   // Sort by Net Points — drives "Top Six" and the league-wide leaderboard.
-  const fightersByNetPts = [...fighters].sort((a, b) => b.netPts - a.netPts);
+  const fightersByNetPts = [...regularFighters].sort((a, b) => b.netPts - a.netPts);
   const topSix = fightersByNetPts.slice(0, 6);
 
   // Fighter in Focus: top net-points fighter from either side of the
@@ -1227,8 +1249,9 @@ export default async function HomePage() {
   })();
 
   // Use the shared standings sorter so the home snippet matches the Teams page
-  // row-for-row, including the head-to-head tiebreaker for two-team ties.
-  const topTeams = sortStandings(teams, teamMatches);
+  // row-for-row, including the head-to-head tiebreaker for two-team ties. Both
+  // use the regular-season standings.
+  const topTeams = sortStandings(regularTeams, regularTeamMatches);
 
   // Map each completed match back to its schedule week so result cards can
   // show "Week 3" etc. instead of the boxScore's scoring-phase label.
@@ -1286,9 +1309,9 @@ export default async function HomePage() {
     ],
   };
 
-  // Quick team→record lookup for the mobile hero banner.
+  // Quick team→record lookup for the mobile hero banner (regular-season record).
   const teamRecords = new Map<string, string>();
-  teams.forEach((t) => {
+  regularTeams.forEach((t) => {
     teamRecords.set(t.team, t.record);
     teamRecords.set(getFullTeamName(t.slug), t.record);
     teamRecords.set(getCityName(t.team), t.record);
