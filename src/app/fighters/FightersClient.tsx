@@ -19,6 +19,7 @@ type SortKey = 'war' | 'nppr' | 'netPts' | 'winPct' | 'rounds' | 'record' | 'nam
 const PHASE_LABELS: Record<Phase, string> = {
   regular: 'Regular Season',
   playoffs: 'Playoffs',
+  all: 'Full Season',
 };
 
 interface Props {
@@ -411,7 +412,7 @@ export function FightersClient({ fighters, fightersByPhase, fighterHistory, sche
               onChange={(e) => setPhase(e.target.value as Phase)}
               aria-label="Filter by season phase"
             >
-              {(['regular', 'playoffs'] as Phase[]).map((p) => (
+              {(['regular', 'playoffs', 'all'] as Phase[]).map((p) => (
                 <option key={p} value={p}>{PHASE_LABELS[p]}</option>
               ))}
             </select>
@@ -518,7 +519,7 @@ export function FightersClient({ fighters, fightersByPhase, fighterHistory, sche
                   onChange={(e) => setPhase(e.target.value as Phase)}
                   aria-label="Filter by season phase"
                 >
-                  {(['regular', 'playoffs'] as Phase[]).map((p) => (
+                  {(['regular', 'playoffs', 'all'] as Phase[]).map((p) => (
                     <option key={p} value={p}>{PHASE_LABELS[p]}</option>
                   ))}
                 </select>

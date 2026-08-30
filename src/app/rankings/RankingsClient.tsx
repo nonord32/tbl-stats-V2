@@ -42,6 +42,7 @@ const CATEGORIES: Category[] = [
 const PHASE_LABELS: Record<Phase, string> = {
   regular: 'Regular Season',
   playoffs: 'Playoffs',
+  all: 'Full Season',
 };
 
 export function RankingsClient({ fighters, fightersByPhase, fighterHistory, lastUpdated }: Props) {
@@ -109,7 +110,7 @@ export function RankingsClient({ fighters, fightersByPhase, fighterHistory, last
             value={phase}
             onChange={(e) => setPhase(e.target.value as Phase)}
           >
-            {(['regular', 'playoffs'] as Phase[]).map((p) => (
+            {(['regular', 'playoffs', 'all'] as Phase[]).map((p) => (
               <option key={p} value={p}>{PHASE_LABELS[p]}</option>
             ))}
           </select>

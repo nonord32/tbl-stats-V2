@@ -12,6 +12,7 @@ import type { Phase } from '@/lib/phaseStats';
 const PHASE_LABELS: Record<Phase, string> = {
   regular: 'Regular Season',
   playoffs: 'Playoffs',
+  all: 'Full Season',
 };
 
 interface Props {
@@ -327,7 +328,7 @@ export function ResultsClient({ matches, lastUpdated, highlights = [] }: Props) 
 
   const playoffsLive = useMemo(() => matches.some((m) => m.phase === 'playoffs'), [matches]);
   const visibleMatches = useMemo(
-    () => matches.filter((m) => m.phase === phase),
+    () => (phase === 'all' ? matches : matches.filter((m) => m.phase === phase)),
     [matches, phase]
   );
 
@@ -376,7 +377,7 @@ export function ResultsClient({ matches, lastUpdated, highlights = [] }: Props) 
                 value={phase}
                 onChange={(e) => setPhase(e.target.value as Phase)}
               >
-                {(['regular', 'playoffs'] as Phase[]).map((p) => (
+                {(['regular', 'playoffs', 'all'] as Phase[]).map((p) => (
                   <option key={p} value={p}>{PHASE_LABELS[p]}</option>
                 ))}
               </select>

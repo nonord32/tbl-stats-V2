@@ -22,9 +22,9 @@ import type {
 } from '@/types';
 import { calcFighterStreak, calcTeamStreak } from './data';
 
-// The site shows two views only: Regular Season and Playoffs. (There is no
-// combined "Full Season" view.)
-export type Phase = GamePhase;
+// The site offers Regular Season and Playoffs views, plus a combined
+// "Full Season" ('all') view that spans both.
+export type Phase = GamePhase | 'all';
 
 // True once at least one game anywhere is tagged as a playoff game. Drives
 // whether the phase toggle renders at all, so the site is unchanged until
@@ -63,20 +63,24 @@ function rebuildFighter(base: FighterStat, bouts: FightHistory[]): FighterStat {
   };
 }
 
-// Fighters with their stats scoped to the given phase (Regular or Playoffs).
+// Fighters with their stats scoped to the given phase.
 //
-// We prefer the pre-aggregated numbers from that phase's dedicated tab
-// (`fightersByPhase`), which already carry season WAR merged in from the joint
-// tab. If that tab is empty (unpublished/missing), we fall back to recomputing
-// counting/rate stats from each fighter's phase-filtered bout history — the
-// original behavior — so a missing tab never blanks the page (WAR is
-// unavailable in that fallback and shows as 0).
+// `'all'` passes the joint sheet stats through untouched (the full, season-wide
+// combined stats, incl. real WAR). For a single phase we prefer the
+// pre-aggregated numbers from that phase's dedicated tab (`fightersByPhase`),
+// which already carry season WAR merged in from the joint tab. If that tab is
+// empty (unpublished/missing), we fall back to recomputing counting/rate stats
+// from each fighter's phase-filtered bout history — the original behavior — so
+// a missing tab never blanks the page (WAR is unavailable in that fallback and
+// shows as 0).
 export function aggregateFightersByPhase(
   fighters: FighterStat[],
   fightersByPhase: FightersByPhase,
   fighterHistory: Record<string, FightHistory[]>,
   phase: Phase
 ): FighterStat[] {
+  if (phase === 'all') return fighters;
+
   const preAggregated = fightersByPhase[phase] ?? [];
   if (preAggregated.length > 0) return preAggregated;
 
@@ -90,15 +94,17 @@ export function aggregateFightersByPhase(
   return out;
 }
 
-// Team standings scoped to the given phase (Regular or Playoffs). Standings are
-// recomputed from phase-filtered match data — which also yields an accurate
-// *frozen* regular-season table during the playoffs, independent of whatever
-// the cumulative sheet shows. Only teams with a match in the phase are returned.
+// Team standings scoped to the given phase. `'all'` passes the sheet standings
+// through. For a single phase, standings are recomputed from phase-filtered
+// match data — which also yields an accurate *frozen* regular-season table
+// during the playoffs, independent of whatever the cumulative sheet shows. Only
+// teams with a match in the phase are returned.
 export function aggregateTeamStandingsByPhase(
   teams: TeamStanding[],
   teamMatches: Record<string, TeamMatch[]>,
   phase: Phase
 ): TeamStanding[] {
+  if (phase === 'all') return teams;
   const out: TeamStanding[] = [];
   for (const t of teams) {
     const matches = (teamMatches[t.team] ?? []).filter((m) => m.phase === phase);
@@ -127,6 +133,7 @@ export function filterTeamMatchesByPhase(
   teamMatches: Record<string, TeamMatch[]>,
   phase: Phase
 ): Record<string, TeamMatch[]> {
+  if (phase === 'all') return teamMatches;
   const out: Record<string, TeamMatch[]> = {};
   for (const [team, matches] of Object.entries(teamMatches)) {
     out[team] = matches.filter((m) => m.phase === phase);
