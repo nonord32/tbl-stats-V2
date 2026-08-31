@@ -205,3 +205,20 @@ create policy "Users can update own fantasy weeks"
   on public.fantasy_weeks for update using (auth.uid() = user_id);
 -- (No delete policy — weeks are append-only from the user's perspective.)
 -- Service-role (admin) bypasses RLS for the resolution job.
+
+-- ─── Fighter socials ─────────────────────────────────────────────────────────
+-- Admin-managed Instagram URLs, keyed by FighterStat.slug. A row here overrides
+-- the Google Sheet's Instagram value for that fighter (see getAllData). Reads
+-- are public (Instagram links are public info); writes go through the
+-- service-role key in /api/admin/fighter-instagram (bypasses RLS).
+create table if not exists public.fighter_socials (
+  fighter_slug text primary key,
+  instagram text,
+  updated_at timestamptz default now() not null
+);
+
+alter table public.fighter_socials enable row level security;
+
+create policy "Fighter socials are viewable by everyone"
+  on public.fighter_socials for select using (true);
+-- (No insert/update/delete policy — the service-role key bypasses RLS.)

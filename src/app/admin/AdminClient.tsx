@@ -27,6 +27,13 @@ interface PlayerRow {
   hidden: boolean;
 }
 
+interface FighterAdminRow {
+  slug: string;
+  name: string;
+  team: string;
+  instagram: string;
+}
+
 interface DbDebug {
   picksCount: number;
   picksError: string | null;
@@ -35,9 +42,18 @@ interface DbDebug {
   serviceKeySet: boolean;
 }
 
-export function AdminClient({ matches, picks: initialPicks, players: initialPlayers, dbError, dbDebug }: { matches: MatchEntry[]; picks: PickRow[]; players: PlayerRow[]; dbError: string | null; dbDebug: DbDebug }) {
+export function AdminClient({ matches, picks: initialPicks, players: initialPlayers, fighters: initialFighters, dbError, dbDebug }: { matches: MatchEntry[]; picks: PickRow[]; players: PlayerRow[]; fighters: FighterAdminRow[]; dbError: string | null; dbDebug: DbDebug }) {
   const [secret, setSecret] = useState('');
   const [authed, setAuthed] = useState(false);
+
+  // Fighter Instagram editor state + CSV export state.
+  const [fighters, setFighters] = useState<FighterAdminRow[]>(initialFighters);
+  const [fighterFilter, setFighterFilter] = useState('');
+  const [igDrafts, setIgDrafts] = useState<Record<string, string>>({});
+  const [savingIg, setSavingIg] = useState<string | null>(null);
+  const [igError, setIgError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   // Local copy of picks so deletions update the table without a page reload.
   // Keyed by `${userId}:${matchIndex}` since that's our composite identity.
@@ -188,6 +204,71 @@ export function AdminClient({ matches, picks: initialPicks, players: initialPlay
     }
   }
 
+  const filteredFighters = useMemo(() => {
+    const q = fighterFilter.trim().toLowerCase();
+    if (!q) return fighters;
+    return fighters.filter(
+      (f) => f.name.toLowerCase().includes(q) || f.team.toLowerCase().includes(q)
+    );
+  }, [fighters, fighterFilter]);
+
+  async function handleSaveInstagram(f: FighterAdminRow) {
+    const value = (igDrafts[f.slug] ?? f.instagram).trim();
+    setSavingIg(f.slug);
+    setIgError(null);
+    try {
+      const res = await fetch('/api/admin/fighter-instagram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${secret}` },
+        body: JSON.stringify({ slug: f.slug, instagram: value }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setIgError(json.error || `Save failed (${res.status})`);
+        return;
+      }
+      const saved = typeof json.instagram === 'string' ? json.instagram : value;
+      setFighters((prev) => prev.map((row) => (row.slug === f.slug ? { ...row, instagram: saved } : row)));
+      setIgDrafts((prev) => {
+        const next = { ...prev };
+        delete next[f.slug];
+        return next;
+      });
+    } catch {
+      setIgError('Network error while saving Instagram.');
+    } finally {
+      setSavingIg(null);
+    }
+  }
+
+  async function handleExport(type: 'fighters' | 'standings' | 'matches') {
+    setExporting(type);
+    setExportError(null);
+    try {
+      const res = await fetch(`/api/admin/export?type=${type}`, {
+        headers: { Authorization: `Bearer ${secret}` },
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setExportError(json.error || `Export failed (${res.status})`);
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `tbl-${type}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setExportError('Network error while exporting.');
+    } finally {
+      setExporting(null);
+    }
+  }
+
   if (!authed) {
     return (
       <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
@@ -251,6 +332,142 @@ export function AdminClient({ matches, picks: initialPicks, players: initialPlay
             Picks and fantasy lineups score automatically from sheet state on page load. No manual resolve needed — just update the sheet.
           </p>
         </div>
+
+        {/* Export recalculated data as CSV */}
+        <section style={{ marginTop: 16, marginBottom: 32 }}>
+          <h2 style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>
+            Export Data
+          </h2>
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', marginBottom: 16 }}>
+            Download the code-recalculated data as CSV. The Fighters export lists every stat plus the WAR formula and its league constants (replacement PPR + avg margin), so you can see exactly where each number comes from.
+          </p>
+          {exportError && (
+            <div style={{ padding: '8px 0', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--result-l)' }}>
+              {exportError}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            {(['fighters', 'standings', 'matches'] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                className="btn btn-primary"
+                disabled={exporting === t}
+                onClick={() => handleExport(t)}
+                style={{ opacity: exporting === t ? 0.6 : 1, cursor: exporting === t ? 'wait' : 'pointer' }}
+              >
+                {exporting === t ? 'Exporting…' : `${t[0].toUpperCase()}${t.slice(1)} CSV`}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* Fighter Instagram editor — overrides the Google Sheet */}
+        <section style={{ marginTop: 16, marginBottom: 32 }}>
+          <h2 style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>
+            Fighter Instagram ({fighters.length})
+          </h2>
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', marginBottom: 16 }}>
+            Set a fighter&apos;s Instagram URL here — a saved value overrides the Google Sheet everywhere. Clear the field and save to remove it.
+          </p>
+          {fighters.length === 0 ? (
+            <div className="card" style={{ padding: 24 }}>
+              <p style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-muted)' }}>No fighters found.</p>
+            </div>
+          ) : (
+            <div className="card">
+              <div className="card-header">
+                <div className="filters">
+                  <input
+                    type="search"
+                    className="filter-search"
+                    placeholder="Search fighter…"
+                    value={fighterFilter}
+                    onChange={(e) => setFighterFilter(e.target.value)}
+                    aria-label="Filter fighters by name or team"
+                  />
+                  {fighterFilter && (
+                    <button type="button" onClick={() => setFighterFilter('')} className="filter-clear">
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="table-wrap">
+                {igError && (
+                  <div style={{ padding: '8px 16px', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--result-l)' }}>
+                    {igError}
+                  </div>
+                )}
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Fighter</th>
+                      <th>Team</th>
+                      <th>Instagram</th>
+                      <th className="num-cell">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredFighters.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} style={{ padding: 24, textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>
+                          No fighters match the current filter.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredFighters.map((f) => {
+                        const draft = igDrafts[f.slug] ?? f.instagram;
+                        const isSaving = savingIg === f.slug;
+                        const dirty = draft.trim() !== f.instagram.trim();
+                        return (
+                          <tr key={f.slug}>
+                            <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600 }}>{f.name}</td>
+                            <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)' }}>{f.team}</td>
+                            <td>
+                              <input
+                                type="text"
+                                className="filter-search"
+                                style={{ minWidth: 220, width: '100%' }}
+                                placeholder="instagram.com/handle or @handle"
+                                value={draft}
+                                onChange={(e) => setIgDrafts((prev) => ({ ...prev, [f.slug]: e.target.value }))}
+                              />
+                            </td>
+                            <td className="num-cell">
+                              <button
+                                type="button"
+                                onClick={() => handleSaveInstagram(f)}
+                                disabled={isSaving || !dirty}
+                                style={{
+                                  fontFamily: 'var(--font-mono)',
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  letterSpacing: '0.08em',
+                                  textTransform: 'uppercase',
+                                  color: dirty ? 'var(--result-w)' : 'var(--text-muted)',
+                                  background: 'transparent',
+                                  border: `1px solid ${dirty ? 'var(--result-w)' : 'var(--border)'}`,
+                                  borderRadius: 'var(--radius)',
+                                  padding: '4px 10px',
+                                  cursor: isSaving ? 'wait' : dirty ? 'pointer' : 'default',
+                                  opacity: isSaving ? 0.5 : 1,
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {isSaving ? 'Saving…' : 'Save'}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </section>
 
         {/* Players — hide/show from leaderboard */}
         <section style={{ marginTop: 16, marginBottom: 32 }}>

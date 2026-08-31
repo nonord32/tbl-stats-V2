@@ -3,6 +3,7 @@
 
 import { cache } from 'react';
 import Papa from 'papaparse';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { buildFighters } from './warStats';
 import type {
   FighterStat,
@@ -169,7 +170,7 @@ function findHeaderRow(rows: string[][], keywords: string[], scanDepth = 20): nu
 // Instagram URLs are maintained only on the Fighter Stats tab and merged in
 // separately via parseFighterSocials() / the fighterSocials CSV.
 
-function cleanInstagramUrl(raw: string): string {
+export function cleanInstagramUrl(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) return '';
   try {
@@ -777,6 +778,27 @@ export const getAllData = cache(async (): Promise<ParsedSheetData> => {
     socials = parseFighterSocials(fighterRawRows);
   } catch (err) {
     console.error('[getAllData] parseFighterSocials threw:', err);
+  }
+
+  // Admin-managed Instagram overrides from Supabase (`fighter_socials`). A row
+  // here wins over the sheet value (even when cleared to empty). Defensive: a
+  // Supabase outage or missing env vars just leaves the sheet values in place.
+  try {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (url && anon) {
+      const sb = createSupabaseClient(url, anon);
+      const { data: rows, error } = await sb
+        .from('fighter_socials')
+        .select('fighter_slug, instagram');
+      if (!error && rows) {
+        for (const r of rows as { fighter_slug: string; instagram: string | null }[]) {
+          socials.set(r.fighter_slug, r.instagram ?? '');
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[getAllData] fighter_socials read failed:', err);
   }
 
   let teams: TeamStanding[] = [];

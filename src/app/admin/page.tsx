@@ -114,5 +114,11 @@ export default async function AdminPage() {
     };
   });
 
-  return <AdminClient matches={matchList} picks={picks} players={players} dbError={dbError} dbDebug={dbDebug} />;
+  // Fighter roster for the Instagram editor. `instagram` already reflects the
+  // DB override (getAllData overlays fighter_socials over the sheet value).
+  const fighters = sheetData.fighters
+    .map((f) => ({ slug: f.slug, name: f.name, team: f.team, instagram: f.instagram ?? '' }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  return <AdminClient matches={matchList} picks={picks} players={players} fighters={fighters} dbError={dbError} dbDebug={dbDebug} />;
 }
