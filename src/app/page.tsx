@@ -79,15 +79,32 @@ function shortAbbr(team: string): string {
   return map[city] ?? city.slice(0, 3);
 }
 
+// Poster shown in the top-left box when there's no upcoming match: the most
+// recent result, framed as a MegaBrawl champion crowning when that result is
+// the final.
+interface HeroResult {
+  eyebrow: string;
+  winnerName: string;
+  winnerTeam: string;
+  loserName: string;
+  loserTeam: string;
+  scoreLine: string;
+  href: string;
+  isChampion: boolean;
+  verb: string; // "def." for a win, "drew" for a draw
+}
+
 // ─── Hero: featured fight card + fighter in focus ────────────────────────────
 function FightCardHero({
   featured,
   focus,
   alsoThisWeek,
+  heroResult,
 }: {
   featured: ScheduleEntry | null;
   focus: FighterStat | null;
   alsoThisWeek: ScheduleEntry[];
+  heroResult: HeroResult | null;
 }) {
   return (
     <div
@@ -133,6 +150,8 @@ function FightCardHero({
           >
             {featured
               ? `Next Event · ${featured.date}${featured.time ? ' · ' + featured.time : ''}`
+              : heroResult
+              ? heroResult.eyebrow
               : 'Team Boxing League · 2026 Season'}
           </div>
           {featured ? (
@@ -181,6 +200,45 @@ function FightCardHero({
                 </div>
               )}
             </>
+          ) : heroResult ? (
+            <>
+              <div
+                className="tbl-display gz-hero-team"
+                style={{ fontSize: 72, lineHeight: 0.92, marginTop: 16 }}
+              >
+                {heroResult.winnerName}
+              </div>
+              <div
+                style={{
+                  marginTop: 16,
+                  fontFamily: 'var(--tbl-font-mono)',
+                  fontSize: 13,
+                  letterSpacing: '0.1em',
+                  textTransform: 'uppercase',
+                  color: 'rgba(244,237,224,0.72)',
+                }}
+              >
+                {heroResult.verb} {heroResult.loserName}{' '}
+                <span style={{ color: 'var(--tbl-accent-bright)', fontWeight: 700 }}>
+                  {heroResult.scoreLine}
+                </span>
+              </div>
+              <Link
+                href={heroResult.href}
+                style={{
+                  display: 'inline-block',
+                  marginTop: 22,
+                  fontFamily: 'var(--tbl-font-mono)',
+                  fontSize: 11,
+                  letterSpacing: '0.16em',
+                  textTransform: 'uppercase',
+                  color: 'var(--tbl-accent-bright)',
+                  textDecoration: 'none',
+                }}
+              >
+                {heroResult.isChampion ? 'View bracket →' : 'View result →'}
+              </Link>
+            </>
           ) : (
             <div className="tbl-display gz-hero-team" style={{ fontSize: 84, lineHeight: 0.9, marginTop: 16 }}>
               TBL
@@ -188,48 +246,55 @@ function FightCardHero({
           )}
         </div>
 
-        {featured && (
-          <div
-            className="gz-hero-logos"
-            style={{
-              position: 'absolute',
-              bottom: 28,
-              right: 28,
-              display: 'flex',
-              gap: 16,
-              alignItems: 'center',
-            }}
-          >
-            {getTeamLogoPathByName(featured.team1) && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={getTeamLogoPathByName(featured.team1)}
-                alt=""
-                style={{ width: 60, height: 60, objectFit: 'contain' }}
-              />
-            )}
+        {(() => {
+          // Bottom-right logo pair: the featured matchup, or the result's
+          // winner × loser when there's no upcoming game.
+          const logoTeam1 = featured ? featured.team1 : heroResult?.winnerTeam;
+          const logoTeam2 = featured ? featured.team2 : heroResult?.loserTeam;
+          if (!logoTeam1 || !logoTeam2) return null;
+          return (
             <div
-              className="gz-hero-x"
+              className="gz-hero-logos"
               style={{
-                color: 'var(--tbl-accent-bright)',
-                fontFamily: 'var(--tbl-font-serif)',
-                fontStyle: 'italic',
-                fontSize: 32,
-                fontWeight: 900,
+                position: 'absolute',
+                bottom: 28,
+                right: 28,
+                display: 'flex',
+                gap: 16,
+                alignItems: 'center',
               }}
             >
-              ×
+              {getTeamLogoPathByName(logoTeam1) && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={getTeamLogoPathByName(logoTeam1)}
+                  alt=""
+                  style={{ width: 60, height: 60, objectFit: 'contain' }}
+                />
+              )}
+              <div
+                className="gz-hero-x"
+                style={{
+                  color: 'var(--tbl-accent-bright)',
+                  fontFamily: 'var(--tbl-font-serif)',
+                  fontStyle: 'italic',
+                  fontSize: 32,
+                  fontWeight: 900,
+                }}
+              >
+                ×
+              </div>
+              {getTeamLogoPathByName(logoTeam2) && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={getTeamLogoPathByName(logoTeam2)}
+                  alt=""
+                  style={{ width: 60, height: 60, objectFit: 'contain' }}
+                />
+              )}
             </div>
-            {getTeamLogoPathByName(featured.team2) && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={getTeamLogoPathByName(featured.team2)}
-                alt=""
-                style={{ width: 60, height: 60, objectFit: 'contain' }}
-              />
-            )}
-          </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* Fighter in focus */}
@@ -1180,75 +1245,6 @@ function MobileStandings({ teams }: { teams: TeamStanding[] }) {
 }
 
 // ─── Page ────────────────────────────────────────────────────────────────────
-// ─── MegaBrawl champion banner ───────────────────────────────────────────────
-function ChampionBanner({
-  champion,
-  runnerUp,
-  scoreLine,
-}: {
-  champion: TeamStanding;
-  runnerUp?: TeamStanding;
-  scoreLine?: string | null;
-}) {
-  const logo = getTeamLogoPathByName(champion.team);
-  return (
-    <Link
-      href="/playoffs"
-      className="home-champion-banner"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 20,
-        flexWrap: 'wrap',
-        background: 'var(--tbl-ink)',
-        color: 'var(--tbl-bg)',
-        padding: '18px 32px',
-        borderBottom: '3px double var(--tbl-ink)',
-        textDecoration: 'none',
-      }}
-    >
-      {logo && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={logo} alt="" style={{ width: 60, height: 60, objectFit: 'contain' }} />
-      )}
-      <div style={{ minWidth: 0 }}>
-        <div className="tbl-eyebrow" style={{ color: 'var(--tbl-accent-bright)' }}>
-          MegaBrawl IV · Champion
-        </div>
-        <div className="tbl-display" style={{ fontSize: 34, lineHeight: 1, marginTop: 2 }}>
-          {getFullTeamName(champion.slug)}
-        </div>
-        {runnerUp && scoreLine && (
-          <div
-            style={{
-              fontFamily: 'var(--tbl-font-mono)',
-              fontSize: 11,
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: 'rgba(244,237,224,0.7)',
-              marginTop: 6,
-            }}
-          >
-            def. {getFullTeamName(runnerUp.slug)} · {scoreLine}
-          </div>
-        )}
-      </div>
-      <span
-        style={{
-          marginLeft: 'auto',
-          fontFamily: 'var(--tbl-font-mono)',
-          fontSize: 11,
-          letterSpacing: '0.14em',
-          textTransform: 'uppercase',
-          color: 'var(--tbl-accent-bright)',
-        }}
-      >
-        View bracket →
-      </span>
-    </Link>
-  );
-}
-
 export default async function HomePage() {
   const { fighters, fightersByPhase, fighterHistory, teams, schedule, teamMatches, awards } =
     await getAllData();
@@ -1410,20 +1406,51 @@ export default async function HomePage() {
         : `${finalMatch.score[1]}–${finalMatch.score[0]}`
       : null;
 
+  // Top-left poster when there's no upcoming game: the most recent result,
+  // framed as the MegaBrawl champion crowning when that result is the final.
+  const heroResult: HeroResult | null = (() => {
+    if (champSeed) {
+      return {
+        eyebrow: 'MegaBrawl IV · Champion',
+        winnerName: getFullTeamName(champSeed.team.slug),
+        winnerTeam: champSeed.team.team,
+        loserName: runnerSeed ? getFullTeamName(runnerSeed.team.slug) : '',
+        loserTeam: runnerSeed?.team.team ?? '',
+        scoreLine: champScoreLine ?? '',
+        href: '/playoffs',
+        isChampion: true,
+        verb: 'def.',
+      };
+    }
+    if (lastCompleted) {
+      const isDraw = Math.abs(lastCompleted.s1 - lastCompleted.s2) < 0.0001;
+      const t1Won = lastCompleted.s1 >= lastCompleted.s2;
+      const winner = t1Won ? lastCompleted.team1 : lastCompleted.team2;
+      const loser = t1Won ? lastCompleted.team2 : lastCompleted.team1;
+      const ws = t1Won ? lastCompleted.s1 : lastCompleted.s2;
+      const ls = t1Won ? lastCompleted.s2 : lastCompleted.s1;
+      const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+      return {
+        eyebrow: `Latest Result · ${lastCompleted.date}`,
+        winnerName: getFullTeamName(teamSlug(winner)),
+        winnerTeam: winner,
+        loserName: getFullTeamName(teamSlug(loser)),
+        loserTeam: loser,
+        scoreLine: `${fmt(ws)}–${fmt(ls)}`,
+        href: `/matches/${lastCompleted.matchIndex}`,
+        isChampion: false,
+        verb: isDraw ? 'drew' : 'def.',
+      };
+    }
+    return null;
+  })();
+
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-
-      {champSeed && (
-        <ChampionBanner
-          champion={champSeed.team}
-          runnerUp={runnerSeed?.team}
-          scoreLine={champScoreLine}
-        />
-      )}
 
       {/* Mobile compact layout (hidden on desktop via CSS) */}
       <MobileMatchBanner
@@ -1436,7 +1463,12 @@ export default async function HomePage() {
 
       {/* Desktop layout (hidden on mobile via CSS) */}
       <div className="home-desktop-only">
-        <FightCardHero featured={featured} focus={focus} alsoThisWeek={alsoThisWeek} />
+        <FightCardHero
+          featured={featured}
+          focus={focus}
+          alsoThisWeek={alsoThisWeek}
+          heroResult={heroResult}
+        />
         <TopSix fighters={topSix} />
         <StandingsTwoCol teams={topTeams} />
       </div>

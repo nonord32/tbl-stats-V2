@@ -74,17 +74,27 @@ function matchesRows(data: ParsedSheetData): Cell[][] {
 }
 
 // Pure per-round extract: one row per bout (round) of every game, straight from
-// the box scores — the rawest view of the underlying results.
+// the box scores — the rawest view of the underlying results. Also carries the
+// running match score after each round (team1 cumulative, team2 cumulative, and
+// the running differential team1 − team2) so the score state at every round is
+// available for WPA-style analysis.
 function boutsRows(data: ParsedSheetData): Cell[][] {
   const rows: Cell[][] = [[
     'matchIndex', 'date', 'gamePhase', 'team1', 'team2', 'round', 'weightClass',
     'roundPhase', 'fighter1', 'score1', 'fighter2', 'score2', 'winner', 'method',
+    'runningScore1', 'runningScore2', 'runningDiff',
   ]];
   for (const m of extractUniqueMatches(data.teamMatches)) {
+    // Cumulative score reset per match; box score is already round-ordered.
+    let run1 = 0;
+    let run2 = 0;
     for (const r of m.boxScore) {
+      run1 += r.score1;
+      run2 += r.score2;
       rows.push([
         m.matchIndex, m.date, m.phase, m.team1, m.team2, r.round, r.weightClass ?? '',
         r.phase ?? '', r.fighter1, r.score1, r.fighter2, r.score2, r.winner ?? '', r.method ?? '',
+        Number(run1.toFixed(1)), Number(run2.toFixed(1)), Number((run1 - run2).toFixed(1)),
       ]);
     }
   }

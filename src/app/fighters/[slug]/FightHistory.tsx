@@ -102,22 +102,6 @@ export function FightHistory({
       <tr key={boutKey(h)} style={{ borderBottom: '1px dotted rgba(20,17,11,0.3)' }}>
         <td style={{ padding: '10px 6px', color: 'var(--tbl-ink-soft)' }}>
           {h.date}
-          {h.phase === 'playoffs' && (
-            <span
-              style={{
-                marginLeft: 6,
-                padding: '0 5px',
-                fontSize: 9,
-                fontWeight: 700,
-                letterSpacing: '0.08em',
-                color: '#fff',
-                background: 'var(--tbl-accent)',
-                textTransform: 'uppercase',
-              }}
-            >
-              PO
-            </span>
-          )}
         </td>
         <td style={{ padding: '10px 6px', color: 'var(--tbl-ink-soft)' }}>
           {h.phase === 'playoffs'

@@ -12,10 +12,13 @@ import { getTeamLogoPathByName, getFullTeamName } from '@/lib/teams';
 type Phase = 'all' | 'regular' | 'playoffs';
 
 const PHASE_LABELS: Record<Phase, string> = {
-  all: 'Full Season',
   regular: 'Regular Season',
   playoffs: 'Playoffs',
+  all: 'Full Season',
 };
+
+// Toggle order: Regular Season first (default), then Playoffs, then Full Season.
+const PHASE_ORDER: Phase[] = ['regular', 'playoffs', 'all'];
 
 function teamSlugOf(name: string): string {
   return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
@@ -34,7 +37,9 @@ export function FighterHero({
   streak: string;
   warRank: number;
 }) {
-  const [phase, setPhase] = useState<Phase>('all');
+  // Default to Regular Season; a playoff-only fighter (no regular bouts) opens
+  // on Playoffs so the toggle's starting view matches the stats shown.
+  const [phase, setPhase] = useState<Phase>(regular ? 'regular' : 'playoffs');
   const hasPlayoffs = !!playoffs;
 
   const active =
@@ -79,7 +84,7 @@ export function FighterHero({
               value={phase}
               onChange={(e) => setPhase(e.target.value as Phase)}
             >
-              {(['all', 'regular', 'playoffs'] as Phase[]).map((p) => (
+              {PHASE_ORDER.map((p) => (
                 <option key={p} value={p}>
                   {PHASE_LABELS[p]}
                 </option>
