@@ -7,10 +7,9 @@ import Link from 'next/link';
 import { getMatchByIndex, getAllData, toSlug } from '@/lib/data';
 import { getBracketContext } from '@/lib/bracketData';
 import { playoffRoundLabelsByMatch } from '@/lib/playoffs';
-import { getWpaData, WPA_MODEL_VERSION } from '@/lib/wpa';
+import { getWpaData } from '@/lib/wpa';
 import { getFullTeamName, getTeamLogoPathByName } from '@/lib/teams';
 import { SectionRule } from '@/components/chrome/SectionRule';
-import { WinProbChart } from '@/components/WinProbChart';
 import { HighlightsSection } from '@/components/HighlightsSection';
 import { ShareButton } from '@/components/ShareButton';
 
@@ -541,57 +540,6 @@ export default async function MatchPage({
         </div>
       )}
 
-      {/* Win Probability — team 1's chance of winning, round by round */}
-      {matchWpa && matchWpa.rounds.length > 0 && (
-        <div style={{ padding: '18px 32px 8px' }}>
-          <SectionRule
-            left="Win Probability"
-            right={`Line weight = leverage · WPA model ${WPA_MODEL_VERSION}`}
-          />
-          <WinProbChart wpa={matchWpa} team1Label={team1Abbr} team2Label={team2Abbr} />
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              gap: 12,
-              flexWrap: 'wrap',
-              marginTop: 8,
-              fontFamily: 'var(--tbl-font-mono)',
-              fontSize: 10,
-              letterSpacing: '0.08em',
-              color: 'var(--tbl-ink-soft)',
-            }}
-          >
-            <span>
-              Each round&apos;s swing is credited to its fighters as WPA — see the table below.
-              The line thickens where the leverage was highest.{' '}
-              <Link href="/stats/wpa" style={{ color: 'var(--tbl-accent)' }}>
-                How WPA works →
-              </Link>
-              {'  ·  '}
-              <Link href="/stats/leverage" style={{ color: 'var(--tbl-accent)' }}>
-                Leverage →
-              </Link>
-            </span>
-          </div>
-          {matchWpa.footnote && (
-            <p
-              style={{
-                margin: '10px 0 0',
-                fontFamily: 'var(--tbl-font-mono)',
-                fontSize: 10,
-                lineHeight: 1.6,
-                letterSpacing: '0.04em',
-                color: 'var(--tbl-ink-soft)',
-                maxWidth: 640,
-              }}
-            >
-              † {matchWpa.footnote}
-            </p>
-          )}
-        </div>
-      )}
-
       {/* Round-by-Round — desktop table + mobile fight-card list */}
       {(() => {
         const orderedRows = [...match.boxScore]
@@ -850,6 +798,22 @@ export default async function MatchPage({
                             </td>
                           );
                         })()}
+
+      {matchWpa?.footnote && (
+        <p
+          style={{
+            margin: '0 32px 24px',
+            fontFamily: 'var(--tbl-font-mono)',
+            fontSize: 10,
+            lineHeight: 1.6,
+            letterSpacing: '0.04em',
+            color: 'var(--tbl-ink-soft)',
+            maxWidth: 720,
+          }}
+        >
+          † {matchWpa.footnote}
+        </p>
+      )}
                         {matchWpa && (() => {
                           const w = wpaOf(row);
                           const isPeak = w != null && peakLiRound === row.round;
