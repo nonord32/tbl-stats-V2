@@ -387,8 +387,10 @@ function parseMatchData(rows: string[][]): {
       const isWin1 = result1Raw.toUpperCase().startsWith('W');
       const isLoss1 = result1Raw.toUpperCase().startsWith('L');
 
-      // Extract method (e.g. "Decision", "KO", "TKO") — same for both fighters in the bout
-      const CAPS_TERMS = new Set(['KO', 'TKO', 'RSC', 'RTD', 'DQ']);
+      // Extract method (e.g. "Decision", "KO / TKO", "KD", "2x KD") — same for
+      // both fighters in the bout. Sheet labels: "KO / TKO", "KD" (knockdown),
+      // "2x KD" (double knockdown), "Decision", "DQ".
+      const CAPS_TERMS = new Set(['KO', 'TKO', 'KD', 'RSC', 'RTD', 'DQ']);
       const extractMethod = (raw: string): string => {
         const dashIdx = raw.indexOf('-');
         if (dashIdx < 0) return '';

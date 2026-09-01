@@ -53,20 +53,26 @@ function inScope(phase: GamePhase, scope: StatScope): boolean {
 // The TBL round-scoring scale awards 1 point for a decision win and more for a
 // finish; "extra points" is that award minus the 1-point decision baseline:
 //   Decision 0 · Knockdown 1 · Double Knockdown 2 · KO/TKO 3.
+//
+// Google-Sheet method labels: "KO / TKO", "KD" (knockdown), "2x KD" (double
+// knockdown), "Decision", "DQ". The matching is tolerant of spacing/case and of
+// the long forms ("Knockdown", "Double Knockdown") in case the sheet varies.
 export type MethodBucket = 'decision' | 'knockdown' | 'double-knockdown' | 'ko-tko';
 
 export function classifyMethod(method: string | undefined): MethodBucket {
   const m = (method ?? '').toLowerCase();
-  // Order matters: "double knockdown" also contains "knockdown".
-  if (m.includes('double')) return 'double-knockdown';
+  // Double knockdown FIRST — "2x kd" / "double kd" also contain a "kd".
+  if (m.includes('double') || /\b2\s*x\b/.test(m) || /2\s*x\s*kd/.test(m)) {
+    return 'double-knockdown';
+  }
   // KO / TKO / Knockout, plus referee-stoppage (RSC) and retirement (RTD),
-  // which are TKO-type finishes. "knockdown" contains no "ko" substring, so it
-  // isn't caught here.
+  // which are TKO-type finishes. "kd"/"knockdown" contain no "ko" substring.
   if (/\btko\b/.test(m) || /\bko\b/.test(m) || m.includes('knockout') ||
       m.includes('rsc') || m.includes('rtd')) {
     return 'ko-tko';
   }
-  if (m.includes('knockdown')) return 'knockdown';
+  // Single knockdown: sheet "KD", or the long form "Knockdown".
+  if (/\bkd\b/.test(m) || m.includes('knockdown')) return 'knockdown';
   return 'decision';
 }
 
