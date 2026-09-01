@@ -187,71 +187,26 @@ export function cleanInstagramUrl(raw: string): string {
     return '';
   }
 }
-function parseFighters(rows: string[][]): { fighters: FighterStat[]; lastUpdated: string } {
-  // Extract Last Updated from row 2 (index 1).
+// The "Fighter Stats" tab is no longer the source of fighter stats (every stat
+// is derived from the Data tab — see buildFighters). This parser is kept only to
+// read the sheet's "Last Updated" stamp from row 2.
+function parseLastUpdated(rows: string[][]): string {
   // Use timeZone: 'UTC' when formatting to avoid the date shifting back one day
   // when the ISO string is later rendered in a US timezone on the client.
-  let lastUpdated = '';
   try {
     if (rows[1] && rows[1][0]) {
       const dateStr = rows[1][0].replace(/last updated:?/i, '').trim();
       if (dateStr) {
         const parsed = new Date(dateStr);
         if (!isNaN(parsed.getTime())) {
-          lastUpdated = parsed.toLocaleDateString('en-US', {
+          return parsed.toLocaleDateString('en-US', {
             month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
           });
         }
       }
     }
   } catch {}
-
-  // Find the header row by scanning for a row that contains "Fighter"
-  const found = findHeaderRow(rows, ['Fighter', 'Fighter Name', 'Rank']);
-  const headerRowIndex = found >= 0 ? found : 6;
-
-  const objects = toObjects(rows, headerRowIndex);
-
-  const fighters = objects
-    .map((r): FighterStat | null => {
-      const name = pick(r, 'Fighter', 'Fighter Name').trim();
-      if (!name || name === 'Fighter') return null;
-      // Skip placeholder rows ("N/A") used when a round was scratched or a
-      // forfeit awarded points to the opposing team — they're not real fighters
-      // and shouldn't appear in fighter stats / rosters.
-      if (name.toUpperCase() === 'N/A') return null;
-      const recordStr = (pick(r, 'Record') || '0-0').trim();
-      const parts = recordStr.split('-');
-      const wins = safeInt(parts[0]);
-      const losses = safeInt(parts[1]);
-
-      // Win % stored as "100%" — convert to 0-1 decimal
-      const winPctRaw = safeNum(pick(r, 'Win %', 'Win%', 'WinPct') || '0');
-      const winPct = winPctRaw > 1 ? winPctRaw / 100 : winPctRaw;
-
-      const instagramRaw = pick(r, 'Instagram', 'Instagram URL', 'IG', 'Instagram Handle');
-      const instagram = cleanInstagramUrl(instagramRaw) || undefined;
-
-      return {
-        name,
-        team: pick(r, 'Team').trim(),
-        weightClass: pick(r, 'Weight', 'Weight Class').trim(),
-        gender: pick(r, 'Gender').trim(),
-        wins,
-        losses,
-        record: recordStr,
-        war: safeNum(pick(r, 'Fighter WAR', 'WAR')),
-        nppr: safeNum(pick(r, 'NPPR (Net Points-per-Round)', 'NPPR', 'Net Points-per-Round', 'Net Points Per Round')),
-        netPts: safeNum(pick(r, 'Total Net Points', 'Net Points')),
-        winPct,
-        rounds: safeInt(pick(r, 'Rounds Fought', 'Rounds', 'Round', 'Total Rounds', '# Rounds', 'Num Rounds')),
-        slug: toSlug(name),
-        instagram,
-      } satisfies FighterStat;
-    })
-    .filter((f): f is FighterStat => f !== null && f.name !== '');
-
-  return { fighters, lastUpdated };
+  return '';
 }
 
 // ─── Fighter Socials Parser (Fighter Stats tab) ────────────────────────────────
@@ -474,7 +429,9 @@ function parseMatchData(rows: string[][]): {
         opponent: string,
         oppTeam: string,
         result: 'W' | 'L' | 'D',
-        netPts: number
+        netPts: number,
+        pointsFor: number,
+        pointsAgainst: number
       ) => {
         if (!fighter || fighter.trim().toUpperCase() === 'N/A') return;
         const slug = toSlug(fighter);
@@ -490,6 +447,8 @@ function parseMatchData(rows: string[][]): {
           result,
           resultMethod: resultMethod || undefined,
           netPts,
+          pointsFor,
+          pointsAgainst,
           matchIndex: safeInt(matchId),
           roundId,
           phase: gamePhase,
@@ -501,8 +460,10 @@ function parseMatchData(rows: string[][]): {
       // DQ bouts are kept out of fighter statkeeping (they remain in the box
       // score above so the team match total still includes their points).
       if (!isDq) {
-        addHistory(fighter1, fighter2, team2, r1, netPts1);
-        addHistory(fighter2, fighter1, team1, r2, netPts2);
+        // Points Earned is each fighter's own score in the bout; the opponent's
+        // is the points-against side.
+        addHistory(fighter1, fighter2, team2, r1, netPts1, pts1, pts2);
+        addHistory(fighter2, fighter1, team1, r2, netPts2, pts2, pts1);
       }
     });
 
@@ -793,9 +754,9 @@ export const getAllData = cache(async (): Promise<ParsedSheetData> => {
   // never blocks the derived stats.
   let lastUpdated = '';
   try {
-    lastUpdated = parseFighters(fighterRawRows).lastUpdated;
+    lastUpdated = parseLastUpdated(fighterRawRows);
   } catch (err) {
-    console.error('[getAllData] parseFighters (lastUpdated) threw:', err);
+    console.error('[getAllData] parseLastUpdated threw:', err);
   }
   let socials = new Map<string, string>();
   try {

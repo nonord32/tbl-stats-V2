@@ -49,6 +49,88 @@ function inScope(phase: GamePhase, scope: StatScope): boolean {
   return scope === 'all' || phase === scope;
 }
 
+// ── Outcome method → finishing bucket + "extra points" over the decision baseline ──
+// The TBL round-scoring scale awards 1 point for a decision win and more for a
+// finish; "extra points" is that award minus the 1-point decision baseline:
+//   Decision 0 · Knockdown 1 · Double Knockdown 2 · KO/TKO 3.
+export type MethodBucket = 'decision' | 'knockdown' | 'double-knockdown' | 'ko-tko';
+
+export function classifyMethod(method: string | undefined): MethodBucket {
+  const m = (method ?? '').toLowerCase();
+  // Order matters: "double knockdown" also contains "knockdown".
+  if (m.includes('double')) return 'double-knockdown';
+  // KO / TKO / Knockout, plus referee-stoppage (RSC) and retirement (RTD),
+  // which are TKO-type finishes. "knockdown" contains no "ko" substring, so it
+  // isn't caught here.
+  if (/\btko\b/.test(m) || /\bko\b/.test(m) || m.includes('knockout') ||
+      m.includes('rsc') || m.includes('rtd')) {
+    return 'ko-tko';
+  }
+  if (m.includes('knockdown')) return 'knockdown';
+  return 'decision';
+}
+
+const EXTRA_BY_BUCKET: Record<MethodBucket, number> = {
+  decision: 0,
+  knockdown: 1,
+  'double-knockdown': 2,
+  'ko-tko': 3,
+};
+
+export interface FinishingStats {
+  pointsFor: number;
+  pointsAgainst: number;
+  extraPoints: number;
+  extraPointsAllowed: number;
+  knockdowns: number;
+  doubleKnockdowns: number;
+  koTko: number;
+  koPct: number;
+}
+
+// Scoring + finishing aggregates for a set of bouts (already scope-filtered).
+// Counts are over bouts WON; extraPointsAllowed is over bouts LOST. koPct guards
+// against a divide-by-zero for winless fighters by returning 0.
+export function computeFinishing(bouts: FightHistory[]): FinishingStats {
+  let pointsFor = 0;
+  let pointsAgainst = 0;
+  let extraPoints = 0;
+  let extraPointsAllowed = 0;
+  let knockdowns = 0;
+  let doubleKnockdowns = 0;
+  let koTko = 0;
+  let wins = 0;
+
+  for (const b of bouts) {
+    pointsFor += b.pointsFor;
+    pointsAgainst += b.pointsAgainst;
+    const extra = EXTRA_BY_BUCKET[classifyMethod(b.resultMethod)];
+    if (b.result === 'W') {
+      wins++;
+      extraPoints += extra;
+      switch (classifyMethod(b.resultMethod)) {
+        case 'ko-tko': koTko++; break;
+        case 'knockdown': knockdowns++; break;
+        case 'double-knockdown': doubleKnockdowns++; break;
+        default: break;
+      }
+    } else if (b.result === 'L') {
+      extraPointsAllowed += extra;
+    }
+  }
+
+  return {
+    pointsFor,
+    pointsAgainst,
+    extraPoints,
+    extraPointsAllowed,
+    knockdowns,
+    doubleKnockdowns,
+    koTko,
+    koPct: wins > 0 ? koTko / wins : 0,
+  };
+}
+
 // Net points per round (NPPR / PPR) for one fighter's in-scope bouts.
 function npprOf(bouts: FightHistory[]): number {
   const rounds = bouts.length;
@@ -126,6 +208,7 @@ export function buildFighters(
     const netPts = bouts.reduce((s, b) => s + b.netPts, 0);
     const decisions = wins + losses;
     const nppr = rounds > 0 ? netPts / rounds : 0;
+    const finishing = computeFinishing(bouts);
 
     // Team is scope-specific: the playoff view shows the fighter's playoff team,
     // the regular view their regular-season team. Falls back to the overall team.
@@ -150,6 +233,14 @@ export function buildFighters(
       winPct: decisions > 0 ? wins / decisions : 0,
       rounds,
       slug,
+      pointsFor: finishing.pointsFor,
+      pointsAgainst: finishing.pointsAgainst,
+      extraPoints: finishing.extraPoints,
+      extraPointsAllowed: finishing.extraPointsAllowed,
+      knockdowns: finishing.knockdowns,
+      doubleKnockdowns: finishing.doubleKnockdowns,
+      koTko: finishing.koTko,
+      koPct: finishing.koPct,
     };
     // Stable across scopes: rank the fighter under the class they've fought most
     // across their whole career, not just this phase.

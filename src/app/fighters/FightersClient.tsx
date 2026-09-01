@@ -13,8 +13,17 @@ import {
 import { getTeamColorByName, getTeamLogoPathByName, getCityName } from '@/lib/teams';
 import { PageHeader } from '@/components/chrome/PageHeader';
 import { aggregateFightersByPhase, hasPlayoffData, type Phase } from '@/lib/phaseStats';
+import { computeFinishing } from '@/lib/warStats';
 
-type SortKey = 'war' | 'nppr' | 'netPts' | 'winPct' | 'rounds' | 'record' | 'name';
+type SortKey =
+  | 'nppr'
+  | 'netPts'
+  | 'winPct'
+  | 'rounds'
+  | 'record'
+  | 'name'
+  | 'koTko'
+  | 'koPct';
 
 const PHASE_LABELS: Record<Phase, string> = {
   regular: 'Regular Season',
@@ -90,11 +99,11 @@ function FighterModal({
           <div className="stat-grid" style={{ padding: 0, marginBottom: 20 }}>
             {[
               { label: 'Record', value: fighter.record },
-              { label: 'WAR', value: fighter.war.toFixed(2) },
-              { label: 'NPPR', value: fighter.nppr.toFixed(2) },
-              { label: 'Net Pts', value: `${fighter.netPts >= 0 ? '+' : ''}${fighter.netPts.toFixed(0)}` },
               { label: 'Win%', value: `${(fighter.winPct * 100).toFixed(0)}%` },
               { label: 'Rounds', value: fighter.rounds },
+              { label: 'Net Pts', value: `${fighter.netPts >= 0 ? '+' : ''}${fighter.netPts.toFixed(0)}` },
+              { label: 'NPPR', value: fighter.nppr.toFixed(2) },
+              { label: 'KO/TKO', value: fighter.koTko },
             ].map((s) => (
               <div className="stat-box" key={s.label}>
                 <span className="label">{s.label}</span>
@@ -190,10 +199,6 @@ export function FightersClient({ fighters, fightersByPhase, fighterHistory, sche
   // The View toggle only appears once playoff games exist, so nothing changes
   // through the regular season.
   const playoffsLive = useMemo(() => hasPlayoffData(fighterHistory, {}), [fighterHistory]);
-
-  // WAR now comes from the dedicated per-phase tabs (season WAR merged in from
-  // the joint tab), so it's shown in every view.
-  const showWar = true;
 
   // Fighter stats scoped to the selected phase (Regular or Playoffs), from that
   // phase's pre-aggregated tab (with a recompute-from-history fallback when the
@@ -311,8 +316,11 @@ export function FightersClient({ fighters, fightersByPhase, fighterHistory, sche
       if (weekOnly.length === 0) return f;
       const wins = weekOnly.filter((h) => h.result === 'W').length;
       const losses = weekOnly.filter((h) => h.result === 'L').length;
+      const decisions = wins + losses;
       const netPts = weekOnly.reduce((s, h) => s + h.netPts, 0);
       const rounds = weekOnly.length;
+      // Recompute scoring + finishing so KO/TKO and KO% reflect just this week.
+      const fin = computeFinishing(weekOnly);
       return {
         ...f,
         wins,
@@ -321,7 +329,8 @@ export function FightersClient({ fighters, fightersByPhase, fighterHistory, sche
         netPts,
         rounds,
         nppr: rounds > 0 ? netPts / rounds : 0,
-        winPct: rounds > 0 ? wins / rounds : 0,
+        winPct: decisions > 0 ? wins / decisions : 0,
+        ...fin,
       };
     });
   }, [phaseFighters, fighterHistory, matchIndexToWeek, weekFilter]);
@@ -361,12 +370,13 @@ export function FightersClient({ fighters, fightersByPhase, fighterHistory, sche
       let va: number | string = 0;
       let vb: number | string = 0;
       switch (sortKey) {
-        case 'war': va = a.war; vb = b.war; break;
         case 'nppr': va = a.nppr; vb = b.nppr; break;
         case 'netPts': va = a.netPts; vb = b.netPts; break;
         case 'winPct': va = a.winPct; vb = b.winPct; break;
         case 'rounds': va = a.rounds; vb = b.rounds; break;
         case 'record': va = a.wins; vb = b.wins; break;
+        case 'koTko': va = a.koTko; vb = b.koTko; break;
+        case 'koPct': va = a.koPct; vb = b.koPct; break;
         case 'name': va = a.name; vb = b.name; break;
       }
       if (typeof va === 'string') {
@@ -466,7 +476,7 @@ export function FightersClient({ fighters, fightersByPhase, fighterHistory, sche
               <div className="fighters-mobile-row__body">
                 <div className="fighters-mobile-row__name">{f.name}</div>
                 <div className="fighters-mobile-row__meta">
-                  {orderedClassesFor(f).join(', ') || f.weightClass} · {f.record} · WAR {showWar ? f.war.toFixed(2) : '—'}
+                  {orderedClassesFor(f).join(', ') || f.weightClass} · {f.record} · {(f.winPct * 100).toFixed(0)}% Win · {f.koTko} KO
                 </div>
               </div>
               <div className="fighters-mobile-row__value">
@@ -561,8 +571,9 @@ export function FightersClient({ fighters, fightersByPhase, fighterHistory, sche
             {[
               { k: 'Net Pts', v: 'Total net points scored' },
               { k: 'NPPR', v: 'Net Points Per Round' },
-              { k: 'Win%', v: 'Win percentage' },
-              { k: 'WAR', v: 'Wins Above Replacement' },
+              { k: 'Win%', v: 'Win percentage (excludes DQs)' },
+              { k: 'KO/TKO', v: 'Wins by KO or TKO' },
+              { k: 'KO%', v: 'KO/TKO wins ÷ total wins' },
             ].map((s) => (
               <span key={s.k} style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)' }}>
                 <strong style={{ color: 'var(--text)' }}>{s.k}</strong> {s.v}
@@ -580,11 +591,12 @@ export function FightersClient({ fighters, fightersByPhase, fighterHistory, sche
                   <th className="col-hide-mobile">Weight</th>
                   <th className="col-hide-mobile">Gender</th>
                   <SortTh col="record" label="Record" title="W-L" className="col-record" />
+                  <SortTh col="winPct" label="Win%" title="Win Percentage (excludes DQs)" className="col-hide-mobile" />
+                  <SortTh col="rounds" label="Rounds" title="Total Rounds Fought" className="col-hide-mobile" />
                   <SortTh col="netPts" label="Net Pts" title="Total Net Points" className="col-war" />
                   <SortTh col="nppr" label="NPPR" title="Net Points Per Round" className="col-hide-mobile" />
-                  <SortTh col="winPct" label="Win%" title="Win Percentage" className="col-hide-mobile" />
-                  <SortTh col="war" label="WAR" title="Wins Above Replacement" className="col-hide-mobile" />
-                  <SortTh col="rounds" label="Rounds" title="Total Rounds Fought" className="col-hide-mobile" />
+                  <SortTh col="koTko" label="KO/TKO" title="Wins by KO or TKO" className="col-hide-mobile" />
+                  <SortTh col="koPct" label="KO%" title="KO/TKO wins ÷ total wins" className="col-hide-mobile" />
                   <th>Streak</th>
                 </tr>
               </thead>
@@ -633,13 +645,14 @@ export function FightersClient({ fighters, fightersByPhase, fighterHistory, sche
                       <td className="col-hide-mobile" style={{ fontSize: 12 }}>{orderedClassesFor(f).join(', ') || f.weightClass}</td>
                       <td className="col-hide-mobile" style={{ fontSize: 12 }}>{f.gender}</td>
                       <td className="num-cell mono col-record">{f.record}</td>
+                      <td className="num-cell mono col-hide-mobile">{(f.winPct * 100).toFixed(0)}%</td>
+                      <td className="num-cell mono col-hide-mobile">{f.rounds}</td>
                       <td className="num-cell mono col-war" style={{ color: f.netPts >= 0 ? 'var(--result-w)' : 'var(--result-l)' }}>
                         {f.netPts >= 0 ? '+' : ''}{f.netPts.toFixed(0)}
                       </td>
                       <td className="num-cell mono col-hide-mobile">{f.nppr.toFixed(2)}</td>
-                      <td className="num-cell mono col-hide-mobile">{(f.winPct * 100).toFixed(0)}%</td>
-                      <td className="num-cell mono col-hide-mobile">{showWar ? f.war.toFixed(2) : '—'}</td>
-                      <td className="num-cell mono col-hide-mobile">{f.rounds}</td>
+                      <td className="num-cell mono col-hide-mobile">{f.koTko}</td>
+                      <td className="num-cell mono col-hide-mobile">{f.wins > 0 ? `${(f.koPct * 100).toFixed(0)}%` : '—'}</td>
                       <td>{streak && <StreakBadge streak={streak} />}</td>
                     </tr>
                   );

@@ -42,7 +42,13 @@ function fighterTableRows(data: ParsedSheetData): Cell[][] {
   const regBySlug = new Map(data.fightersByPhase.regular.map((f) => [f.slug, f]));
   const poBySlug = new Map(data.fightersByPhase.playoffs.map((f) => [f.slug, f]));
   const rows: Cell[][] = [
-    ['slug', 'name', 'team', 'weightClass', 'gender', 'record', 'wins', 'losses', 'rounds', 'netPts', 'nppr', 'winPct', 'war_season', 'war_regular', 'war_playoffs'],
+    [
+      'slug', 'name', 'team', 'weightClass', 'gender', 'record', 'wins', 'losses',
+      'rounds', 'netPts', 'nppr', 'winPct',
+      'pointsFor', 'pointsAgainst', 'extraPoints', 'extraPointsAllowed',
+      'knockdowns', 'doubleKnockdowns', 'koTko', 'koPct',
+      'war_season', 'war_regular', 'war_playoffs',
+    ],
   ];
   for (const f of [...data.fighters].sort((a, b) => b.war - a.war)) {
     const reg = regBySlug.get(f.slug);
@@ -50,6 +56,8 @@ function fighterTableRows(data: ParsedSheetData): Cell[][] {
     rows.push([
       f.slug, f.name, f.team, f.weightClass, f.gender, f.record, f.wins, f.losses,
       f.rounds, Number(f.netPts.toFixed(1)), Number(f.nppr.toFixed(4)), Number((f.winPct * 100).toFixed(1)),
+      Number(f.pointsFor.toFixed(1)), Number(f.pointsAgainst.toFixed(1)), f.extraPoints, f.extraPointsAllowed,
+      f.knockdowns, f.doubleKnockdowns, f.koTko, Number((f.koPct * 100).toFixed(1)),
       Number(f.war.toFixed(4)), reg ? Number(reg.war.toFixed(4)) : '', po ? Number(po.war.toFixed(4)) : '',
     ]);
   }

@@ -19,6 +19,18 @@ export interface FighterStat {
   rounds: number;
   slug: string;
   instagram?: string;
+  // ── Scoring (derived from the per-round Points Earned) ──
+  pointsFor: number;        // total points this fighter scored
+  pointsAgainst: number;    // total points conceded to opponents
+  // Points above the 1-point decision baseline, by outcome method:
+  // Decision 0 · Knockdown 1 · Double Knockdown 2 · KO/TKO 3.
+  extraPoints: number;         // summed over bouts won
+  extraPointsAllowed: number;  // summed over bouts lost
+  // ── Finishing / Results (counts over bouts WON) ──
+  knockdowns: number;
+  doubleKnockdowns: number;
+  koTko: number;
+  koPct: number;            // koTko / total wins (0 when winless)
 }
 
 // Fighter identity (name/team/gender) derived from the Data tab, used to
@@ -56,6 +68,8 @@ export interface FightHistory {
   result: 'W' | 'L' | 'D';
   resultMethod?: string;  // e.g. "Decision", "KO", "Knockdown"
   netPts: number;
+  pointsFor: number;      // points this fighter scored in the bout (Points Earned)
+  pointsAgainst: number;  // points the opponent scored in the bout
   matchIndex: number;
   roundId: number;  // unique, monotonic across the season; used for stable sort
   phase: GamePhase;
