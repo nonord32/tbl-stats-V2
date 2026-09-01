@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "node --experimental-strip-types --test scripts/wpa.test.mjs",
+    "gen:wpa": "node scripts/generate-wpa-table.mjs",
     "cap:add:ios": "cap add ios",
     "cap:sync": "cap sync ios",
     "cap:open:ios": "cap open ios"

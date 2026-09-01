@@ -3,7 +3,7 @@
 // exactly where every number comes from. Same RESOLVE_SECRET bearer auth as the
 // other admin routes.
 //
-//   ?format=csv (default) &type=fighters|standings|matches → one CSV
+//   ?format=csv (default) &type=fighters|standings|matches|bouts|wpa|wpa-rounds → one CSV
 //   ?format=xlsx                                            → one .xlsx workbook
 //                                                             (all tabs at once)
 //
@@ -15,6 +15,7 @@ import ExcelJS from 'exceljs';
 import { getAllData, extractUniqueMatches } from '@/lib/data';
 import { sortStandings } from '@/lib/standings';
 import { leagueBaseline } from '@/lib/warStats';
+import { getWpaData, WPA_MODEL_VERSION, type SeasonWpa } from '@/lib/wpa';
 import type { ParsedSheetData } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -109,6 +110,47 @@ function boutsRows(data: ParsedSheetData): Cell[][] {
   return rows;
 }
 
+// Per-fighter WPA totals, stamped with the model version so stored figures are
+// always traceable to the model that produced them.
+function wpaFighterRows(season: SeasonWpa): Cell[][] {
+  const rows: Cell[][] = [
+    ['WPA MODEL VERSION', WPA_MODEL_VERSION],
+    ['NOTE', 'WPA = change in team win probability per round, credited to the round winner. DQ rounds credit neither fighter (their points still count on the scoreboard).'],
+    [],
+    ['slug', 'name', 'matches', 'rounds', 'roundWins', 'wpa', 'wpaPerRound', 'wpaRegular', 'wpaPlayoffs'],
+  ];
+  for (const f of [...season.byFighter.values()].sort((a, b) => b.wpa - a.wpa)) {
+    rows.push([
+      f.slug, f.name, f.matches, f.rounds, f.roundWins,
+      Number(f.wpa.toFixed(4)), f.rounds > 0 ? Number((f.wpa / f.rounds).toFixed(4)) : 0,
+      Number(f.wpaRegular.toFixed(4)), Number(f.wpaPlayoffs.toFixed(4)),
+    ]);
+  }
+  return rows;
+}
+
+// Per-round WPA detail: the full computation trail for every included round.
+function wpaRoundRows(season: SeasonWpa): Cell[][] {
+  const rows: Cell[][] = [[
+    'matchIndex', 'date', 'gamePhase', 'team1', 'team2', 'round', 'fighter1', 'fighter2',
+    'score1', 'score2', 'diffBefore', 'diffAfter', 'wpBefore', 'wpAfter', 'teamWpa',
+    'fighter1Wpa', 'fighter2Wpa', 'isDq', 'attributed', 'scheduledRounds',
+  ]];
+  const matches = [...season.byMatch.values()].sort((a, b) => a.matchIndex - b.matchIndex);
+  for (const m of matches) {
+    for (const r of m.rounds) {
+      rows.push([
+        m.matchIndex, m.date, m.phase, m.team1, m.team2, r.round, r.fighter1, r.fighter2,
+        r.score1, r.score2, r.diffBefore, r.diffAfter,
+        Number(r.wpBefore.toFixed(6)), Number(r.wpAfter.toFixed(6)), Number(r.teamWpa.toFixed(6)),
+        Number(r.fighter1Wpa.toFixed(6)), Number(r.fighter2Wpa.toFixed(6)),
+        r.isDq ? 'DQ' : '', r.attributed ? 'Y' : 'N', m.scheduledRounds,
+      ]);
+    }
+  }
+  return rows;
+}
+
 // ── CSV ──
 function csvCell(v: Cell): string {
   const s = String(v ?? '');
@@ -119,7 +161,7 @@ function toCsv(rows: Cell[][]): string {
 }
 
 // ── xlsx ──
-async function buildWorkbook(data: ParsedSheetData): Promise<Uint8Array<ArrayBuffer>> {
+async function buildWorkbook(data: ParsedSheetData, wpaSeason: SeasonWpa): Promise<Uint8Array<ArrayBuffer>> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'TBL Stats';
   wb.created = new Date();
@@ -143,6 +185,8 @@ async function buildWorkbook(data: ParsedSheetData): Promise<Uint8Array<ArrayBuf
   addSheet('Standings', standingsRows(data), 1);
   addSheet('Matches', matchesRows(data), 1);
   addSheet('Bouts (raw rounds)', boutsRows(data), 1);
+  addSheet('WPA (fighters)', wpaFighterRows(wpaSeason), 4);
+  addSheet('WPA (rounds)', wpaRoundRows(wpaSeason), 1);
   // Copy into a Uint8Array with a concrete ArrayBuffer backing so it's a valid
   // Response/Blob body under the current typed-array generics.
   return Uint8Array.from(await wb.xlsx.writeBuffer() as unknown as ArrayLike<number>);
@@ -161,9 +205,10 @@ export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
   const format = params.get('format') ?? 'csv';
   const data = await getAllData();
+  const wpaSeason = await getWpaData();
 
   if (format === 'xlsx') {
-    const buf = await buildWorkbook(data);
+    const buf = await buildWorkbook(data, wpaSeason);
     return new Response(new Blob([buf]), {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -183,6 +228,10 @@ export async function GET(request: Request) {
     rows = matchesRows(data);
   } else if (type === 'bouts') {
     rows = boutsRows(data);
+  } else if (type === 'wpa') {
+    rows = wpaFighterRows(wpaSeason);
+  } else if (type === 'wpa-rounds') {
+    rows = wpaRoundRows(wpaSeason);
   } else {
     return new Response(JSON.stringify({ error: `Unknown type "${type}"` }), {
       status: 400,

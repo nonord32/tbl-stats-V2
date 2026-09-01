@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getFighterBySlug, getAllData } from '@/lib/data';
 import { getBracketContext } from '@/lib/bracketData';
+import { getWpaData } from '@/lib/wpa';
 import { playoffRoundLabelsByMatch } from '@/lib/playoffs';
 import { getFullTeamName } from '@/lib/teams';
 import { FightHistory } from './FightHistory';
@@ -62,6 +63,43 @@ export default async function FighterPage({
   const roundLabels = Object.fromEntries(
     playoffRoundLabelsByMatch(getBracketContext(await getAllData()).bracket)
   );
+
+  // Season WPA for this fighter: per-phase totals for the hero's Advanced
+  // strip, plus a per-round map (keyed matchIndex:roundId) for the fight
+  // history column and the best/worst-round highlights.
+  const fighterWpa = (await getWpaData()).byFighter.get(params.slug) ?? null;
+  const wpaProp = (() => {
+    if (!fighterWpa) return null;
+    const regularRounds = fighterWpa.perRound.filter((p) => p.phase !== 'playoffs').length;
+    const playoffRounds = fighterWpa.rounds - regularRounds;
+    const rate = (total: number, rounds: number) => (rounds > 0 ? total / rounds : 0);
+    return {
+      all: { total: fighterWpa.wpa, perRound: rate(fighterWpa.wpa, fighterWpa.rounds) },
+      regular: { total: fighterWpa.wpaRegular, perRound: rate(fighterWpa.wpaRegular, regularRounds) },
+      playoffs: { total: fighterWpa.wpaPlayoffs, perRound: rate(fighterWpa.wpaPlayoffs, playoffRounds) },
+    };
+  })();
+  const wpaRoundKey = (matchIndex: number, roundId: number | undefined, round: number) =>
+    `${matchIndex}:${roundId ?? `r${round}`}`;
+  const wpaByRound: Record<string, number> = {};
+  let bestKey: string | undefined;
+  let worstKey: string | undefined;
+  if (fighterWpa) {
+    let best = 0;
+    let worst = 0;
+    for (const p of fighterWpa.perRound) {
+      const key = wpaRoundKey(p.matchIndex, p.roundId, p.round);
+      wpaByRound[key] = p.wpa;
+      if (p.wpa > best) {
+        best = p.wpa;
+        bestKey = key;
+      }
+      if (p.wpa < worst) {
+        worst = p.wpa;
+        worstKey = key;
+      }
+    }
+  }
 
   const teamSlug = fighter.team
     .toLowerCase()
@@ -137,9 +175,16 @@ export default async function FighterPage({
         playoffs={playoffs}
         streak={streak}
         warRank={warRank}
+        wpa={wpaProp}
       />
 
-      <FightHistory history={history} roundLabels={roundLabels} />
+      <FightHistory
+        history={history}
+        roundLabels={roundLabels}
+        wpaByRound={wpaByRound}
+        wpaBestKey={bestKey}
+        wpaWorstKey={worstKey}
+      />
     </>
   );
 }

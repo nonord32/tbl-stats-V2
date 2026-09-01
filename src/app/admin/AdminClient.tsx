@@ -241,7 +241,9 @@ export function AdminClient({ matches, picks: initialPicks, players: initialPlay
     }
   }
 
-  async function handleExport(kind: 'fighters' | 'standings' | 'matches' | 'bouts' | 'xlsx') {
+  async function handleExport(
+    kind: 'fighters' | 'standings' | 'matches' | 'bouts' | 'wpa' | 'wpa-rounds' | 'xlsx',
+  ) {
     setExporting(kind);
     setExportError(null);
     try {
@@ -358,7 +360,7 @@ export function AdminClient({ matches, picks: initialPicks, players: initialPlay
               {exporting === 'xlsx' ? 'Exporting…' : 'Excel workbook (.xlsx)'}
             </button>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>or CSV:</span>
-            {(['fighters', 'standings', 'matches', 'bouts'] as const).map((t) => (
+            {(['fighters', 'standings', 'matches', 'bouts', 'wpa', 'wpa-rounds'] as const).map((t) => (
               <button
                 key={t}
                 type="button"

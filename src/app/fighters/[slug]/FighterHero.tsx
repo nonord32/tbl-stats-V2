@@ -127,18 +127,26 @@ function StatStrip({
   );
 }
 
+export interface WpaScopes {
+  all: { total: number; perRound: number };
+  regular: { total: number; perRound: number };
+  playoffs: { total: number; perRound: number };
+}
+
 export function FighterHero({
   season,
   regular,
   playoffs,
   streak,
   warRank,
+  wpa = null,
 }: {
   season: FighterStat;
   regular: FighterStat | null;
   playoffs: FighterStat | null;
   streak: string;
   warRank: number;
+  wpa?: WpaScopes | null;
 }) {
   // Default to Regular Season; a playoff-only fighter (no regular bouts) opens
   // on Playoffs so the toggle's starting view matches the stats shown.
@@ -176,15 +184,23 @@ export function FighterHero({
     { l: 'KO%', v: active.wins > 0 ? `${(active.koPct * 100).toFixed(0)}%` : '—' },
   ];
 
-  // Advanced: kept but low-key. WPA has a reserved cell so it drops in later
-  // with no redesign. WAR rank is shown only in the Full Season view (the rank
-  // is computed against the season leaderboard).
+  // Advanced: kept but low-key. WAR rank is shown only in the Full Season view
+  // (the rank is computed against the season leaderboard). WPA rescopes with
+  // the toggle like everything else.
+  const activeWpa = wpa ? wpa[phase] : null;
   const advanced: StatCell[] = [
     {
       l: warRank > 0 && phase === 'all' ? `WAR · #${warRank}` : 'WAR',
       v: active.war.toFixed(2),
     },
-    { l: 'WPA', v: '—', color: 'var(--tbl-ink-soft)', sub: 'coming soon' },
+    activeWpa
+      ? {
+          l: 'WPA',
+          v: `${activeWpa.total >= 0 ? '+' : ''}${activeWpa.total.toFixed(3)}`,
+          color: activeWpa.total >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)',
+          sub: `${activeWpa.perRound >= 0 ? '+' : ''}${activeWpa.perRound.toFixed(3)} per round`,
+        }
+      : { l: 'WPA', v: '—', color: 'var(--tbl-ink-soft)', sub: 'no rounds credited' },
   ];
 
   return (
@@ -303,6 +319,22 @@ export function FighterHero({
       <StatStrip title="Finishing / Results" cells={finishing} note="KO% = KO/TKO ÷ wins" />
       <div style={{ borderBottom: '3px double var(--tbl-ink)' }}>
         <StatStrip title="Advanced" cells={advanced} />
+        <div
+          style={{
+            padding: '0 32px 16px',
+            marginTop: -8,
+            fontFamily: 'var(--tbl-font-mono)',
+            fontSize: 10,
+            letterSpacing: '0.08em',
+            color: 'var(--tbl-ink-soft)',
+          }}
+        >
+          WPA = Win Probability Added — how much each round moved the team&apos;s chance of
+          winning.{' '}
+          <Link href="/stats/wpa" style={{ color: 'var(--tbl-accent)' }}>
+            How it works →
+          </Link>
+        </div>
       </div>
     </>
   );

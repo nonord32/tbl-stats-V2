@@ -7,8 +7,10 @@ import Link from 'next/link';
 import { getMatchByIndex, getAllData, toSlug } from '@/lib/data';
 import { getBracketContext } from '@/lib/bracketData';
 import { playoffRoundLabelsByMatch } from '@/lib/playoffs';
+import { getWpaData, WPA_MODEL_VERSION } from '@/lib/wpa';
 import { getFullTeamName, getTeamLogoPathByName } from '@/lib/teams';
 import { SectionRule } from '@/components/chrome/SectionRule';
+import { WinProbChart } from '@/components/WinProbChart';
 import { HighlightsSection } from '@/components/HighlightsSection';
 import { ShareButton } from '@/components/ShareButton';
 
@@ -82,6 +84,15 @@ export default async function MatchPage({
   if (!result) notFound();
 
   const { match, scheduleEntry, highlights } = result!;
+
+  // Win Probability Added for this match (team-1 perspective, same orientation
+  // as `match`). Keyed by roundId for the per-round column.
+  const matchWpa = (await getWpaData()).byMatch.get(mi) ?? null;
+  const wpaRounds = new Map(
+    (matchWpa?.rounds ?? []).map((r) => [r.roundId ?? -r.round, r] as const),
+  );
+  const wpaOf = (row: { round: number; roundId?: number }) =>
+    wpaRounds.get(row.roundId ?? -row.round);
 
   // For playoff games, label the round (Quarterfinals / Semifinals / MegaBrawl)
   // instead of the week number.
@@ -524,6 +535,49 @@ export default async function MatchPage({
         </div>
       )}
 
+      {/* Win Probability — team 1's chance of winning, round by round */}
+      {matchWpa && matchWpa.rounds.length > 0 && (
+        <div style={{ padding: '18px 32px 8px' }}>
+          <SectionRule left="Win Probability" right={`WPA model ${WPA_MODEL_VERSION}`} />
+          <WinProbChart wpa={matchWpa} team1Label={team1Abbr} team2Label={team2Abbr} />
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              gap: 12,
+              flexWrap: 'wrap',
+              marginTop: 8,
+              fontFamily: 'var(--tbl-font-mono)',
+              fontSize: 10,
+              letterSpacing: '0.08em',
+              color: 'var(--tbl-ink-soft)',
+            }}
+          >
+            <span>
+              Each round&apos;s swing is credited to its fighters as WPA — see the table below.{' '}
+              <Link href="/stats/wpa" style={{ color: 'var(--tbl-accent)' }}>
+                How WPA works →
+              </Link>
+            </span>
+          </div>
+          {matchWpa.footnote && (
+            <p
+              style={{
+                margin: '10px 0 0',
+                fontFamily: 'var(--tbl-font-mono)',
+                fontSize: 10,
+                lineHeight: 1.6,
+                letterSpacing: '0.04em',
+                color: 'var(--tbl-ink-soft)',
+                maxWidth: 640,
+              }}
+            >
+              † {matchWpa.footnote}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Round-by-Round — desktop table + mobile fight-card list */}
       {(() => {
         const orderedRows = [...match.boxScore]
@@ -628,7 +682,7 @@ export default async function MatchPage({
                         <span>{team2Abbr}</span>
                       </div>
                     </th>
-                    <th />
+                    <th colSpan={matchWpa ? 2 : 1} />
                   </tr>
                   <tr style={{ borderBottom: '2px solid var(--tbl-ink)' }}>
                     {[
@@ -639,6 +693,7 @@ export default async function MatchPage({
                       { label: 'Pts', align: 'center' as const },
                       { label: 'Fighter', align: 'left' as const },
                       { label: 'Method', align: 'left' as const },
+                      ...(matchWpa ? [{ label: 'WPA', align: 'right' as const }] : []),
                     ].map((h, idx) => (
                       <th
                         key={idx}
@@ -745,6 +800,37 @@ export default async function MatchPage({
                         >
                           {isNoContest ? 'No Contest' : row.method || '—'}
                         </td>
+                        {matchWpa && (() => {
+                          const w = wpaOf(row);
+                          return (
+                            <td style={{ ...cellBase, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                              {w == null ? (
+                                // Excluded from WPA (e.g. a post-match administrative row).
+                                <span style={{ color: 'var(--tbl-ink-mute)' }}>—†</span>
+                              ) : w.isDq ? (
+                                <span
+                                  style={{ color: 'var(--tbl-ink-mute)', fontSize: 11 }}
+                                  title="Disqualification — the swing counts on the scoreboard but is credited to neither fighter"
+                                >
+                                  {`${w.teamWpa >= 0 ? '+' : ''}${w.teamWpa.toFixed(3)}`}
+                                  <div style={{ fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                                    DQ · uncredited
+                                  </div>
+                                </span>
+                              ) : (
+                                <span
+                                  style={{
+                                    fontWeight: 700,
+                                    color: w.teamWpa >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)',
+                                  }}
+                                  title={`${team1Abbr} win probability ${(w.wpBefore * 100).toFixed(1)}% → ${(w.wpAfter * 100).toFixed(1)}%`}
+                                >
+                                  {`${w.teamWpa >= 0 ? '+' : ''}${w.teamWpa.toFixed(3)}`}
+                                </span>
+                              )}
+                            </td>
+                          );
+                        })()}
                       </tr>
                     );
                   })}
@@ -788,7 +874,7 @@ export default async function MatchPage({
                     >
                       {totalB.toFixed(1)}
                     </td>
-                    <td colSpan={2} />
+                    <td colSpan={matchWpa ? 3 : 2} />
                   </tr>
                 </tbody>
               </table>
@@ -823,6 +909,18 @@ export default async function MatchPage({
                   >
                     <span>
                       R{row.round} · {row.weightClass || row.phase || '—'}
+                      {(() => {
+                        const w = matchWpa ? wpaOf(row) : undefined;
+                        if (w == null) return null;
+                        if (w.isDq) {
+                          return <span style={{ color: 'var(--tbl-ink-mute)' }}> · WPA DQ</span>;
+                        }
+                        return (
+                          <span style={{ color: w.teamWpa >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)' }}>
+                            {` · WPA ${w.teamWpa >= 0 ? '+' : ''}${w.teamWpa.toFixed(2)}`}
+                          </span>
+                        );
+                      })()}
                     </span>
                     <span style={{ color: isNoContest ? 'var(--tbl-ink-mute)' : 'var(--tbl-ink-soft)' }}>
                       {isNoContest ? 'No Contest' : row.method || '—'}

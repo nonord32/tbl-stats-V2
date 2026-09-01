@@ -90,6 +90,7 @@ export interface TeamStanding {
 
 export interface BoxScoreRound {
   round: number;
+  roundId?: number; // season-wide unique Round ID from the sheet; stable join key
   phase: string;
   fighter1: string;
   fighter2: string;

@@ -13,10 +13,17 @@ import { SectionRule } from '@/components/chrome/SectionRule';
 export function FightHistory({
   history,
   roundLabels = {},
+  wpaByRound = {},
+  wpaBestKey,
+  wpaWorstKey,
 }: {
   history: FightHistoryEntry[];
   // matchIndex → playoff round label ("Quarterfinals" / "Semifinals" / "MegaBrawl")
   roundLabels?: Record<number, string>;
+  // matchIndex:roundId → this fighter's WPA for that bout (see fighters/[slug]/page.tsx)
+  wpaByRound?: Record<string, number>;
+  wpaBestKey?: string; // key of the fighter's single biggest positive round
+  wpaWorstKey?: string; // ... and biggest negative round
 }) {
   const streak = useMemo(() => calcFighterStreak(history), [history]);
   // For a bout, the label shown in the "week" slot: the playoff round for
@@ -49,6 +56,15 @@ export function FightHistory({
     return `${w}-${l} · ${net >= 0 ? '+' : ''}${net.toFixed(0)} net · ${nppr.toFixed(2)} NPPR`;
   };
   const boutKey = (h: FightHistoryEntry) => `${h.matchIndex}-${h.roundId}`;
+  // Join key into wpaByRound — must mirror wpaRoundKey in fighters/[slug]/page.tsx.
+  const wpaKey = (h: FightHistoryEntry) => `${h.matchIndex}:${h.roundId}`;
+  const hasWpa = Object.keys(wpaByRound).length > 0;
+  const fmtWpa = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(3)}`;
+  const wpaMarker = (key: string): { label: string; color: string } | null => {
+    if (key === wpaBestKey) return { label: '▲ best', color: 'var(--tbl-green)' };
+    if (key === wpaWorstKey) return { label: '▼ worst', color: 'var(--tbl-red)' };
+    return null;
+  };
 
   // ── Mobile card + desktop row renderers (shared across phase groups) ──
   const renderCard = (h: FightHistoryEntry) => {
@@ -81,6 +97,25 @@ export function FightHistory({
             {weekSlot(h) ? `${weekSlot(h)} · ` : ''}
             {h.date} · {roundLabel}
             {h.roundPhase ? ` · ${h.roundPhase}` : ''}
+            {hasWpa && wpaByRound[wpaKey(h)] != null && (
+              <>
+                {' · '}
+                <span
+                  style={{
+                    color: wpaByRound[wpaKey(h)] >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)',
+                    fontWeight: 700,
+                  }}
+                >
+                  WPA {fmtWpa(wpaByRound[wpaKey(h)])}
+                </span>
+                {wpaMarker(wpaKey(h)) && (
+                  <span style={{ color: wpaMarker(wpaKey(h))!.color, fontWeight: 700 }}>
+                    {' '}
+                    {wpaMarker(wpaKey(h))!.label}
+                  </span>
+                )}
+              </>
+            )}
           </div>
         </div>
         <div
@@ -180,6 +215,29 @@ export function FightHistory({
           {h.netPts >= 0 ? '+' : ''}
           {h.netPts.toFixed(0)}
         </td>
+        {hasWpa && (() => {
+          const key = wpaKey(h);
+          const wpa = wpaByRound[key];
+          const marker = wpaMarker(key);
+          return (
+            <td style={{ padding: '10px 6px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+              {wpa != null ? (
+                <>
+                  <span style={{ fontWeight: 700, color: wpa >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)' }}>
+                    {fmtWpa(wpa)}
+                  </span>
+                  {marker && (
+                    <div style={{ fontSize: 9, letterSpacing: '0.1em', color: marker.color, marginTop: 2, textTransform: 'uppercase', fontWeight: 700 }}>
+                      {marker.label}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <span style={{ color: 'var(--tbl-ink-mute)' }}>—</span>
+              )}
+            </td>
+          );
+        })()}
       </tr>
     );
   };
@@ -301,6 +359,7 @@ export function FightHistory({
                         ['Round', 'right'],
                         ['Result', 'right'],
                         ['Net', 'right'],
+                        ...(hasWpa ? ([['WPA', 'right']] as [string, 'left' | 'right'][]) : []),
                       ] as [string, 'left' | 'right'][]).map(([h, align]) => (
                         <th
                           key={h}
@@ -325,7 +384,7 @@ export function FightHistory({
                         {g.label && (
                           <tr>
                             <td
-                              colSpan={7}
+                              colSpan={hasWpa ? 8 : 7}
                               style={{
                                 padding: '16px 6px 6px',
                                 borderBottom: '1.5px solid var(--tbl-ink)',

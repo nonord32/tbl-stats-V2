@@ -1,0 +1,57 @@
+{
+  "version": "2026.1",
+  "season": 2026,
+  "description": "TBL Win Probability Added model, fit on the 2026 season (55 matches, 1,314 rounds). Two stages: per-round margin distribution convolved over remaining rounds, then logit sharpening by gamma. Historical 2026 WPA figures must remain reproducible from this file — never edit in place for a new season; create wpa-model-2027.json instead.",
+  "gamma": 1.4164008922,
+  "marginDistribution": {
+    "-4": 0.0258751903,
+    "-3": 0.00304414,
+    "-2": 0.0384322679,
+    "-1": 0.4315068493,
+    "0": 0.002283105,
+    "1": 0.4315068493,
+    "2": 0.0384322679,
+    "3": 0.00304414,
+    "4": 0.0258751903
+  },
+  "table": { "dMin": -110, "dMax": 110, "rMax": 24 },
+  "scheduledRounds": {
+    "default": 24,
+    "overrides": { "7": 21, "48": 21 }
+  },
+  "excludedRounds": [
+    {
+      "matchIndex": 14,
+      "round": 25,
+      "reason": "Post-match administrative DQ points award — not a contested round. WPA for match 14 reflects the competitive scoreboard (San Antonio 15-13); the official result (Las Vegas win) stands in the standings."
+    }
+  ],
+  "matchFootnotes": {
+    "14": "Win-probability note: this match's final entry (round 25) was an administrative points award recorded after the match ended and is excluded from WPA. Win probability here reflects the competitive scoreboard (San Antonio 15–13); the official result stands in the standings."
+  },
+  "dqRule": "zero-credit-both-sides",
+  "dqRuleReason": "A disqualification is a referee's decision, not a boxing performance, and the source data records only who was awarded the points, not who was disqualified. Rather than credit or charge the wrong fighter, WPA attributes disqualification rounds to neither fighter. The points still count on the scoreboard and still affect every subsequent round's win probability.",
+  "checksums": [
+    { "d": 0, "r": 24, "wp": 0.5 },
+    { "d": 1, "r": 23, "wp": 0.581752 },
+    { "d": 1, "r": 12, "wp": 0.612958 },
+    { "d": 5, "r": 12, "wp": 0.915959 },
+    { "d": -1, "r": 1, "wp": 0.211486 },
+    { "d": 7, "r": 2, "wp": 0.999963 },
+    { "d": 1, "r": 1, "wp": 0.788514 },
+    { "d": 2, "r": 1, "wp": 0.985615 },
+    { "d": 3, "r": 4, "wp": 0.929089 },
+    { "d": 10, "r": 20, "wp": 0.980335 },
+    { "d": -3, "r": 8, "wp": 0.1497 }
+  ],
+  "referenceTotals": [
+    { "name": "Erika Sanchez", "wpa": 1.539 },
+    { "name": "Rashidi Ellis", "wpa": 1.46 },
+    { "name": "Stacia Suttles", "wpa": 1.456 },
+    { "name": "Shakilya Ellis", "wpa": 1.401 },
+    { "name": "Yojanler Martinez", "wpa": 1.102 },
+    { "name": "Abril Anguiano", "wpa": -0.868 },
+    { "name": "Steven Sumpter", "wpa": -0.872 },
+    { "name": "Jordyn Edewards", "wpa": -1.175 }
+  ]
+}
