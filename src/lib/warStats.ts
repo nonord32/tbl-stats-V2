@@ -108,7 +108,11 @@ export function buildFighters(
   matches: MatchResult[],
   scope: StatScope,
 ): FighterStat[] {
-  const baseline = leagueBaseline(fighterHistory, matches, scope);
+  // WAR is measured against ONE league-wide baseline — the whole-season 25th-
+  // percentile PPR and the whole-season average match margin — for every scope.
+  // We do NOT recompute the baseline per phase: only the fighter's own NPPR and
+  // rounds change between regular season and playoffs, never the yardstick.
+  const baseline = leagueBaseline(fighterHistory, matches, 'all');
   const out: FighterStat[] = [];
 
   for (const [slug, identity] of Object.entries(fighterIdentity)) {

@@ -24,19 +24,17 @@ type Cell = string | number;
 // ── Row builders (reused by both the CSV and the xlsx paths) ──
 function warConstantsRows(data: ParsedSheetData): Cell[][] {
   const uniqueMatches = extractUniqueMatches(data.teamMatches);
-  const b = {
-    all: leagueBaseline(data.fighterHistory, uniqueMatches, 'all'),
-    regular: leagueBaseline(data.fighterHistory, uniqueMatches, 'regular'),
-    playoffs: leagueBaseline(data.fighterHistory, uniqueMatches, 'playoffs'),
-  };
+  // ONE league-wide baseline (whole season), used for regular, playoff, and
+  // season WAR alike. Only each fighter's NPPR and Rounds change by scope.
+  const b = leagueBaseline(data.fighterHistory, uniqueMatches, 'all');
+  const decidedMatches = uniqueMatches.filter((m) => m.result !== 'D').length;
   return [
     ['FORMULA', 'WAR = (NPPR - Replacement PPR) * Rounds / Avg Margin Per Match'],
-    ['NOTE', 'WAR per scope uses that scope’s baseline; rate stats (WAR/NPPR/Win%) do not sum across scopes'],
+    ['NOTE', 'One whole-season baseline is used for regular, playoff, and season WAR. Only each fighter’s NPPR and Rounds change by scope; rate stats (WAR/NPPR/Win%) do not sum across scopes.'],
     [],
-    ['scope', 'Replacement PPR (25th pct NPPR)', 'Avg Margin Per Match'],
-    ['season (all)', b.all.replacementNppr.toFixed(4), b.all.avgMargin.toFixed(4)],
-    ['regular', b.regular.replacementNppr.toFixed(4), b.regular.avgMargin.toFixed(4)],
-    ['playoffs', b.playoffs.replacementNppr.toFixed(4), b.playoffs.avgMargin.toFixed(4)],
+    ['Replacement PPR (25th percentile NPPR, all fighters)', b.replacementNppr.toFixed(4)],
+    ['Average Margin Per Match (mean |PF-PA| over decided matches)', b.avgMargin.toFixed(4)],
+    ['Decided matches used for the margin', decidedMatches],
   ];
 }
 
