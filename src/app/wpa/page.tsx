@@ -26,18 +26,43 @@ export default async function WpaPage() {
   // Team per fighter from the season roster (covers playoff-only fighters too).
   const teamBySlug = new Map(data.fighters.map((f) => [f.slug, f.team]));
 
+  const rate = (total: number, n: number) => (n > 0 ? total / n : 0);
   const rows: WpaRow[] = Array.from(season.byFighter.values()).map((f) => ({
     slug: f.slug,
     name: f.name,
     team: teamBySlug.get(f.slug) ?? '',
-    matches: f.matches,
-    rounds: f.rounds,
-    roundWins: f.roundWins,
-    wpa: f.wpa,
-    wpaPerRound: f.rounds > 0 ? f.wpa / f.rounds : 0,
-    avgLi: f.avgLi,
-    liRounds: f.liRounds,
-    clutch: f.clutch,
+    // Each scope carries its own counts and totals so the filter can switch
+    // between them without a round trip.
+    all: {
+      matches: f.matches,
+      rounds: f.rounds,
+      roundWins: f.roundWins,
+      wpa: f.wpa,
+      wpaPerRound: rate(f.wpa, f.rounds),
+      avgLi: f.avgLi,
+      liRounds: f.liRounds,
+      clutch: f.clutch,
+    },
+    regular: {
+      matches: f.matchesRegular,
+      rounds: f.roundsRegular,
+      roundWins: f.roundWinsRegular,
+      wpa: f.wpaRegular,
+      wpaPerRound: rate(f.wpaRegular, f.roundsRegular),
+      avgLi: rate(f.liSumRegular, f.liRoundsRegular),
+      liRounds: f.liRoundsRegular,
+      clutch: f.clutchRegular,
+    },
+    playoffs: {
+      matches: f.matchesPlayoffs,
+      rounds: f.roundsPlayoffs,
+      roundWins: f.roundWinsPlayoffs,
+      wpa: f.wpaPlayoffs,
+      wpaPerRound: rate(f.wpaPlayoffs, f.roundsPlayoffs),
+      avgLi: rate(f.liSumPlayoffs, f.liRoundsPlayoffs),
+      liRounds: f.liRoundsPlayoffs,
+      clutch: f.clutchPlayoffs,
+    },
   }));
 
   return (

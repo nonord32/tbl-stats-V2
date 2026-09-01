@@ -107,8 +107,14 @@ export interface FighterWpa {
   slug: string;
   name: string;
   rounds: number;      // rounds appeared in (incl. zero-credit DQ rounds)
+  roundsRegular: number;
+  roundsPlayoffs: number;
   roundWins: number;
+  roundWinsRegular: number;
+  roundWinsPlayoffs: number;
   matches: number;
+  matchesRegular: number;
+  matchesPlayoffs: number;
   wpa: number;         // post-adjustment season total
   wpaRegular: number;
   wpaPlayoffs: number;
@@ -302,6 +308,8 @@ export function computeSeasonWpa(
   const byMatch = new Map<number, MatchWpa>();
   const byFighter = new Map<string, FighterWpa>();
   const fighterMatches = new Map<string, Set<number>>();
+  const fighterMatchesRegular = new Map<string, Set<number>>();
+  const fighterMatchesPlayoffs = new Map<string, Set<number>>();
 
   let roundsIncluded = 0;
   let excludedRows = 0;
@@ -358,8 +366,14 @@ export function computeSeasonWpa(
             slug,
             name,
             rounds: 0,
+            roundsRegular: 0,
+            roundsPlayoffs: 0,
             roundWins: 0,
+            roundWinsRegular: 0,
+            roundWinsPlayoffs: 0,
             matches: 0,
+            matchesRegular: 0,
+            matchesPlayoffs: 0,
             wpa: 0,
             wpaRegular: 0,
             wpaPlayoffs: 0,
@@ -380,10 +394,18 @@ export function computeSeasonWpa(
           };
           byFighter.set(slug, f);
           fighterMatches.set(slug, new Set());
+          fighterMatchesRegular.set(slug, new Set());
+          fighterMatchesPlayoffs.set(slug, new Set());
         }
         const isPlayoff = mw.phase === 'playoffs';
         f.rounds++;
-        if (wonRound) f.roundWins++;
+        if (isPlayoff) f.roundsPlayoffs++;
+        else f.roundsRegular++;
+        if (wonRound) {
+          f.roundWins++;
+          if (isPlayoff) f.roundWinsPlayoffs++;
+          else f.roundWinsRegular++;
+        }
         f.wpa += wpa;
         if (isPlayoff) f.wpaPlayoffs += wpa;
         else f.wpaRegular += wpa;
@@ -402,6 +424,7 @@ export function computeSeasonWpa(
           }
         }
         fighterMatches.get(slug)!.add(mw.matchIndex);
+        (isPlayoff ? fighterMatchesPlayoffs : fighterMatchesRegular).get(slug)!.add(mw.matchIndex);
         f.perRound.push({
           matchIndex: mw.matchIndex,
           date: mw.date,
@@ -425,6 +448,8 @@ export function computeSeasonWpa(
 
   for (const [slug, f] of byFighter) {
     f.matches = fighterMatches.get(slug)?.size ?? 0;
+    f.matchesRegular = fighterMatchesRegular.get(slug)?.size ?? 0;
+    f.matchesPlayoffs = fighterMatchesPlayoffs.get(slug)?.size ?? 0;
     f.avgLi = f.liRounds > 0 ? f.liSum / f.liRounds : 0;
     // Clutch = what actually happened minus what it would have been worth at
     // average leverage. DQ rounds contribute 0 to both sides of this.
