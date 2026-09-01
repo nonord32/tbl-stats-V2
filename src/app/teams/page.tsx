@@ -1,6 +1,7 @@
 // src/app/teams/page.tsx
 import type { Metadata } from 'next';
 import { getAllData } from '@/lib/data';
+import { getComebackData } from '@/lib/wpa';
 import { getClinchStatus } from '@/lib/standings';
 import { DataUnavailable } from '@/components/DataUnavailable';
 import { TeamsClient } from './TeamsClient';
@@ -21,6 +22,14 @@ const BASE = 'https://tblstats.com';
 
 export default async function TeamsPage() {
   const data = await getAllData();
+  // Comeback wins / blown leads per team slug, for the two extra columns.
+  const cb = await getComebackData();
+  const comebacks = Object.fromEntries(
+    [...cb.byTeam.values()].map((t) => [
+      t.slug,
+      { comebackWins: t.comebackWins, blownLeads: t.blownLeads },
+    ]),
+  );
   const clinch = Object.fromEntries(
     getClinchStatus(data.teams, data.teamMatches, data.schedule)
   );
@@ -52,6 +61,7 @@ export default async function TeamsPage() {
           teams={data.teams}
           teamMatches={data.teamMatches}
           clinch={clinch}
+          comebacks={comebacks}
           lastUpdated={data.lastUpdated}
           seoText="Team Boxing League standings based on match results and performance across the season. Sorted by wins, with Points For, Points Against, and point differential."
         />

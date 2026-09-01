@@ -5,9 +5,49 @@
 // special-case matches, and the reference fighter totals from the model spec.
 // Same RESOLVE_SECRET bearer auth as the other admin routes.
 import { getAllData } from '@/lib/data';
-import { getWpaData, WPA_MODEL, WPA_MODEL_VERSION, type FighterWpa } from '@/lib/wpa';
+import { getTeamSlugByName } from '@/lib/teams';
+import {
+  getWpaData,
+  getComebackData,
+  WPA_MODEL,
+  WPA_MODEL_VERSION,
+  type FighterWpa,
+} from '@/lib/wpa';
 
 export const dynamic = 'force-dynamic';
+
+// ── 2026 Comebacks & Blown Leads verification tables (from the spec) ──
+// Percentages are stored as the fractions the code actually produces, rounded
+// to the same 4 decimals the spec quotes to 2 (7.34% → 0.0734).
+const COMEBACK_REFERENCE = {
+  biggest: [
+    { matchIndex: 54, winner: 'Miami', loser: 'Las Vegas', low: 0.0734, round: 3, deficit: -7, margin: 4 },
+    { matchIndex: 2, winner: 'Las Vegas', loser: 'Los Angeles', low: 0.0759, round: 13, deficit: -5, margin: 2 },
+    { matchIndex: 6, winner: 'Phoenix', loser: 'Boston', low: 0.0768, round: 8, deficit: -6, margin: 2 },
+    { matchIndex: 52, winner: 'Las Vegas', loser: 'Los Angeles', low: 0.0994, round: 4, deficit: -6, margin: 1 },
+    { matchIndex: 1, winner: 'Philadelphia', loser: 'NYC', low: 0.1146, round: 8, deficit: -5, margin: 5 },
+    { matchIndex: 31, winner: 'NYC', loser: 'San Antonio', low: 0.1215, round: 7, deficit: -5, margin: 9 },
+    { matchIndex: 47, winner: 'Phoenix', loser: 'Los Angeles', low: 0.1399, round: 4, deficit: -5, margin: 1 },
+    { matchIndex: 14, winner: 'San Antonio', loser: 'Las Vegas', low: 0.158, round: 9, deficit: -4, margin: 2 },
+  ],
+  decidedMatches: 54,
+  below: { p05: 0, p10: 4, p15: 7, p25: 12, p35: 21 },
+  medianLow: 0.409,
+  teams: [
+    { team: 'Las Vegas', comebackWins: 3, deepestHole: 0.076, blownLeads: 2, highestLeadBlown: 0.927 },
+    { team: 'Philadelphia', comebackWins: 2, deepestHole: 0.115, blownLeads: 0, highestLeadBlown: null },
+    { team: 'Miami', comebackWins: 2, deepestHole: 0.073, blownLeads: 0, highestLeadBlown: null },
+    { team: 'Phoenix', comebackWins: 2, deepestHole: 0.077, blownLeads: 0, highestLeadBlown: null },
+    { team: 'San Antonio', comebackWins: 1, deepestHole: 0.158, blownLeads: 1, highestLeadBlown: 0.879 },
+    { team: 'NYC', comebackWins: 1, deepestHole: 0.122, blownLeads: 2, highestLeadBlown: 0.885 },
+    { team: 'Houston', comebackWins: 1, deepestHole: 0.224, blownLeads: 0, highestLeadBlown: null },
+    { team: 'Atlanta', comebackWins: 0, deepestHole: null, blownLeads: 1, highestLeadBlown: 0.803 },
+    { team: 'Boston', comebackWins: 0, deepestHole: null, blownLeads: 1, highestLeadBlown: 0.923 },
+    { team: 'Dallas', comebackWins: 0, deepestHole: null, blownLeads: 1, highestLeadBlown: 0.776 },
+    { team: 'Nashville', comebackWins: 0, deepestHole: null, blownLeads: 0, highestLeadBlown: null },
+    { team: 'Los Angeles', comebackWins: 0, deepestHole: null, blownLeads: 4, highestLeadBlown: 0.924 },
+  ],
+} as const;
 
 interface Check {
   name: string;
@@ -25,7 +65,11 @@ export async function GET(request: Request) {
     });
   }
 
-  const [data, season] = await Promise.all([getAllData(), getWpaData()]);
+  const [data, season, comebacks] = await Promise.all([
+    getAllData(),
+    getWpaData(),
+    getComebackData(),
+  ]);
   const v = season.validation;
   const checks: Check[] = [];
   const add = (name: string, pass: boolean, detail: string) => checks.push({ name, pass, detail });
@@ -161,6 +205,125 @@ export async function GET(request: Request) {
     );
   }
 
+  // ── Comebacks & Blown Leads (built from the same stored win probabilities) ──
+  const cbTotals = comebacks.totals;
+  add(
+    'Comebacks: 54 decided matches (match 25, the draw, excluded)',
+    cbTotals.decidedMatches === COMEBACK_REFERENCE.decidedMatches,
+    `${cbTotals.decidedMatches} decided of ${season.byMatch.size} played`,
+  );
+  add(
+    'Comebacks: the drawn match 25 is absent from the list',
+    !comebacks.matches.some((m) => m.matchIndex === 25),
+    comebacks.matches.some((m) => m.matchIndex === 25) ? 'match 25 present — draw not excluded' : 'absent',
+  );
+  add(
+    'Comebacks: Σ team comeback wins == Σ team blown leads == 12',
+    cbTotals.teamComebackWins === cbTotals.teamBlownLeads && cbTotals.teamComebackWins === 12,
+    `comebackWins=${cbTotals.teamComebackWins}, blownLeads=${cbTotals.teamBlownLeads}, matches flagged=${cbTotals.comebacks}`,
+  );
+  add(
+    'Comebacks: match count equals the per-team comeback total',
+    cbTotals.comebacks === cbTotals.teamComebackWins,
+    `${cbTotals.comebacks} flagged vs ${cbTotals.teamComebackWins} credited`,
+  );
+
+  const distributionResults = (
+    ['p05', 'p10', 'p15', 'p25', 'p35'] as const
+  ).map((k) => ({
+    bar: k,
+    expected: COMEBACK_REFERENCE.below[k],
+    got: cbTotals.below[k],
+    pass: cbTotals.below[k] === COMEBACK_REFERENCE.below[k],
+  }));
+  add(
+    'Comebacks: below-5/10/15/25/35% distribution matches',
+    distributionResults.every((r) => r.pass),
+    distributionResults.map((r) => `${r.bar}=${r.got}/${r.expected}`).join(', '),
+  );
+  add(
+    'Comebacks: median winner low point == 0.409 (3dp)',
+    Math.abs(cbTotals.medianLow - COMEBACK_REFERENCE.medianLow) < 5e-4,
+    `median = ${cbTotals.medianLow.toFixed(4)}`,
+  );
+
+  // The eight biggest comebacks, in order, with low / round / deficit / margin.
+  const biggestResults = COMEBACK_REFERENCE.biggest.map((ref, i) => {
+    const got = comebacks.matches[i];
+    const pass =
+      !!got &&
+      got.matchIndex === ref.matchIndex &&
+      Math.abs(got.comebackLow - ref.low) < 5e-4 &&
+      got.lowRound === ref.round &&
+      got.deficitAtLow === ref.deficit &&
+      got.finalMargin === ref.margin;
+    return {
+      rank: i + 1,
+      expected: ref,
+      got: got
+        ? {
+            matchIndex: got.matchIndex,
+            winner: got.winnerTeam,
+            loser: got.loserTeam,
+            low: Number(got.comebackLow.toFixed(4)),
+            round: got.lowRound,
+            deficit: got.deficitAtLow,
+            margin: got.finalMargin,
+          }
+        : null,
+      pass,
+    };
+  });
+  add(
+    'Comebacks: the 8 biggest match the reference table (rank, low, round, deficit, margin)',
+    biggestResults.every((r) => r.pass),
+    `${biggestResults.filter((r) => r.pass).length}/${biggestResults.length} match`,
+  );
+  add(
+    'Comebacks: match 14 carries its competitive-scoreboard footnote',
+    !!comebacks.matches.find((m) => m.matchIndex === 14)?.footnote,
+    comebacks.matches.find((m) => m.matchIndex === 14)?.footnote ? 'footnote present' : 'footnote missing',
+  );
+
+  const teamComebackResults = COMEBACK_REFERENCE.teams.map((ref) => {
+    const slug = getTeamSlugByName(ref.team);
+    const t = comebacks.byTeam.get(slug);
+    const near = (got: number | null | undefined, want: number | null) =>
+      want == null ? got == null : got != null && Math.abs(got - want) < 5e-4;
+    const pass =
+      !!t &&
+      t.comebackWins === ref.comebackWins &&
+      t.blownLeads === ref.blownLeads &&
+      near(t.deepestHole, ref.deepestHole) &&
+      near(t.highestLeadBlown, ref.highestLeadBlown);
+    return {
+      team: ref.team,
+      slug,
+      expected: ref,
+      got: t
+        ? {
+            comebackWins: t.comebackWins,
+            deepestHole: t.deepestHole == null ? null : Number(t.deepestHole.toFixed(3)),
+            blownLeads: t.blownLeads,
+            highestLeadBlown:
+              t.highestLeadBlown == null ? null : Number(t.highestLeadBlown.toFixed(3)),
+          }
+        : null,
+      pass,
+    };
+  });
+  add(
+    'Comebacks: all 12 team comeback / blown-lead totals match',
+    teamComebackResults.every((r) => r.pass),
+    `${teamComebackResults.filter((r) => r.pass).length}/${teamComebackResults.length} match`,
+  );
+  add(
+    'Comebacks: every team joined to a real slug (no name-match failures)',
+    teamComebackResults.every((r) => r.slug !== '') &&
+      [...comebacks.byTeam.keys()].every((k) => k !== ''),
+    `${teamComebackResults.filter((r) => r.slug === '').length} unresolved reference name(s), ${comebacks.byTeam.size} teams in table`,
+  );
+
   const allPass = checks.every((c) => c.pass);
   return new Response(
     JSON.stringify(
@@ -174,10 +337,17 @@ export async function GET(request: Request) {
           excludedRows: v.excludedRows,
           dqRounds: v.dqRounds,
           fighters: season.byFighter.size,
+          decidedMatches: cbTotals.decidedMatches,
+          comebacks: cbTotals.comebacks,
         },
         checks,
         referenceResults,
         liReferenceResults,
+        comebackResults: {
+          distribution: distributionResults,
+          biggest: biggestResults,
+          teams: teamComebackResults,
+        },
       },
       null,
       2,

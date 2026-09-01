@@ -1275,6 +1275,16 @@ function AdvancedStats() {
       ],
     },
     {
+      code: 'CB',
+      title: 'Comebacks & Blown Leads',
+      blurb:
+        'The lowest a winner’s win probability ever fell — and the highest a loser’s ever climbed. Under 25% counts as a comeback win, and as a blown lead on the other side.',
+      links: [
+        { label: 'Biggest comebacks →', href: '/comebacks' },
+        { label: 'How it works →', href: '/stats/comebacks' },
+      ],
+    },
+    {
       code: 'WAR',
       title: 'Wins Above Replacement',
       blurb:

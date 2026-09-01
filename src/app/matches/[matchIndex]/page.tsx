@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { getMatchByIndex, getAllData, toSlug } from '@/lib/data';
 import { getBracketContext } from '@/lib/bracketData';
 import { playoffRoundLabelsByMatch } from '@/lib/playoffs';
-import { getWpaData } from '@/lib/wpa';
+import { getWpaData, computeMatchComeback, comebackDrivers } from '@/lib/wpa';
 import { getFullTeamName, getTeamLogoPathByName } from '@/lib/teams';
 import { SectionRule } from '@/components/chrome/SectionRule';
 import { HighlightsSection } from '@/components/HighlightsSection';
@@ -92,8 +92,12 @@ export default async function MatchPage({
   );
   const wpaOf = (row: { round: number; roundId?: number }) =>
     wpaRounds.get(row.roundId ?? -row.round);
-  // The single highest-leverage round of the match — marked in the table and
-  // on the win-probability chart.
+  // Comeback / blown lead for this match, off the same stored win probabilities.
+  const comeback = matchWpa ? computeMatchComeback(matchWpa) : null;
+  const drivers =
+    matchWpa && comeback?.isComeback ? comebackDrivers(matchWpa, comeback.lowRound, 3) : [];
+
+  // The single highest-leverage round of the match — marked in the table.
   const peakLiRound =
     matchWpa && matchWpa.rounds.length > 0
       ? matchWpa.rounds.reduce((best, r) => (r.li > best.li ? r : best)).round
@@ -267,6 +271,39 @@ export default async function MatchPage({
         >
           {heroStatus || longDate}
         </div>
+        {comeback?.isComeback && (
+          <div style={{ textAlign: 'center', marginTop: 10 }}>
+            <span
+              style={{
+                display: 'inline-block',
+                fontFamily: 'var(--tbl-font-mono)',
+                fontSize: 10,
+                letterSpacing: '0.2em',
+                textTransform: 'uppercase',
+                fontWeight: 700,
+                background: 'var(--tbl-accent-bright)',
+                color: 'var(--tbl-ink)',
+                padding: '3px 10px',
+              }}
+            >
+              Comeback
+            </span>
+            <div
+              style={{
+                marginTop: 6,
+                fontFamily: 'var(--tbl-font-mono)',
+                fontSize: 11,
+                letterSpacing: '0.08em',
+                color: 'rgba(244,237,224,0.7)',
+              }}
+            >
+              {getFullTeamName(toSlug(comeback.winnerTeam))} fell to{' '}
+              {(comeback.comebackLow * 100).toFixed(1)}% — down{' '}
+              {Math.abs(comeback.deficitAtLow)} after round {comeback.lowRound} — and won by{' '}
+              {comeback.finalMargin}
+            </div>
+          </div>
+        )}
         <div
           className="gz-match-hero"
           style={{
@@ -540,6 +577,87 @@ export default async function MatchPage({
         </div>
       )}
 
+      {/* Who drove it — for comeback wins only, the rounds that turned it */}
+      {comeback?.isComeback && drivers.length > 0 && (
+        <div style={{ padding: '18px 32px 8px' }}>
+          <SectionRule
+            left="Who Drove It"
+            right={`From ${(comeback.comebackLow * 100).toFixed(1)}% at round ${comeback.lowRound}`}
+          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {drivers.map((d) => (
+              <div
+                key={d.round}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'auto 1fr auto',
+                  alignItems: 'center',
+                  gap: 14,
+                  padding: '8px 0',
+                  borderBottom: '1px dotted rgba(20,17,11,0.3)',
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: 'var(--tbl-font-mono)',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: 'var(--tbl-ink-soft)',
+                    minWidth: 34,
+                  }}
+                >
+                  R{d.round}
+                </span>
+                <span style={{ minWidth: 0 }}>
+                  <Link
+                    href={`/fighters/${toSlug(d.fighter)}`}
+                    className="tbl-display"
+                    style={{ fontSize: 15, fontWeight: 700, color: 'var(--tbl-ink)', textDecoration: 'none' }}
+                  >
+                    {d.fighter}
+                  </Link>
+                  <span
+                    style={{
+                      fontFamily: 'var(--tbl-font-mono)',
+                      fontSize: 10,
+                      letterSpacing: '0.1em',
+                      textTransform: 'uppercase',
+                      color: 'var(--tbl-ink-soft)',
+                      marginLeft: 8,
+                    }}
+                  >
+                    {d.method ? `${d.method} · ` : ''}
+                    {d.diffBefore > 0 ? '+' : ''}
+                    {d.diffBefore} → {d.diffAfter > 0 ? '+' : ''}
+                    {d.diffAfter}
+                  </span>
+                </span>
+                <span
+                  className="tbl-display"
+                  style={{ fontSize: 18, color: 'var(--tbl-green)', whiteSpace: 'nowrap' }}
+                >
+                  +{d.wpa.toFixed(3)}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p
+            style={{
+              margin: '8px 0 0',
+              fontFamily: 'var(--tbl-font-mono)',
+              fontSize: 10,
+              letterSpacing: '0.06em',
+              color: 'var(--tbl-ink-soft)',
+            }}
+          >
+            Biggest win-probability swings by the winning side from the low point onward.{' '}
+            <Link href="/stats/comebacks" style={{ color: 'var(--tbl-accent)' }}>
+              How comebacks are measured →
+            </Link>
+          </p>
+        </div>
+      )}
+
       {/* Round-by-Round — desktop table + mobile fight-card list */}
       {(() => {
         const orderedRows = [...match.boxScore]
@@ -798,22 +916,6 @@ export default async function MatchPage({
                             </td>
                           );
                         })()}
-
-      {matchWpa?.footnote && (
-        <p
-          style={{
-            margin: '0 32px 24px',
-            fontFamily: 'var(--tbl-font-mono)',
-            fontSize: 10,
-            lineHeight: 1.6,
-            letterSpacing: '0.04em',
-            color: 'var(--tbl-ink-soft)',
-            maxWidth: 720,
-          }}
-        >
-          † {matchWpa.footnote}
-        </p>
-      )}
                         {matchWpa && (() => {
                           const w = wpaOf(row);
                           const isPeak = w != null && peakLiRound === row.round;
@@ -1114,6 +1216,22 @@ export default async function MatchPage({
           </div>
         );
       })()}
+
+      {matchWpa?.footnote && (
+        <p
+          style={{
+            margin: '0 32px 24px',
+            fontFamily: 'var(--tbl-font-mono)',
+            fontSize: 10,
+            lineHeight: 1.6,
+            letterSpacing: '0.04em',
+            color: 'var(--tbl-ink-soft)',
+            maxWidth: 720,
+          }}
+        >
+          † {matchWpa.footnote}
+        </p>
+      )}
 
       {/* Highlights */}
       {highlights.length > 0 && (

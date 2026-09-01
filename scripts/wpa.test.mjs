@@ -13,6 +13,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  computeMatchComeback,
+  computeSeasonComebacks,
+  comebackDrivers,
+  COMEBACK_THRESHOLD,
+} from '../src/lib/wpa/comebacks.ts';
+import {
   wpLookup,
   liLookup,
   cnWpaFor,
@@ -412,4 +418,140 @@ test('a 0-0 round carries real LI and its cnWPA is exactly 0', () => {
   assert.ok(r14.li > 0, `0-0 round should still have leverage, got ${r14.li}`);
   assert.equal(r14.roundMargin, 0);
   assert.equal(r14.cnWpa, 0);
+});
+
+// ── Comebacks & Blown Leads ──────────────────────────────────────────────────
+
+// A match team1 wins after falling well behind early: 5 straight losses, then
+// a sustained recovery. Deep enough to clear the 25% bar.
+const COMEBACK_SCORES = [
+  [0, 2], [0, 2], [0, 1], [0, 1], [0, 1], // down 7 after 5
+  [4, 0], [1, 0], [2, 0], [1, 0], [1, 0],
+  [1, 0], [1, 0], [0, 1], [1, 0], [1, 0],
+  [1, 0], [0, 1], [1, 0], [1, 0], [1, 0],
+  [1, 0], [0, 1], [1, 0], [1, 0],
+];
+// A wire-to-wire win: team1 leads from round 1 and never trails.
+const WIRE_SCORES = Array.from({ length: 24 }, (_, i) => (i % 4 === 3 ? [0, 1] : [1, 0]));
+
+test('comeback: the opening 0.500 boundary is excluded, so a wire-to-wire win is not one', () => {
+  const mw = computeMatchWpaT(syntheticMatch(1, WIRE_SCORES), table, model);
+  const c = computeMatchComeback(mw);
+  assert.equal(c.isComeback, false);
+  // Never dipped to the coin-flip opener — proof rounds[0].wpBefore is unread.
+  assert.ok(c.comebackLow > 0.5, `wire-to-wire low was ${c.comebackLow}`);
+});
+
+test('comeback: winner low point, round and deficit are picked correctly', () => {
+  const mw = computeMatchWpaT(syntheticMatch(1, COMEBACK_SCORES), table, model);
+  const c = computeMatchComeback(mw);
+  assert.equal(c.winnerTeam, 'Alpha City');
+  assert.equal(c.loserTeam, 'Bravo Town');
+  assert.equal(c.isComeback, true);
+  // The hole is deepest after round 5 (down 7), before the recovery starts.
+  assert.equal(c.lowRound, 5);
+  assert.equal(c.deficitAtLow, -7);
+  assert.ok(c.comebackLow < COMEBACK_THRESHOLD, String(c.comebackLow));
+  // comebackLow must equal the winner's actual WP at that round.
+  const r5 = mw.rounds.find((r) => r.round === 5);
+  assert.ok(Math.abs(c.comebackLow - r5.wpAfter) < 1e-12);
+  assert.equal(c.finalMargin, Math.abs(mw.finalDiff));
+});
+
+test('comeback: works from the losing side too (team2 wins), deficits stay winner-relative', () => {
+  // Mirror the scores so team2 is the one who comes back.
+  const mirrored = COMEBACK_SCORES.map(([a, b]) => [b, a]);
+  const mw = computeMatchWpaT(syntheticMatch(1, mirrored), table, model);
+  const c = computeMatchComeback(mw);
+  assert.equal(c.winnerTeam, 'Bravo Town');
+  assert.equal(c.lowRound, 5);
+  assert.equal(c.deficitAtLow, -7); // still negative: the WINNER was trailing
+  assert.equal(c.isComeback, true);
+});
+
+test('comeback: blownHigh mirrors comebackLow exactly', () => {
+  for (const scores of [COMEBACK_SCORES, WIRE_SCORES]) {
+    const c = computeMatchComeback(computeMatchWpaT(syntheticMatch(1, scores), table, model));
+    assert.equal(c.blownHigh, 1 - c.comebackLow);
+  }
+});
+
+test('comeback: a draw yields null (match 25 rule)', () => {
+  const mw = computeMatchWpaT(syntheticMatch(25, DRAW_SCORES), table, model);
+  assert.equal(mw.outcome, 0.5);
+  assert.equal(computeMatchComeback(mw), null);
+});
+
+test('comeback: threshold is exclusive at 0.25', () => {
+  const base = computeMatchComeback(computeMatchWpaT(syntheticMatch(1, WIN_SCORES), table, model));
+  // Force values either side of the bar and re-check the predicate directly.
+  assert.equal(0.2499 < COMEBACK_THRESHOLD, true);
+  assert.equal(0.25 < COMEBACK_THRESHOLD, false);
+  assert.equal(base.isComeback, base.comebackLow < COMEBACK_THRESHOLD);
+});
+
+test('comeback: 21-round matches work (scheduled-round override)', () => {
+  const mw = computeMatchWpaT(syntheticMatch(7, COMEBACK_SCORES.slice(0, 21)), table, model);
+  assert.equal(mw.scheduledRounds, 21);
+  const c = computeMatchComeback(mw);
+  assert.ok(c !== null);
+  assert.ok(c.lowRound >= 1 && c.lowRound <= 21);
+});
+
+test('season: Σ comeback wins === Σ blown leads (the same matches, both sides)', () => {
+  const slugOf = (t) => t.toLowerCase().replace(/\s+/g, '-');
+  const season = computeSeasonWpaT(
+    [
+      syntheticMatch(1, COMEBACK_SCORES),
+      syntheticMatch(2, COMEBACK_SCORES.map(([a, b]) => [b, a])),
+      syntheticMatch(3, WIRE_SCORES),
+      syntheticMatch(25, DRAW_SCORES),
+    ],
+    table,
+    model,
+    slugify,
+  );
+  const cb = computeSeasonComebacks(season, slugOf);
+  assert.equal(cb.totals.teamComebackWins, cb.totals.teamBlownLeads);
+  assert.equal(cb.totals.comebacks, 2);
+  assert.equal(cb.totals.teamComebackWins, 2);
+  // The draw is excluded entirely: 4 matches in, 3 decided.
+  assert.equal(cb.totals.decidedMatches, 3);
+  assert.ok(!cb.matches.some((m) => m.matchIndex === 25));
+  // Ranked biggest-comeback first.
+  for (let i = 1; i < cb.matches.length; i++) {
+    assert.ok(cb.matches[i].comebackLow >= cb.matches[i - 1].comebackLow);
+  }
+});
+
+test('season: per-team deepest hole and highest lead blown mirror each other', () => {
+  const slugOf = (t) => t.toLowerCase().replace(/\s+/g, '-');
+  const season = computeSeasonWpaT([syntheticMatch(1, COMEBACK_SCORES)], table, model, slugify);
+  const cb = computeSeasonComebacks(season, slugOf);
+  const winner = cb.byTeam.get('alpha-city');
+  const loser = cb.byTeam.get('bravo-town');
+  assert.equal(winner.comebackWins, 1);
+  assert.equal(winner.blownLeads, 0);
+  assert.equal(winner.highestLeadBlown, null);
+  assert.equal(loser.blownLeads, 1);
+  assert.equal(loser.comebackWins, 0);
+  assert.equal(loser.deepestHole, null);
+  // Same match from both sides.
+  assert.ok(Math.abs(winner.deepestHole + loser.highestLeadBlown - 1) < 1e-12);
+});
+
+test('comebackDrivers: winning-side rounds from the low point, ranked by WPA', () => {
+  const mw = computeMatchWpaT(syntheticMatch(1, COMEBACK_SCORES), table, model);
+  const c = computeMatchComeback(mw);
+  const drivers = comebackDrivers(mw, c.lowRound, 3);
+  assert.ok(drivers.length > 0 && drivers.length <= 3);
+  for (const d of drivers) {
+    assert.ok(d.round >= c.lowRound, 'driver must be at or after the low point');
+    assert.ok(d.wpa > 0, 'drivers are positive contributions');
+  }
+  for (let i = 1; i < drivers.length; i++) {
+    assert.ok(drivers[i].wpa <= drivers[i - 1].wpa, 'ranked by WPA desc');
+  }
+  // A draw has no drivers.
+  assert.deepEqual(comebackDrivers(computeMatchWpaT(syntheticMatch(25, DRAW_SCORES), table, model), 1), []);
 });

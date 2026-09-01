@@ -13,13 +13,20 @@ import { getTeamColor, getTeamLogoPath, getFullTeamName, getCityName } from '@/l
 import { sortStandings, getH2HTiebreakerWinners } from '@/lib/standings';
 import { PageHeader } from '@/components/chrome/PageHeader';
 
-type SortKey = 'record' | 'pf' | 'pa' | 'diff' | 'streak';
+type SortKey = 'record' | 'pf' | 'pa' | 'diff' | 'streak' | 'cb' | 'bl';
+
+export interface ComebackTotals {
+  comebackWins: number;
+  blownLeads: number;
+}
 
 interface Props {
   teams: TeamStanding[];
   teamMatches: Record<string, TeamMatch[]>;
   // slug → 'z' (clinched #1 seed) | 'x' (clinched playoff berth)
   clinch?: Record<string, 'x' | 'z'>;
+  // slug → comeback wins / blown leads (see src/lib/wpa/comebacks.ts)
+  comebacks?: Record<string, ComebackTotals>;
   seoText?: string;
   lastUpdated?: string;
 }
@@ -225,7 +232,14 @@ function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; s
   return <span style={{ marginLeft: 3 }}>{sortDir === 'desc' ? '↓' : '↑'}</span>;
 }
 
-export function TeamsClient({ teams: allTeams, teamMatches: allMatches, clinch, seoText, lastUpdated }: Props) {
+export function TeamsClient({
+  teams: allTeams,
+  teamMatches: allMatches,
+  clinch,
+  comebacks = {},
+  seoText,
+  lastUpdated,
+}: Props) {
   const formattedUpdate = lastUpdated || null;
   const [sortKey, setSortKey] = useState<SortKey>('record');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -273,11 +287,13 @@ export function TeamsClient({ teams: allTeams, teamMatches: allMatches, clinch, 
         case 'pa':     return a.pa - b.pa;
         case 'diff':   return b.diff - a.diff;
         case 'streak': return streakVal(b.streak || '') - streakVal(a.streak || '');
+        case 'cb':     return (comebacks[b.slug]?.comebackWins ?? 0) - (comebacks[a.slug]?.comebackWins ?? 0);
+        case 'bl':     return (comebacks[b.slug]?.blownLeads ?? 0) - (comebacks[a.slug]?.blownLeads ?? 0);
         default:       return 0;
       }
     };
     return [...teams].sort((a, b) => sortDir === 'desc' ? base(a, b) : -base(a, b));
-  }, [teams, sortKey, sortDir, recordSorted]);
+  }, [teams, sortKey, sortDir, recordSorted, comebacks]);
 
   const h2hWinners = useMemo(
     () => getH2HTiebreakerWinners(teams, teamMatches),
@@ -432,6 +448,8 @@ export function TeamsClient({ teams: allTeams, teamMatches: allMatches, clinch, 
               { k: 'PF', v: 'Points For' },
               { k: 'PA', v: 'Points Against' },
               { k: 'Diff', v: 'Point Differential' },
+              { k: 'CB', v: 'Comeback Wins (once below 25%)' },
+              { k: 'BL', v: 'Blown Leads' },
               { k: 'GB', v: 'Games from playoff cutoff (+ahead / behind)' },
             ].map((s) => (
               <span key={s.k} style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)' }}>
@@ -446,7 +464,7 @@ export function TeamsClient({ teams: allTeams, teamMatches: allMatches, clinch, 
                 <tr>
                   <th className="col-team-rank" style={{ width: 32 }}>#</th>
                   <th className="col-team">Team</th>
-                  {(['record', 'pf', 'pa', 'diff'] as SortKey[]).map((col) => (
+                  {(['record', 'pf', 'pa', 'diff', 'cb', 'bl'] as SortKey[]).map((col) => (
                     <th
                       key={col}
                       className={`num-cell${col === 'record' ? ' col-result' : col === 'diff' ? ' col-diff' : (col === 'pf' || col === 'pa') ? ' col-hide-mobile' : ''}`}
@@ -525,6 +543,12 @@ export function TeamsClient({ teams: allTeams, teamMatches: allMatches, clinch, 
                           <td className="num-cell mono col-diff" style={{ color: t.diff >= 0 ? 'var(--result-w)' : 'var(--result-l)', fontWeight: 600 }}>
                             {t.diff >= 0 ? '+' : ''}{t.diff.toFixed(0)}
                           </td>
+                          <td className="num-cell mono col-hide-mobile" style={{ color: (comebacks[t.slug]?.comebackWins ?? 0) > 0 ? 'var(--result-w)' : 'var(--text-muted)' }}>
+                            {comebacks[t.slug]?.comebackWins ?? 0}
+                          </td>
+                          <td className="num-cell mono col-hide-mobile" style={{ color: (comebacks[t.slug]?.blownLeads ?? 0) > 0 ? 'var(--result-l)' : 'var(--text-muted)' }}>
+                            {comebacks[t.slug]?.blownLeads ?? 0}
+                          </td>
                           <td className="num-cell mono col-hide-mobile" style={{
                             color: gb > 0 ? 'var(--result-w)' : gb < 0 ? 'var(--result-l)' : 'var(--text-muted)',
                             fontWeight: gb !== 0 ? 600 : 400,
@@ -540,7 +564,7 @@ export function TeamsClient({ teams: allTeams, teamMatches: allMatches, clinch, 
                         {/* Playoff cutoff line — only show when sorted by record */}
                         {showCutoff && sortKey === 'record' && i === PLAYOFF_SPOTS - 1 && (
                           <tr className="playoff-cutoff-row">
-                            <td colSpan={8}>
+                            <td colSpan={10}>
                               <div className="playoff-cutoff-line">
                                 <span className="playoff-cutoff-label">── Playoff Cutoff ──</span>
                               </div>

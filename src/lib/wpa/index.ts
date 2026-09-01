@@ -11,6 +11,8 @@
 
 import { cache } from 'react';
 import { getAllData, extractUniqueMatches, toSlug } from '@/lib/data';
+import { getTeamSlugByName } from '@/lib/teams';
+import { computeSeasonComebacks, type SeasonComebacks } from './comebacks';
 import {
   computeSeasonWpa,
   computeMatchWpa,
@@ -52,6 +54,8 @@ export const WPA_MODEL = modelJson as unknown as WpaModelConfig & {
 export const WPA_MODEL_VERSION = WPA_TABLE.modelVersion;
 
 export type { SeasonWpa, MatchWpa, FighterWpa };
+export type { MatchComeback, TeamComebackTotals, SeasonComebacks, ComebackDriver } from './comebacks';
+export { COMEBACK_THRESHOLD, computeMatchComeback, comebackDrivers } from './comebacks';
 export { wpLookup, liLookup, cnWpaFor, computeMatchWpa };
 
 // Season WPA for every fighter and match, derived from the same match data the
@@ -61,6 +65,13 @@ export const getWpaData = cache(async (): Promise<SeasonWpa> => {
   const data = await getAllData();
   const matches = extractUniqueMatches(data.teamMatches);
   return computeSeasonWpa(matches, WPA_TABLE, WPA_MODEL, toSlug, LI_TABLE);
+});
+
+// Comebacks & blown leads for the season, derived from the same stored win
+// probabilities. Request-cached like getWpaData.
+export const getComebackData = cache(async (): Promise<SeasonComebacks> => {
+  const season = await getWpaData();
+  return computeSeasonComebacks(season, getTeamSlugByName);
 });
 
 // A fighter's WPA rank (1-based) over qualified fighters isn't needed; the

@@ -12,6 +12,7 @@ import {
   getCityName,
 } from '@/lib/teams';
 import { SectionRule } from '@/components/chrome/SectionRule';
+import { getComebackData } from '@/lib/wpa';
 import { HighlightsSection } from '@/components/HighlightsSection';
 import { RosterTable } from './RosterTable';
 import { RecentMatches } from './RecentMatches';
@@ -144,6 +145,9 @@ export default async function TeamPage({
   if (!result) notFound();
 
   const { team, matches, roster, nextMatch, highlights } = result;
+
+  // Comeback wins / blown leads for this club, off the stored win probabilities.
+  const cb = (await getComebackData()).byTeam.get(team.slug) ?? null;
   const streak = team.streak || calcTeamStreak(matches);
   const streakHeroColor = streak.startsWith('W')
     ? 'var(--tbl-accent-bright)'
@@ -344,6 +348,76 @@ export default async function TeamPage({
               <SectionRule left="Next Match" />
               <NextMatchInline entry={nextMatch} teamName={team.team} />
               <div style={{ height: 20 }} />
+            </>
+          )}
+          {cb && (cb.comebackWins > 0 || cb.blownLeads > 0) && (
+            <>
+              <SectionRule left="Comebacks" right="Win probability" />
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  border: '1px solid rgba(20,17,11,0.18)',
+                  marginBottom: 20,
+                }}
+              >
+                {[
+                  {
+                    l: 'Comeback Wins',
+                    v: String(cb.comebackWins),
+                    sub:
+                      cb.deepestHole != null
+                        ? `from as low as ${(cb.deepestHole * 100).toFixed(1)}%`
+                        : undefined,
+                    color: 'var(--tbl-green)',
+                  },
+                  {
+                    l: 'Blown Leads',
+                    v: String(cb.blownLeads),
+                    sub:
+                      cb.highestLeadBlown != null
+                        ? `from as high as ${(cb.highestLeadBlown * 100).toFixed(1)}%`
+                        : undefined,
+                    color: 'var(--tbl-red)',
+                  },
+                ].map((c, i) => (
+                  <div
+                    key={c.l}
+                    style={{ padding: '12px 14px', borderLeft: i > 0 ? '1px solid rgba(20,17,11,0.18)' : 'none' }}
+                  >
+                    <div
+                      style={{
+                        fontFamily: 'var(--tbl-font-mono)',
+                        fontSize: 9,
+                        letterSpacing: '0.2em',
+                        textTransform: 'uppercase',
+                        color: 'var(--tbl-ink-soft)',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {c.l}
+                    </div>
+                    <div
+                      className="tbl-display"
+                      style={{ fontSize: 30, lineHeight: 1, marginTop: 3, color: c.v === '0' ? 'var(--tbl-ink-mute)' : c.color }}
+                    >
+                      {c.v}
+                    </div>
+                    {c.sub && (
+                      <div
+                        style={{
+                          fontFamily: 'var(--tbl-font-mono)',
+                          fontSize: 9,
+                          color: 'var(--tbl-ink-soft)',
+                          marginTop: 3,
+                        }}
+                      >
+                        {c.sub}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </>
           )}
           <RecentMatches matches={matches} />

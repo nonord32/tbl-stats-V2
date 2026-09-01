@@ -142,6 +142,23 @@ const TERMS: { section: string; terms: Term[] }[] = [
           </>
         ),
       },
+      {
+        name: 'Comeback Win / Blown Lead',
+        def: (
+          <>
+            The lowest the winning team&apos;s win probability ever fell after a round. Below
+            25% and the match counts as a comeback win — and, from the other side, as a blown
+            lead for the team that let a better-than-75% position slip. Draws are excluded.{' '}
+            <Link href="/stats/comebacks" style={{ color: 'var(--tbl-accent)' }}>
+              How it works →
+            </Link>{' '}
+            ·{' '}
+            <Link href="/comebacks" style={{ color: 'var(--tbl-accent)' }}>
+              Biggest comebacks →
+            </Link>
+          </>
+        ),
+      },
     ],
   },
 ];
