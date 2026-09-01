@@ -3,6 +3,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getAllData, extractUniqueMatches } from '@/lib/data';
+import { getBracketContext } from '@/lib/bracketData';
 import { getDisplayedCurrentWeek } from '@/lib/week';
 import { sortStandings } from '@/lib/standings';
 import {
@@ -1179,6 +1180,75 @@ function MobileStandings({ teams }: { teams: TeamStanding[] }) {
 }
 
 // ─── Page ────────────────────────────────────────────────────────────────────
+// ─── MegaBrawl champion banner ───────────────────────────────────────────────
+function ChampionBanner({
+  champion,
+  runnerUp,
+  scoreLine,
+}: {
+  champion: TeamStanding;
+  runnerUp?: TeamStanding;
+  scoreLine?: string | null;
+}) {
+  const logo = getTeamLogoPathByName(champion.team);
+  return (
+    <Link
+      href="/playoffs"
+      className="home-champion-banner"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 20,
+        flexWrap: 'wrap',
+        background: 'var(--tbl-ink)',
+        color: 'var(--tbl-bg)',
+        padding: '18px 32px',
+        borderBottom: '3px double var(--tbl-ink)',
+        textDecoration: 'none',
+      }}
+    >
+      {logo && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={logo} alt="" style={{ width: 60, height: 60, objectFit: 'contain' }} />
+      )}
+      <div style={{ minWidth: 0 }}>
+        <div className="tbl-eyebrow" style={{ color: 'var(--tbl-accent-bright)' }}>
+          MegaBrawl IV · Champion
+        </div>
+        <div className="tbl-display" style={{ fontSize: 34, lineHeight: 1, marginTop: 2 }}>
+          {getFullTeamName(champion.slug)}
+        </div>
+        {runnerUp && scoreLine && (
+          <div
+            style={{
+              fontFamily: 'var(--tbl-font-mono)',
+              fontSize: 11,
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              color: 'rgba(244,237,224,0.7)',
+              marginTop: 6,
+            }}
+          >
+            def. {getFullTeamName(runnerUp.slug)} · {scoreLine}
+          </div>
+        )}
+      </div>
+      <span
+        style={{
+          marginLeft: 'auto',
+          fontFamily: 'var(--tbl-font-mono)',
+          fontSize: 11,
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+          color: 'var(--tbl-accent-bright)',
+        }}
+      >
+        View bracket →
+      </span>
+    </Link>
+  );
+}
+
 export default async function HomePage() {
   const { fighters, fightersByPhase, fighterHistory, teams, schedule, teamMatches, awards } =
     await getAllData();
@@ -1318,12 +1388,42 @@ export default async function HomePage() {
   });
   const lastCompleted = completed[0] ?? null;
 
+  // MegaBrawl champion — only once the final has been played. Derived from the
+  // live bracket, with the winner's score shown first.
+  const { bracket } = getBracketContext(await getAllData());
+  const finalMatch = bracket.final;
+  const champSeed =
+    finalMatch.status === 'played'
+      ? finalMatch.a?.team.slug === finalMatch.winnerSlug
+        ? finalMatch.a
+        : finalMatch.b
+      : undefined;
+  const runnerSeed = champSeed
+    ? champSeed === finalMatch.a
+      ? finalMatch.b
+      : finalMatch.a
+    : undefined;
+  const champScoreLine =
+    champSeed && finalMatch.score
+      ? finalMatch.a?.team.slug === finalMatch.winnerSlug
+        ? `${finalMatch.score[0]}–${finalMatch.score[1]}`
+        : `${finalMatch.score[1]}–${finalMatch.score[0]}`
+      : null;
+
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+
+      {champSeed && (
+        <ChampionBanner
+          champion={champSeed.team}
+          runnerUp={runnerSeed?.team}
+          scoreLine={champScoreLine}
+        />
+      )}
 
       {/* Mobile compact layout (hidden on desktop via CSS) */}
       <MobileMatchBanner
