@@ -162,7 +162,12 @@ export default async function WarMethodologyPage() {
               is for.
             </li>
             <li style={{ marginBottom: 8 }}>
-              It doesn&apos;t adjust for opponent quality or weight class.
+              It doesn&apos;t adjust for opponent quality — beating the best fighter in the league
+              counts the same as beating the worst. That&apos;s what{' '}
+              <Link href="/stats/ratings" style={{ color: 'var(--tbl-accent)' }}>
+                Adjusted NPPR and Strength of Schedule
+              </Link>{' '}
+              are for.
             </li>
             <li>
               Fighters with few rounds can post noisy values, up or down.

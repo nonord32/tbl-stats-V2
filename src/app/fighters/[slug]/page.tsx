@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation';
 import { getFighterBySlug, getAllData } from '@/lib/data';
 import { getBracketContext } from '@/lib/bracketData';
 import { getWpaData } from '@/lib/wpa';
+import { getFighterRating } from '@/lib/ratings';
 import { playoffRoundLabelsByMatch } from '@/lib/playoffs';
 import { getFullTeamName } from '@/lib/teams';
 import { FightHistory } from './FightHistory';
@@ -67,6 +68,21 @@ export default async function FighterPage({
   // strip, plus a per-round map (keyed matchIndex:roundId) for the fight
   // history column and the best/worst-round highlights.
   const fighterWpa = (await getWpaData()).byFighter.get(params.slug) ?? null;
+
+  // Opponent-adjusted ratings. Full season only — the ridge fit has no phase
+  // split, so this prop does not vary with the hero's view toggle.
+  const fighterRating = await getFighterRating(params.slug);
+  const ratingProp = fighterRating
+    ? {
+        sos: fighterRating.sos,
+        anppr: fighterRating.anppr,
+        delta: fighterRating.delta,
+        bootSd: fighterRating.bootSd,
+        lo: fighterRating.lo,
+        hi: fighterRating.hi,
+        uncertain: fighterRating.uncertain,
+      }
+    : null;
   const wpaProp = (() => {
     if (!fighterWpa) return null;
     const regularRounds = fighterWpa.perRound.filter((p) => p.phase !== 'playoffs').length;
@@ -177,6 +193,7 @@ export default async function FighterPage({
         streak={streak}
         warRank={warRank}
         wpa={wpaProp}
+        rating={ratingProp}
         form={form}
       />
 

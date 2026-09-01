@@ -1285,6 +1285,16 @@ function AdvancedStats() {
       ],
     },
     {
+      code: 'SOS',
+      title: 'Adjusted NPPR & Schedule',
+      blurb:
+        'Every other stat treats beating the best fighter the same as beating the worst. Adjusted NPPR rates all fighters against each other at once; Strength of Schedule says who they had to face.',
+      links: [
+        { label: 'Leaderboard →', href: '/ratings' },
+        { label: 'How it works →', href: '/stats/ratings' },
+      ],
+    },
+    {
       code: 'WAR',
       title: 'Wins Above Replacement',
       blurb:

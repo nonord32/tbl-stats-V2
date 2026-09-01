@@ -2,7 +2,7 @@
 // Fixed bottom tab bar shown only on mobile widths (<1024px via CSS).
 // Route mapping follows the mobile handoff:
 //   Home     → /
-//   Fighters → /fighters, /fighters/[slug], /rankings, /wpa, /moments, /comebacks, /stats/*
+//   Fighters → /fighters, /fighters/[slug], /rankings, /wpa, /moments, /comebacks, /ratings, /stats/*
 //   Standings → /teams, /teams/[slug]
 //   Playoffs → /playoffs
 //   Schedule → /schedule, /matches/[id]
@@ -53,7 +53,8 @@ const TABS: TabDef[] = [
       p.startsWith('/wpa') ||
       p.startsWith('/stats') ||
       p.startsWith('/moments') ||
-      p.startsWith('/comebacks'),
+      p.startsWith('/comebacks') ||
+      p.startsWith('/ratings'),
     icon: (a) => (
       <svg {...iconProps(a)}>
         <circle cx="12" cy="7" r="3.5" />

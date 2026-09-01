@@ -143,6 +143,40 @@ const TERMS: { section: string; terms: Term[] }[] = [
         ),
       },
       {
+        name: 'SOS (Strength of Schedule)',
+        def: (
+          <>
+            The average NPPR of the opponents a fighter faced, weighted by how many rounds they
+            fought against each. Above zero means a harder-than-average schedule. Crucially, every
+            round an opponent fought <em>against this fighter</em> is removed before their NPPR is
+            measured — otherwise beating someone repeatedly would drag their numbers down and make
+            your own schedule look weak.{' '}
+            <Link href="/stats/ratings" style={{ color: 'var(--tbl-accent)' }}>
+              How it works →
+            </Link>{' '}
+            ·{' '}
+            <Link href="/ratings" style={{ color: 'var(--tbl-accent)' }}>
+              Leaderboard →
+            </Link>
+          </>
+        ),
+      },
+      {
+        name: 'aNPPR (Adjusted NPPR)',
+        def: (
+          <>
+            Net points per round with opponent quality accounted for. Rather than rating fighters
+            and then correcting, it solves for every fighter&apos;s rating at once across all 1,313
+            rounds of the season. Low-round fighters are shrunk toward league average by design, so
+            a thin sample reads closer to zero than the raw number suggests. Published with a 90%
+            range: differences under 0.20 are not meaningful.{' '}
+            <Link href="/stats/ratings" style={{ color: 'var(--tbl-accent)' }}>
+              How it works →
+            </Link>
+          </>
+        ),
+      },
+      {
         name: 'Comeback Win / Blown Lead',
         def: (
           <>

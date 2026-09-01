@@ -159,6 +159,20 @@ export interface WpaScopes {
   playoffs: WpaScope;
 }
 
+// Opponent-adjusted ratings. Unlike everything else on this sheet these are
+// FULL SEASON regardless of the phase toggle — the ridge fit has no phase
+// split, because a playoffs-only fit would rate most fighters off two or three
+// rounds. The labels say so whenever the reader is looking at a phase view.
+export interface RatingScope {
+  sos: number | null;
+  anppr: number;
+  delta: number;
+  bootSd: number;
+  lo: number;
+  hi: number;
+  uncertain: boolean;
+}
+
 export function FighterHero({
   season,
   regular,
@@ -166,6 +180,7 @@ export function FighterHero({
   streak,
   warRank,
   wpa = null,
+  rating = null,
   form = [],
 }: {
   season: FighterStat;
@@ -174,6 +189,8 @@ export function FighterHero({
   streak: string;
   warRank: number;
   wpa?: WpaScopes | null;
+  /** full-season opponent-adjusted ratings; null when the fighter has no bouts */
+  rating?: RatingScope | null;
   /** last 10 results, oldest → newest */
   form?: ('W' | 'L' | 'D')[];
 }) {
@@ -209,6 +226,37 @@ export function FighterHero({
     { l: 'KO/TKO', v: String(active.koTko) },
     { l: 'KO%', hint: 'KO/TKO ÷ W', v: active.wins > 0 ? `${(active.koPct * 100).toFixed(0)}%` : '—' },
   ];
+  // Ratings ignore the phase toggle, so flag that on the labels the moment the
+  // reader is looking at anything narrower than the whole season.
+  const seasonHint = phase === 'all' ? undefined : 'full season';
+  const adjusted: StatCell[] = [
+    rating && rating.sos !== null
+      ? {
+          l: 'SOS',
+          hint: seasonHint,
+          v: signed3(rating.sos),
+          color: rating.sos >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)',
+        }
+      : { l: 'SOS', hint: seasonHint, v: '—', color: 'var(--tbl-ink-soft)' },
+    rating
+      ? {
+          l: 'aNPPR',
+          hint: seasonHint,
+          pre: `±${rating.bootSd.toFixed(2)}`,
+          v: signed3(rating.anppr),
+          color: rating.anppr >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)',
+        }
+      : { l: 'aNPPR', hint: seasonHint, v: '—', color: 'var(--tbl-ink-soft)' },
+    // The gap is the point of the stat: it is what the schedule was worth.
+    rating
+      ? {
+          l: 'Δ vs NPPR',
+          v: signed3(rating.delta),
+          color: 'var(--tbl-ink-soft)',
+        }
+      : { l: 'Δ vs NPPR', v: '—', color: 'var(--tbl-ink-soft)' },
+  ];
+
   const advanced: StatCell[] = [
     { l: warRank > 0 && phase === 'all' ? `WAR · #${warRank}` : 'WAR', v: active.war.toFixed(2) },
     activeWpa
@@ -411,6 +459,38 @@ export function FighterHero({
           <Row title="Overview" cells={overview} />
           <Row title="Scoring" cells={scoring} />
           <Row title="Finishing" cells={finishing} />
+          <Row title="Schedule" cells={adjusted}>
+            <div
+              style={{
+                gridColumn: '1 / -1',
+                borderLeft: `1px solid ${HAIRLINE}`,
+                borderTop: `1px solid ${HAIRLINE}`,
+                padding: '8px 14px',
+                fontFamily: 'var(--tbl-font-mono)',
+                fontSize: 10,
+                lineHeight: 1.6,
+                color: 'var(--tbl-ink-soft)',
+              }}
+            >
+              SOS = average NPPR of the opponents faced, with every head-to-head round excluded ·
+              aNPPR = rating solved against the whole league at once.{' '}
+              {rating ? (
+                <>
+                  90% range {signed3(rating.lo)} to {signed3(rating.hi)}
+                  {rating.uncertain ? ' — a wide one; treat this rating as soft' : ''}. Gaps under
+                  0.20 are not meaningful.{' '}
+                </>
+              ) : null}
+              Both are full-season figures and do not follow the view toggle.{' '}
+              <Link href="/stats/ratings" style={{ color: 'var(--tbl-accent)' }}>
+                How it works →
+              </Link>
+              {'  ·  '}
+              <Link href="/ratings" style={{ color: 'var(--tbl-accent)' }}>
+                Leaderboard →
+              </Link>
+            </div>
+          </Row>
           <Row title="Advanced" cells={advanced} last>
             <div
               style={{

@@ -1,0 +1,56 @@
+{
+  "version": "2026.1",
+  "season": 2026,
+  "description": "TBL opponent-adjusted ratings, fit on the 2026 season. Two stats, computed independently: Strength of Schedule (average opponent NPPR with all head-to-head rounds excluded) and Adjusted NPPR (ridge regression solving for every fighter's rating simultaneously). Historical 2026 figures must remain reproducible from this file — never edit in place for a new season; create ratings-model-2027.json instead.",
+  "lambda": 5.0,
+  "lambdaNote": "Ten-fold CV on held-out rounds actually minimizes near LAMBDA 2.0 (MSE 1.677 vs 1.694 at 5.0). 5.0 is chosen deliberately: at 2.0 fighters with fewer than 5 rounds show a WIDER rating spread (0.539) than fighters with 15+ (0.424), which is backwards — small samples should shrink harder. At 5.0 the ordering corrects (0.302 vs 0.356) for about 1% worse prediction error. Worth it for a published leaderboard. Do not re-tune per season without telling the operator.",
+  "bootstrapSamples": 200,
+  "bootstrapSeed": 20260001,
+  "bootstrapSeedNote": "The bootstrap must be seeded. Ratings are recomputed on every ISR revalidation, so an unseeded resample would make every published interval flicker between page loads. Changing this seed changes every interval on the site.",
+  "intervalLow": 0.05,
+  "intervalHigh": 0.95,
+  "minRounds": 10,
+  "meaningfulDiff": 0.2,
+  "flagBootSd": 0.25,
+  "sosNote": "Strength of Schedule excludes ALL head-to-head rounds. When computing opponent X's NPPR for the purpose of rating fighter A's schedule, every round X fought against A is dropped. Without this a fighter is punished for being good: beating an opponent repeatedly drags that opponent's NPPR down, which drags the beater's own SOS down. Measured on 2026: naive average opponent NPPR correlates -0.569 with own NPPR; excluding one round, -0.344; excluding all head-to-head rounds, -0.016.",
+  "sosIndependenceNote": "SOS is NOT derived as aNPPR - NPPR. Ridge shrinks extreme NPPRs toward zero, so that difference is mechanically anti-correlated with NPPR regardless of schedule — measured -0.848, worse than the naive version it would replace. It conflates regression to the mean with schedule strength.",
+  "roundUniverseNote": "Both stats read the same bouts NPPR reads (data.fighterHistory), so DQ rounds are already absent. The ridge additionally requires both fighters to be identified, which drops rounds recorded against an N/A opponent — 1,313 of them qualify in 2026. Those rounds still count toward NPPR and SOS weighting.",
+  "checks": {
+    "pairedRounds": 1313,
+    "sosCorrelationBound": 0.1,
+    "sosCorrelationNote": "corr(NPPR, SOS) across qualified fighters must fall between -0.10 and +0.10. If it comes back near -0.57 the head-to-head exclusion is not working.",
+    "anpprCorrelation": 0.96,
+    "sosStdDev": 0.3,
+    "ratingsStdDev": 0.393,
+    "medianBootSd": 0.202,
+    "signalToNoise": 1.95,
+    "rankStabilityCross": 0.869,
+    "rankStabilityWithin": 0.813,
+    "toughestSchedule": { "name": "Dislan Rivaux Gainza", "sos": 0.873 },
+    "easiestSchedule": { "name": "Michael Bracamontes", "sos": -1.01 }
+  },
+  "sosReference": [
+    { "name": "Stacia Suttles", "rounds": 18, "nppr": 1.5, "sos": 0.7722 },
+    { "name": "Money Powell", "rounds": 19, "nppr": 0.5263, "sos": 0.3471 },
+    { "name": "Shakilya Ellis", "rounds": 19, "nppr": 0.9474, "sos": 0.159 },
+    { "name": "Jordyn Edewards", "rounds": 15, "nppr": -0.9333, "sos": 0.0483 },
+    { "name": "Erika Sanchez", "rounds": 16, "nppr": 1.125, "sos": -0.0465 },
+    { "name": "Rashidi Ellis", "rounds": 16, "nppr": 1.0625, "sos": -0.1619 }
+  ],
+  "anpprReference": [
+    { "name": "Stacia Suttles", "rounds": 18, "nppr": 1.5, "anppr": 1.3173 },
+    { "name": "Yosdiel Napoles", "rounds": 19, "nppr": 1.1579, "anppr": 1.0509 },
+    { "name": "Rashidi Ellis", "rounds": 16, "nppr": 1.0625, "anppr": 0.8162 },
+    { "name": "Erika Sanchez", "rounds": 16, "nppr": 1.125, "anppr": 0.7967 },
+    { "name": "Money Powell", "rounds": 19, "nppr": 0.5263, "anppr": 0.6125 },
+    { "name": "Jordyn Edewards", "rounds": 15, "nppr": -0.9333, "anppr": -0.5778 },
+    { "name": "Zaire Jefferson", "rounds": 13, "nppr": -0.6154, "anppr": -0.1022 }
+  ],
+  "bootstrapReference": [
+    { "name": "Stacia Suttles", "rounds": 18, "anppr": 1.317, "bootSd": 0.255, "lo": 0.862, "hi": 1.686 },
+    { "name": "Yosdiel Napoles", "rounds": 19, "anppr": 1.051, "bootSd": 0.178, "lo": 0.735, "hi": 1.278 },
+    { "name": "Shakilya Ellis", "rounds": 19, "anppr": 0.876, "bootSd": 0.141, "lo": 0.658, "hi": 1.074 },
+    { "name": "Kye Brooks", "rounds": 13, "anppr": 0.834, "bootSd": 0.331, "lo": 0.212, "hi": 1.305 }
+  ],
+  "bootstrapReferenceNote": "A bootstrap is stochastic. These figures came from a different resampling stream than this codebase's seeded PRNG produces, so they are checked as tolerant ranges, not reproduced exactly. The point estimates (SOS, aNPPR) are fully deterministic and ARE asserted exactly."
+}
