@@ -1,9 +1,8 @@
 // src/app/fighters/[slug]/page.tsx
-// Gazette profile: big serif name + eyebrow rank + 6-stat hero strip,
-// then 2-col body (Career Averages left, Fight History right).
+// Gazette profile: identity hero (name, team, form, record) over a compact
+// stat sheet, then the fight history.
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
 import { getFighterBySlug, getAllData } from '@/lib/data';
 import { getBracketContext } from '@/lib/bracketData';
 import { getWpaData } from '@/lib/wpa';
@@ -121,6 +120,10 @@ export default async function FighterPage({
     }
   }
 
+  // Last 10 results, oldest → newest, for the hero's form strip. `history` is
+  // newest-first.
+  const form = [...history].slice(0, 10).reverse().map((h) => h.result);
+
   const teamSlug = fighter.team
     .toLowerCase()
     .replace(/\s+/g, '-')
@@ -167,28 +170,6 @@ export default async function FighterPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      {/* Breadcrumb */}
-      <div
-        style={{
-          padding: '14px 32px 0',
-          fontFamily: 'var(--tbl-font-mono)',
-          fontSize: 11,
-          letterSpacing: '0.12em',
-          color: 'var(--tbl-ink-soft)',
-          textTransform: 'uppercase',
-        }}
-      >
-        <Link href="/" style={{ color: 'var(--tbl-ink-soft)', textDecoration: 'none' }}>
-          Home
-        </Link>
-        {' / '}
-        <Link href="/fighters" style={{ color: 'var(--tbl-ink-soft)', textDecoration: 'none' }}>
-          Fighters
-        </Link>
-        {' / '}
-        <span style={{ color: 'var(--tbl-ink)' }}>{fighter.name}</span>
-      </div>
-
       <FighterHero
         season={fighter}
         regular={regular}
@@ -196,6 +177,7 @@ export default async function FighterPage({
         streak={streak}
         warRank={warRank}
         wpa={wpaProp}
+        form={form}
       />
 
       <FightHistory

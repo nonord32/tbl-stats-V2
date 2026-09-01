@@ -1,12 +1,11 @@
 'use client';
 // src/app/fighters/[slug]/FightHistory.tsx
-// Form strip + Fight History for a fighter profile.
+// Fight History for a fighter profile. (The form strip lives in the hero.)
 
-import { Fragment, useMemo } from 'react';
+import { Fragment } from 'react';
 import Link from 'next/link';
 import type { FightHistory as FightHistoryEntry } from '@/types';
 import { toSlug } from '@/lib/data';
-import { calcFighterStreak } from '@/lib/phaseStats';
 import { getTeamLogoPathByName } from '@/lib/teams';
 import { SectionRule } from '@/components/chrome/SectionRule';
 
@@ -28,7 +27,6 @@ export function FightHistory({
   wpaBestKey?: string; // key of the fighter's single biggest positive round
   wpaWorstKey?: string; // ... and biggest negative round
 }) {
-  const streak = useMemo(() => calcFighterStreak(history), [history]);
   // For a bout, the label shown in the "week" slot: the playoff round for
   // playoff bouts (falling back to "Playoffs" if the round can't be resolved),
   // otherwise the regular-season week number.
@@ -36,8 +34,6 @@ export function FightHistory({
     if (h.phase === 'playoffs') return roundLabels[h.matchIndex] ?? 'Playoffs';
     return h.week != null ? `Wk ${h.week}` : null;
   };
-  // Last 10 bouts oldest → newest for the form strip (history is newest-first).
-  const formLast10 = [...history].slice(0, 10).reverse();
 
   // Phase split: group the history into a Postseason block (on top, most recent)
   // and a Regular Season block, each with its own record / net / NPPR summary.
@@ -263,41 +259,6 @@ export function FightHistory({
 
   return (
     <>
-      {/* Form · Last 10 — desktop-only strip of W/L pills (oldest → newest). */}
-      {formLast10.length > 0 && (
-        <div className="gz-fighter-form" style={{ padding: '20px 32px 4px' }}>
-          <SectionRule
-            left={`Form · Last ${formLast10.length}`}
-            right={`Streak ${streak || '—'}`}
-          />
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {formLast10.map((h, i) => {
-              const isWin = h.result === 'W';
-              return (
-                <div
-                  key={i}
-                  className="tbl-display"
-                  style={{
-                    width: 36,
-                    height: 32,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: isWin ? 'var(--tbl-green)' : 'var(--tbl-red)',
-                    color: '#fff',
-                    fontSize: 16,
-                    fontWeight: 900,
-                  }}
-                  title={`${h.date} · ${h.opponent} · ${h.result}`}
-                >
-                  {h.result}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       {/* Body: Fight History */}
       <div>
         <div style={{ padding: '24px 32px' }}>

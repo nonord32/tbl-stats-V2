@@ -2507,6 +2507,15 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
   .gz-profile-strip .tbl-display { font-size: 24px !important; }
 }
 
+/* Fighter stat sheet: on narrow screens stack the row label above its cells and
+   let the identity block (form strip + record) drop below the name. */
+@media (max-width: 720px) {
+  .gz-sheet-row { grid-template-columns: 1fr !important; }
+  .gz-sheet-cells { border-top: 1px solid rgba(20,17,11,0.18); }
+  .gz-fighter-id { grid-template-columns: 1fr !important; align-items: flex-start !important; }
+  .gz-fighter-form { justify-content: flex-start; }
+}
+
 /* Schedule 2-col grid collapses to single column on narrow screens */
 @media (max-width: 720px) {
   .gz-schedule-grid { grid-template-columns: 1fr !important; }

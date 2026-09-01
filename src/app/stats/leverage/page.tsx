@@ -5,9 +5,9 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { SectionRule } from '@/components/chrome/SectionRule';
-import { LI_TABLE, WPA_MODEL, WPA_MODEL_VERSION, liLookup } from '@/lib/wpa';
+import { LI_TABLE, WPA_MODEL, WPA_MODEL_VERSION, liLookup, getWpaData } from '@/lib/wpa';
 
-export const revalidate = 3600;
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: 'How Leverage & Clutch Work — TBL Methodology',
@@ -56,8 +56,61 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export default function LeverageMethodologyPage() {
+// Round-phase stats are COMPUTED from the live season rather than hardcoded, so
+// the page stays correct whenever rounds are re-tagged between phases.
+interface PhaseStat {
+  phase: string;
+  rounds: number;
+  avg: number;
+  median: number;
+  max: number;
+}
+const PHASE_ORDER = ['launch', 'middle', 'money'];
+
+export default async function LeverageMethodologyPage() {
   const li = (d: number, r: number) => liLookup(LI_TABLE, d, r);
+  const season = await getWpaData();
+
+  // Every competitive round's LI, grouped by the sheet's Round Phase.
+  const allLi: number[] = [];
+  const byPhase = new Map<string, number[]>();
+  for (const m of season.byMatch.values()) {
+    for (const r of m.rounds) {
+      allLi.push(r.li);
+      const key = (r.roundPhase ?? '').trim() || 'Unlabelled';
+      if (!byPhase.has(key)) byPhase.set(key, []);
+      byPhase.get(key)!.push(r.li);
+    }
+  }
+  const median = (xs: number[]) => {
+    if (xs.length === 0) return 0;
+    const s = [...xs].sort((a, b) => a - b);
+    const mid = Math.floor(s.length / 2);
+    return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+  };
+  const phaseStats: PhaseStat[] = [...byPhase.entries()]
+    .map(([phase, xs]) => ({
+      phase,
+      rounds: xs.length,
+      avg: xs.reduce((a, b) => a + b, 0) / xs.length,
+      median: median(xs),
+      max: Math.max(...xs),
+    }))
+    .sort((a, b) => {
+      const ia = PHASE_ORDER.indexOf(a.phase.toLowerCase());
+      const ib = PHASE_ORDER.indexOf(b.phase.toLowerCase());
+      if (ia !== -1 || ib !== -1) return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+      return a.phase.localeCompare(b.phase);
+    });
+  const moneyPhase = phaseStats.find((p) => p.phase.toLowerCase() === 'money');
+  const pctBelow = allLi.length
+    ? (allLi.filter((v) => v < 0.1).length / allLi.length) * 100
+    : 0;
+  const pctDouble = allLi.length
+    ? (allLi.filter((v) => v > 2).length / allLi.length) * 100
+    : 0;
+  const equalPhases =
+    phaseStats.length > 1 && new Set(phaseStats.map((p) => p.rounds)).size === 1;
 
   // The scale table, computed live from the shipped table.
   const scale: [string, number][] = [
@@ -71,13 +124,6 @@ export default function LeverageMethodologyPage() {
     ['Up 10, 8 rounds left', li(10, 8)],
     ['Up 15, 4 rounds left', li(15, 4)],
   ];
-
-  // Frozen 2026 findings (same treatment as the WPA calibration table).
-  const phases = [
-    ['Launch', 439, '1.21', '1.32', '1.57'],
-    ['Middle', 439, '1.00', '1.20', '2.16'],
-    ['Money', 436, '0.78', '0.09', '6.63'],
-  ] as const;
 
   return (
     <div style={{ padding: '22px 32px 48px' }}>
@@ -148,52 +194,68 @@ export default function LeverageMethodologyPage() {
 
         <Section title="The Money Round Finding">
           <p style={prose}>
-            TBL matches run in three phases. Sort every 2026 round by phase and something
-            counterintuitive falls out:
+            TBL matches run in three phases{equalPhases ? ' of equal length' : ''}. Sort every
+            round by phase and something counterintuitive falls out:
           </p>
-          <div style={{ overflowX: 'auto', margin: '4px 0 14px' }}>
-            <table style={{ borderCollapse: 'collapse', minWidth: 420 }}>
-              <thead>
-                <tr>
-                  <th style={{ ...th, textAlign: 'left' }}>Phase</th>
-                  <th style={th}>Rounds</th>
-                  <th style={th}>Avg LI</th>
-                  <th style={th}>Median LI</th>
-                  <th style={th}>Max LI</th>
-                </tr>
-              </thead>
-              <tbody>
-                {phases.map(([name, rounds, avg, med, max]) => (
-                  <tr key={name}>
-                    <td style={{ ...td, textAlign: 'left', fontWeight: name === 'Money' ? 700 : 400 }}>
-                      {name}
-                    </td>
-                    <td style={td}>{rounds}</td>
-                    <td style={td}>{avg}</td>
-                    <td style={td}>{med}</td>
-                    <td style={{ ...td, fontWeight: 700, color: name === 'Money' ? 'var(--tbl-accent)' : 'inherit' }}>
-                      {max}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p style={prose}>
-            Money rounds have the <em>lowest</em> average importance of any phase — and by far
-            the highest ceiling. The median Money round has an LI of just 0.09, meaning the
-            match is usually already settled by the time it arrives. But every one of the most
-            important rounds in TBL history is a Money round.
-          </p>
-          <p style={prose}>
-            <strong>Money rounds aren&apos;t consistently big. They&apos;re either nothing or
-            everything.</strong>
-          </p>
-          <p style={prose}>
-            Zoom out and the same pattern holds leaguewide: <strong>22% of all TBL rounds have
-            an LI below 0.10</strong> — roughly one round in five is competitively meaningless —
-            while 6.8% carry more than double average importance.
-          </p>
+          {phaseStats.length > 0 ? (
+            <>
+              <div style={{ overflowX: 'auto', margin: '4px 0 14px' }}>
+                <table style={{ borderCollapse: 'collapse', minWidth: 420 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ ...th, textAlign: 'left' }}>Phase</th>
+                      <th style={th}>Rounds</th>
+                      <th style={th}>Avg LI</th>
+                      <th style={th}>Median LI</th>
+                      <th style={th}>Max LI</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {phaseStats.map((p) => {
+                      const isMoney = p.phase.toLowerCase() === 'money';
+                      return (
+                        <tr key={p.phase}>
+                          <td style={{ ...td, textAlign: 'left', fontWeight: isMoney ? 700 : 400 }}>
+                            {p.phase}
+                          </td>
+                          <td style={td}>{p.rounds}</td>
+                          <td style={td}>{p.avg.toFixed(2)}</td>
+                          <td style={td}>{p.median.toFixed(2)}</td>
+                          <td style={{ ...td, fontWeight: 700, color: isMoney ? 'var(--tbl-accent)' : 'inherit' }}>
+                            {p.max.toFixed(2)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {moneyPhase && (
+                <p style={prose}>
+                  Money rounds have the <em>lowest</em> average importance of any phase — and by
+                  far the highest ceiling. The median Money round has an LI of just{' '}
+                  <strong>{moneyPhase.median.toFixed(2)}</strong>, meaning the match is usually
+                  already settled by the time it arrives. But every one of the most important
+                  rounds in TBL history is a Money round.
+                </p>
+              )}
+              <p style={prose}>
+                <strong>
+                  Money rounds aren&apos;t consistently big. They&apos;re either nothing or
+                  everything.
+                </strong>
+              </p>
+              <p style={prose}>
+                Zoom out and the same pattern holds leaguewide:{' '}
+                <strong>{pctBelow.toFixed(0)}% of all TBL rounds have an LI below 0.10</strong> —
+                roughly one round in {Math.max(2, Math.round(100 / Math.max(pctBelow, 1)))} is
+                competitively meaningless — while {pctDouble.toFixed(1)}% carry more than double
+                average importance.
+              </p>
+            </>
+          ) : (
+            <p style={proseSmall}>Round-phase figures are unavailable right now.</p>
+          )}
         </Section>
 
         <Section title="What Clutch Measures">

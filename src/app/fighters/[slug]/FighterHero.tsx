@@ -1,16 +1,16 @@
 'use client';
 // src/app/fighters/[slug]/FighterHero.tsx
-// Fighter profile stat panel: an identity hero + phase toggle, then the stats as
-// a consistent stack of full-width rows — Overview, Scoring, Finishing / Results,
-// and a de-emphasized Advanced row (WAR now; a WPA cell is reserved for later).
-// The name stays fixed; the team and every stat rescope with the toggle. The
-// toggle only appears once the fighter has playoff bouts.
+// Fighter profile: a compact identity hero (name + team meta on the left, form
+// strip + record on the right) over a dense stat sheet — one bordered table
+// whose rows are labelled down the left edge (Overview / Scoring / Finishing /
+// Advanced) with label-value pairs reading across. The name stays fixed; every
+// stat rescopes with the View toggle, which only appears once the fighter has
+// playoff bouts.
 
 import { useState } from 'react';
 import Link from 'next/link';
 import type { FighterStat } from '@/types';
 import { getTeamLogoPathByName, getFullTeamName } from '@/lib/teams';
-import { SectionRule } from '@/components/chrome/SectionRule';
 
 type Phase = 'regular' | 'playoffs' | 'all';
 
@@ -28,100 +28,119 @@ const HAIRLINE = 'rgba(20,17,11,0.18)';
 function teamSlugOf(name: string): string {
   return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 }
-
-// Whole number, or one decimal if not integral.
 function fmt(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
 function signed(n: number): string {
   return `${n >= 0 ? '+' : ''}${n.toFixed(0)}`;
 }
+function signed3(n: number): string {
+  return `${n >= 0 ? '+' : ''}${n.toFixed(3)}`;
+}
 
 interface StatCell {
   l: string;
   v: string;
-  accent?: boolean;
+  /** small muted note shown just left of the value (e.g. a per-round rate) */
+  pre?: string;
   color?: string;
-  sub?: string;
+  /** parenthetical clarifier after the label */
+  hint?: string;
 }
 
-// A full-width, evenly-spaced row of stats: a SectionRule header over a crisp
-// hairline grid (mirrors the home page "Fighter in Focus" strip). The hairline
-// grid — container top/left borders + per-cell right/bottom borders — reads
-// cleanly at any column count and wraps gracefully on mobile.
-function StatStrip({
-  title,
-  note,
-  cells,
-  size = 28,
-}: {
-  title: string;
-  note?: string;
-  cells: StatCell[];
-  size?: number;
-}) {
+const labelStyle: React.CSSProperties = {
+  fontFamily: 'var(--tbl-font-mono)',
+  fontSize: 10,
+  letterSpacing: '0.14em',
+  color: 'var(--tbl-ink-soft)',
+  textTransform: 'uppercase',
+  whiteSpace: 'nowrap',
+};
+
+// One label-value pair. Label left, value right, sharing a baseline.
+function Cell({ cell }: { cell: StatCell }) {
   return (
-    <div style={{ padding: '18px 32px 22px' }}>
-      <SectionRule left={title} right={note} />
-      <div
-        className="gz-profile-strip"
-        style={{
-          display: 'grid',
-          // auto-fit so each row fills evenly and wraps cleanly on mobile with no
-          // orphaned cell (a lone last cell stretches to the full width).
-          gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-          borderTop: `1px solid ${HAIRLINE}`,
-          borderLeft: `1px solid ${HAIRLINE}`,
-        }}
-      >
-        {cells.map((c) => (
-          <div
-            key={c.l}
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'baseline',
+        justifyContent: 'space-between',
+        gap: 10,
+        padding: '9px 14px',
+        borderLeft: `1px solid ${HAIRLINE}`,
+        minWidth: 0,
+      }}
+    >
+      <span style={labelStyle}>
+        {cell.l}
+        {cell.hint && (
+          <span style={{ color: 'var(--tbl-ink-mute)', letterSpacing: '0.08em' }}> {cell.hint}</span>
+        )}
+      </span>
+      <span style={{ display: 'flex', alignItems: 'baseline', gap: 6, whiteSpace: 'nowrap' }}>
+        {cell.pre && (
+          <span
             style={{
-              padding: '14px 10px',
-              textAlign: 'center',
-              borderRight: `1px solid ${HAIRLINE}`,
-              borderBottom: `1px solid ${HAIRLINE}`,
+              fontFamily: 'var(--tbl-font-mono)',
+              fontSize: 10,
+              color: 'var(--tbl-ink-soft)',
             }}
           >
-            <div
-              style={{
-                fontFamily: 'var(--tbl-font-mono)',
-                fontSize: 9,
-                letterSpacing: '0.22em',
-                color: 'var(--tbl-ink-soft)',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-              }}
-            >
-              {c.l}
-            </div>
-            <div
-              className="tbl-display"
-              style={{
-                fontSize: size,
-                lineHeight: 1,
-                marginTop: 6,
-                color: c.color ?? (c.accent ? 'var(--tbl-accent)' : 'var(--tbl-ink)'),
-              }}
-            >
-              {c.v}
-            </div>
-            {c.sub && (
-              <div
-                style={{
-                  fontFamily: 'var(--tbl-font-mono)',
-                  fontSize: 9,
-                  letterSpacing: '0.06em',
-                  color: 'var(--tbl-ink-soft)',
-                  marginTop: 4,
-                }}
-              >
-                {c.sub}
-              </div>
-            )}
-          </div>
+            {cell.pre}
+          </span>
+        )}
+        <span
+          className="tbl-display"
+          style={{ fontSize: 21, lineHeight: 1, color: cell.color ?? 'var(--tbl-ink)' }}
+        >
+          {cell.v}
+        </span>
+      </span>
+    </div>
+  );
+}
+
+// A labelled row of the stat sheet: title down the left edge, cells across.
+function Row({
+  title,
+  cells,
+  children,
+  last = false,
+}: {
+  title: string;
+  cells: StatCell[];
+  children?: React.ReactNode;
+  last?: boolean;
+}) {
+  return (
+    <div
+      className="gz-sheet-row"
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '112px 1fr',
+        borderBottom: last ? 'none' : `1px solid ${HAIRLINE}`,
+      }}
+    >
+      <div
+        style={{
+          ...labelStyle,
+          fontWeight: 700,
+          display: 'flex',
+          alignItems: 'center',
+          padding: '9px 14px',
+          background: 'rgba(20,17,11,0.03)',
+        }}
+      >
+        {title}
+      </div>
+      <div
+        className="gz-sheet-cells"
+        style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}
+      >
+        {cells.map((c) => (
+          <Cell key={c.l} cell={c} />
         ))}
+        {children}
       </div>
     </div>
   );
@@ -130,8 +149,6 @@ function StatStrip({
 export interface WpaScope {
   total: number;
   perRound: number;
-  // Leverage / Clutch. liRounds excludes DQ rounds, so it can be lower than
-  // the fighter's WPA round count.
   avgLi: number;
   liRounds: number;
   clutch: number;
@@ -149,6 +166,7 @@ export function FighterHero({
   streak,
   warRank,
   wpa = null,
+  form = [],
 }: {
   season: FighterStat;
   regular: FighterStat | null;
@@ -156,9 +174,9 @@ export function FighterHero({
   streak: string;
   warRank: number;
   wpa?: WpaScopes | null;
+  /** last 10 results, oldest → newest */
+  form?: ('W' | 'L' | 'D')[];
 }) {
-  // Default to Regular Season; a playoff-only fighter (no regular bouts) opens
-  // on Playoffs so the toggle's starting view matches the stats shown.
   const [phase, setPhase] = useState<Phase>(regular ? 'regular' : 'playoffs');
   const hasPlayoffs = !!playoffs;
 
@@ -170,206 +188,259 @@ export function FighterHero({
   const teamLogo = getTeamLogoPathByName(active.team);
   const isWStreak = streak.startsWith('W');
   const instagram = active.instagram ?? season.instagram;
+  const activeWpa = wpa ? wpa[phase] : null;
 
   const overview: StatCell[] = [
-    { l: 'Record', v: active.record },
     { l: 'Win%', v: `${(active.winPct * 100).toFixed(0)}%` },
     { l: 'Rounds', v: String(active.rounds) },
-    { l: 'Net Pts', v: signed(active.netPts), accent: true },
+    { l: 'Net Pts', v: signed(active.netPts), color: 'var(--tbl-accent)' },
     { l: 'NP/R', v: active.nppr.toFixed(2) },
+    { l: 'KO%', v: active.wins > 0 ? `${(active.koPct * 100).toFixed(0)}%` : '—' },
   ];
-
   const scoring: StatCell[] = [
     { l: 'Points For', v: fmt(active.pointsFor) },
     { l: 'Points Against', v: fmt(active.pointsAgainst) },
     { l: 'Extra Points', v: String(active.extraPoints) },
-    { l: 'Extra Pts Allowed', v: String(active.extraPointsAllowed) },
+    { l: 'XP Allowed', v: String(active.extraPointsAllowed) },
   ];
-
   const finishing: StatCell[] = [
     { l: 'Knockdowns', v: String(active.knockdowns) },
     { l: 'Double KDs', v: String(active.doubleKnockdowns) },
     { l: 'KO/TKO', v: String(active.koTko) },
-    { l: 'KO%', v: active.wins > 0 ? `${(active.koPct * 100).toFixed(0)}%` : '—' },
+    { l: 'KO%', hint: 'KO/TKO ÷ W', v: active.wins > 0 ? `${(active.koPct * 100).toFixed(0)}%` : '—' },
   ];
-
-  // Advanced: kept but low-key. WAR rank is shown only in the Full Season view
-  // (the rank is computed against the season leaderboard). WPA rescopes with
-  // the toggle like everything else.
-  const activeWpa = wpa ? wpa[phase] : null;
   const advanced: StatCell[] = [
-    {
-      l: warRank > 0 && phase === 'all' ? `WAR · #${warRank}` : 'WAR',
-      v: active.war.toFixed(2),
-    },
+    { l: warRank > 0 && phase === 'all' ? `WAR · #${warRank}` : 'WAR', v: active.war.toFixed(2) },
     activeWpa
       ? {
           l: 'WPA',
-          v: `${activeWpa.total >= 0 ? '+' : ''}${activeWpa.total.toFixed(3)}`,
+          pre: `${signed3(activeWpa.perRound)}/r`,
+          v: signed3(activeWpa.total),
           color: activeWpa.total >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)',
-          sub: `${activeWpa.perRound >= 0 ? '+' : ''}${activeWpa.perRound.toFixed(3)} per round`,
         }
-      : { l: 'WPA', v: '—', color: 'var(--tbl-ink-soft)', sub: 'no rounds credited' },
-    // Average Leverage is a USAGE stat — how important the rounds they were put
-    // in were. A high number is not an achievement; the sub-label says so.
+      : { l: 'WPA', v: '—', color: 'var(--tbl-ink-soft)' },
+    // Average Leverage is a USAGE stat — how big the spots were, not how well
+    // the fighter did in them. The hint keeps that explicit.
     activeWpa && activeWpa.liRounds > 0
-      ? {
-          l: 'Avg Leverage',
-          v: activeWpa.avgLi.toFixed(2),
-          sub: `how big their ${activeWpa.liRounds} rounds were · 1.00 = average`,
-        }
-      : { l: 'Avg Leverage', v: '—', color: 'var(--tbl-ink-soft)', sub: 'usage, not performance' },
+      ? { l: 'Avg LI', hint: 'usage', v: activeWpa.avgLi.toFixed(2) }
+      : { l: 'Avg LI', hint: 'usage', v: '—', color: 'var(--tbl-ink-soft)' },
     activeWpa && activeWpa.liRounds > 0
       ? {
           l: 'Clutch',
-          v: `${activeWpa.clutch >= 0 ? '+' : ''}${activeWpa.clutch.toFixed(3)}`,
+          v: signed3(activeWpa.clutch),
           color: activeWpa.clutch >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)',
-          sub: 'WPA above context-neutral',
         }
-      : { l: 'Clutch', v: '—', color: 'var(--tbl-ink-soft)', sub: 'no counted rounds' },
+      : { l: 'Clutch', v: '—', color: 'var(--tbl-ink-soft)' },
   ];
 
   return (
     <>
-      {/* Identity hero */}
-      <div style={{ padding: '22px 32px 26px', borderBottom: '3px double var(--tbl-ink)' }}>
+      {/* Breadcrumb + View toggle share one band */}
+      <div
+        style={{
+          padding: '14px 32px 0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
+        }}
+      >
         <div
           style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'baseline',
-            gap: 12,
-            flexWrap: 'wrap',
+            fontFamily: 'var(--tbl-font-mono)',
+            fontSize: 11,
+            letterSpacing: '0.12em',
+            color: 'var(--tbl-ink-soft)',
+            textTransform: 'uppercase',
           }}
         >
-          <div className="tbl-eyebrow">
-            Fighter
-            {streak && <> · Streak {streak}</>}
+          <Link href="/" style={{ color: 'var(--tbl-ink-soft)', textDecoration: 'none' }}>
+            Home
+          </Link>
+          {' / '}
+          <Link href="/fighters" style={{ color: 'var(--tbl-ink-soft)', textDecoration: 'none' }}>
+            Fighters
+          </Link>
+          {' / '}
+          <span style={{ color: 'var(--tbl-ink)' }}>{season.name}</span>
+        </div>
+        {hasPlayoffs && (
+          <label className="gz-filter" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span className="gz-filter__label">View</span>
+            <select
+              className="gz-filter__select"
+              value={phase}
+              onChange={(e) => setPhase(e.target.value as Phase)}
+            >
+              {PHASE_ORDER.map((p) => (
+                <option key={p} value={p}>
+                  {PHASE_LABELS[p]}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+
+      {/* Identity: name + team meta on the left, form + record on the right */}
+      <div
+        className="gz-fighter-id"
+        style={{
+          padding: '6px 32px 16px',
+          display: 'grid',
+          gridTemplateColumns: '1fr auto',
+          alignItems: 'flex-end',
+          gap: 24,
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <div
+            className="tbl-display gz-fighter-name"
+            style={{ fontSize: 72, lineHeight: 0.9, letterSpacing: '-0.02em' }}
+          >
+            {season.name}
           </div>
-          {hasPlayoffs && (
-            <label className="gz-filter" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <span className="gz-filter__label">View</span>
-              <select
-                className="gz-filter__select"
-                value={phase}
-                onChange={(e) => setPhase(e.target.value as Phase)}
+          <div
+            style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, flexWrap: 'wrap' }}
+          >
+            {teamLogo && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={teamLogo} alt="" style={{ width: 22, height: 22, objectFit: 'contain' }} />
+            )}
+            <Link
+              href={`/teams/${teamSlug}`}
+              className="tbl-display gz-fighter-team-link"
+              style={{ fontSize: 17, fontWeight: 700, color: 'var(--tbl-accent)', textDecoration: 'none' }}
+            >
+              {fullTeamName}
+            </Link>
+            <span
+              style={{
+                fontFamily: 'var(--tbl-font-mono)',
+                fontSize: 11,
+                letterSpacing: '0.16em',
+                color: 'var(--tbl-ink-soft)',
+                textTransform: 'uppercase',
+              }}
+            >
+              · {active.weightClass} · {active.gender}
+              {streak && (
+                <>
+                  {' · '}
+                  <span style={{ color: isWStreak ? 'var(--tbl-green)' : 'var(--tbl-red)', fontWeight: 700 }}>
+                    Streak {streak}
+                  </span>
+                </>
+              )}
+            </span>
+            {instagram && (
+              <a
+                href={instagram}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`${season.name} on Instagram`}
+                title="Instagram"
+                style={{ lineHeight: 0 }}
+                className="ig-link"
               >
-                {PHASE_ORDER.map((p) => (
-                  <option key={p} value={p}>
-                    {PHASE_LABELS[p]}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <defs>
+                    <linearGradient id="ig-grad-profile" x1="0%" y1="100%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#f09433" />
+                      <stop offset="25%" stopColor="#e6683c" />
+                      <stop offset="50%" stopColor="#dc2743" />
+                      <stop offset="75%" stopColor="#cc2366" />
+                      <stop offset="100%" stopColor="#bc1888" />
+                    </linearGradient>
+                  </defs>
+                  <rect x="2" y="2" width="20" height="20" rx="5" ry="5" stroke="url(#ig-grad-profile)" />
+                  <circle cx="12" cy="12" r="4" stroke="url(#ig-grad-profile)" />
+                  <circle cx="17.5" cy="6.5" r="1" fill="url(#ig-grad-profile)" stroke="none" />
+                </svg>
+              </a>
+            )}
+          </div>
         </div>
 
         <div
-          className="tbl-display gz-fighter-name"
-          style={{ fontSize: 96, lineHeight: 0.88, letterSpacing: '-0.02em', marginTop: 10 }}
+          className="gz-fighter-form"
+          style={{ display: 'flex', alignItems: 'flex-end', gap: 22, flexWrap: 'wrap' }}
         >
-          {season.name}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14, flexWrap: 'wrap' }}>
-          {teamLogo && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={teamLogo} alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+          {form.length > 0 && (
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ ...labelStyle, marginBottom: 6 }}>Form · Last {form.length}</div>
+              <div style={{ display: 'flex', gap: 3 }}>
+                {form.map((r, i) => (
+                  <span
+                    key={i}
+                    title={r}
+                    style={{
+                      width: 22,
+                      height: 10,
+                      background:
+                        r === 'W' ? 'var(--tbl-green)' : r === 'L' ? 'var(--tbl-red)' : 'var(--tbl-ink-mute)',
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
           )}
-          <Link
-            href={`/teams/${teamSlug}`}
-            className="tbl-display gz-fighter-team-link"
-            style={{ fontSize: 18, fontWeight: 700, color: 'var(--tbl-accent)', textDecoration: 'none' }}
-          >
-            {fullTeamName}
-          </Link>
-          <span
-            style={{
-              fontFamily: 'var(--tbl-font-mono)',
-              fontSize: 11,
-              letterSpacing: '0.18em',
-              color: 'var(--tbl-ink-soft)',
-              textTransform: 'uppercase',
-            }}
-          >
-            · {active.weightClass} · {active.gender}
-            {streak && (
-              <>
-                {' · '}
-                <span style={{ color: isWStreak ? 'var(--tbl-green)' : 'var(--tbl-red)', fontWeight: 700 }}>
-                  Streak {streak}
-                </span>
-              </>
-            )}
-          </span>
-          {instagram && (
-            <a
-              href={instagram}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={`${season.name} on Instagram`}
-              title="Instagram"
-              style={{ lineHeight: 0 }}
-              className="ig-link"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <defs>
-                  <linearGradient id="ig-grad-profile" x1="0%" y1="100%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#f09433" />
-                    <stop offset="25%" stopColor="#e6683c" />
-                    <stop offset="50%" stopColor="#dc2743" />
-                    <stop offset="75%" stopColor="#cc2366" />
-                    <stop offset="100%" stopColor="#bc1888" />
-                  </linearGradient>
-                </defs>
-                <rect x="2" y="2" width="20" height="20" rx="5" ry="5" stroke="url(#ig-grad-profile)" />
-                <circle cx="12" cy="12" r="4" stroke="url(#ig-grad-profile)" />
-                <circle cx="17.5" cy="6.5" r="1" fill="url(#ig-grad-profile)" stroke="none" />
-              </svg>
-            </a>
-          )}
+          <div style={{ textAlign: 'right', borderLeft: `1px solid ${HAIRLINE}`, paddingLeft: 22 }}>
+            <div style={labelStyle}>Record</div>
+            <div className="tbl-display" style={{ fontSize: 34, lineHeight: 1, marginTop: 2 }}>
+              {active.record}
+            </div>
+          </div>
         </div>
       </div>
 
-      <StatStrip title="Overview" cells={overview} size={30} />
-      <StatStrip title="Scoring" cells={scoring} />
-      <StatStrip title="Finishing / Results" cells={finishing} note="KO% = KO/TKO ÷ wins" />
-      <div style={{ borderBottom: '3px double var(--tbl-ink)' }}>
-        <StatStrip title="Advanced" cells={advanced} />
-        <div
-          style={{
-            padding: '0 32px 16px',
-            marginTop: -8,
-            fontFamily: 'var(--tbl-font-mono)',
-            fontSize: 10,
-            letterSpacing: '0.08em',
-            color: 'var(--tbl-ink-soft)',
-          }}
-        >
-          WAR = wins added over a replacement-level fighter · WPA = how much each round moved
-          the team&apos;s chance of winning · Avg Leverage = how important those rounds were
-          (usage, not performance) · Clutch = WPA minus what the same results were worth at
-          average leverage. Disqualification rounds are excluded from Leverage and Clutch.{' '}
-          <Link href="/stats/war" style={{ color: 'var(--tbl-accent)' }}>
-            How WAR works →
-          </Link>
-          {'  ·  '}
-          <Link href="/stats/wpa" style={{ color: 'var(--tbl-accent)' }}>
-            How WPA works →
-          </Link>
-          {'  ·  '}
-          <Link href="/stats/leverage" style={{ color: 'var(--tbl-accent)' }}>
-            How Leverage &amp; Clutch work →
-          </Link>
+      {/* Stat sheet */}
+      <div style={{ padding: '0 32px 24px' }}>
+        <div style={{ border: `1.5px solid var(--tbl-ink)` }}>
+          <Row title="Overview" cells={overview} />
+          <Row title="Scoring" cells={scoring} />
+          <Row title="Finishing" cells={finishing} />
+          <Row title="Advanced" cells={advanced} last>
+            <div
+              style={{
+                gridColumn: '1 / -1',
+                borderLeft: `1px solid ${HAIRLINE}`,
+                borderTop: `1px solid ${HAIRLINE}`,
+                padding: '8px 14px',
+                fontFamily: 'var(--tbl-font-mono)',
+                fontSize: 10,
+                lineHeight: 1.6,
+                color: 'var(--tbl-ink-soft)',
+              }}
+            >
+              WAR = wins added over a replacement-level fighter · WPA = how much each round moved
+              the team&apos;s chance of winning · Avg LI = how important those rounds were (usage,
+              not performance) · Clutch = WPA above context-neutral. DQ rounds are excluded from
+              Avg LI and Clutch.{' '}
+              <Link href="/stats/war" style={{ color: 'var(--tbl-accent)' }}>
+                WAR →
+              </Link>
+              {'  ·  '}
+              <Link href="/stats/wpa" style={{ color: 'var(--tbl-accent)' }}>
+                WPA →
+              </Link>
+              {'  ·  '}
+              <Link href="/stats/leverage" style={{ color: 'var(--tbl-accent)' }}>
+                Leverage &amp; Clutch →
+              </Link>
+            </div>
+          </Row>
         </div>
       </div>
     </>
