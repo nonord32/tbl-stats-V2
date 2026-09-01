@@ -37,7 +37,7 @@ export async function middleware(request: NextRequest) {
 }
 
 // Auth-only allow-list. Public ISR pages (home, teams, fighters, schedule,
-// results, rankings, awards, playoffs, matches/*) skip middleware entirely
+// results, awards, playoffs, matches/*, stats/*) skip middleware entirely
 // so Vercel's edge can serve cached HTML without booting a function.
 // /auth/* and /api/auth/* are intentionally absent — those routes own their
 // own cookie lifecycle and we previously had to early-return for them.

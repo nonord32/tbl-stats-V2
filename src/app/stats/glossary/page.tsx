@@ -90,8 +90,9 @@ const TERMS: { section: string; terms: Term[] }[] = [
         name: 'WAR (Wins Above Replacement)',
         def: (
           <>
-            A fighter&apos;s total impact in team wins added over a replacement-level fighter,
-            from their scoring rate, workload, and the league&apos;s points-per-win.{' '}
+            How many wins a fighter added compared to the kind of fighter a team could easily
+            find to replace them. Built from their scoring rate, how many rounds they fought, and
+            what a win costs in points.{' '}
             <Link href="/stats/war" style={{ color: 'var(--tbl-accent)' }}>
               How WAR works →
             </Link>
@@ -102,10 +103,10 @@ const TERMS: { section: string; terms: Term[] }[] = [
         name: 'LI (Leverage Index)',
         def: (
           <>
-            How much win probability was at stake <em>before</em> a round — a property of the
-            situation, identical for both fighters. 1.00 is an average TBL round; the ceiling
-            is 6.63 (tied match, one round left). A fighter&apos;s average LI is a usage stat:
-            it says how big their spots were, not how well they did in them.{' '}
+            How much was riding on a round before it started. It belongs to the moment, not the
+            fighter, so both fighters in a round have the same number. 1.00 is an ordinary round;
+            6.63 is the maximum — a tied match with one round to go. A fighter&apos;s average tells
+            you how big their moments were, not how they did in them.{' '}
             <Link href="/stats/leverage" style={{ color: 'var(--tbl-accent)' }}>
               How Leverage works →
             </Link>
@@ -116,9 +117,9 @@ const TERMS: { section: string; terms: Term[] }[] = [
         name: 'Clutch',
         def: (
           <>
-            WPA minus what the same round results would have been worth at average leverage.
-            Positive means a fighter&apos;s wins landed in bigger spots than their losses.
-            Disqualification rounds are excluded from both Leverage and Clutch.{' '}
+            Whether a fighter&apos;s results came in the rounds that mattered. We compare what
+            they actually did to what the same results would have been worth in ordinary rounds.
+            Positive means their wins landed in the big moments. Disqualifications do not count.{' '}
             <Link href="/moments" style={{ color: 'var(--tbl-accent)' }}>
               Biggest moments →
             </Link>
@@ -129,9 +130,9 @@ const TERMS: { section: string; terms: Term[] }[] = [
         name: 'WPA (Win Probability Added)',
         def: (
           <>
-            How much each round moved the team&apos;s chance of winning the match, credited to
-            the fighter who caused it. A round won with the match on the line is worth far
-            more than one won in a blowout.{' '}
+            How much a round moved the team&apos;s chance of winning, credited to the fighter who
+            caused it. A round won with the match on the line is worth far more than one won in a
+            blowout.{' '}
             <Link href="/stats/wpa" style={{ color: 'var(--tbl-accent)' }}>
               How WPA works →
             </Link>{' '}
@@ -146,11 +147,10 @@ const TERMS: { section: string; terms: Term[] }[] = [
         name: 'SOS (Strength of Schedule)',
         def: (
           <>
-            The average NPPR of the opponents a fighter faced, weighted by how many rounds they
-            fought against each. Above zero means a harder-than-average schedule. Crucially, every
-            round an opponent fought <em>against this fighter</em> is removed before their NPPR is
-            measured — otherwise beating someone repeatedly would drag their numbers down and make
-            your own schedule look weak.{' '}
+            How good the opponents were that a fighter had to face. Above zero means a harder
+            schedule than most. Rounds an opponent fought <em>against this fighter</em> are thrown
+            out first — otherwise beating someone four times would drag their numbers down and make
+            your own schedule look easy.{' '}
             <Link href="/stats/ratings" style={{ color: 'var(--tbl-accent)' }}>
               How it works →
             </Link>{' '}
@@ -165,11 +165,10 @@ const TERMS: { section: string; terms: Term[] }[] = [
         name: 'aNPPR (Adjusted NPPR)',
         def: (
           <>
-            Net points per round with opponent quality accounted for. Rather than rating fighters
-            and then correcting, it solves for every fighter&apos;s rating at once across all 1,313
-            rounds of the season. Low-round fighters are shrunk toward league average by design, so
-            a thin sample reads closer to zero than the raw number suggests. Published with a 90%
-            range: differences under 0.20 are not meaningful.{' '}
+            Net points per round, once you account for who a fighter actually fought. Every
+            fighter is rated against every other at the same time, across the whole season.
+            Fighters with few rounds get pulled toward average on purpose. Each rating shows a
+            range; gaps under 0.20 do not mean anything.{' '}
             <Link href="/stats/ratings" style={{ color: 'var(--tbl-accent)' }}>
               How it works →
             </Link>
@@ -180,9 +179,9 @@ const TERMS: { section: string; terms: Term[] }[] = [
         name: 'Comeback Win / Blown Lead',
         def: (
           <>
-            The lowest the winning team&apos;s win probability ever fell after a round. Below
-            25% and the match counts as a comeback win — and, from the other side, as a blown
-            lead for the team that let a better-than-75% position slip. Draws are excluded.{' '}
+            The lowest the eventual winner&apos;s chances ever fell during a match. Dip under 25%
+            and it counts as a comeback win — and, from the other side, a blown lead for the team
+            that let it slip. Draws do not count.{' '}
             <Link href="/stats/comebacks" style={{ color: 'var(--tbl-accent)' }}>
               How it works →
             </Link>{' '}

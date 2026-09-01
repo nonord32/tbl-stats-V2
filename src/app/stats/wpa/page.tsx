@@ -105,9 +105,9 @@ export default function WpaMethodologyPage() {
             opponent gets the gain while you get the equal-and-opposite loss.
           </p>
           <p style={prose}>
-            The point of the stat is context. A round won when the match is on the line is
-            worth far more than a round won in a blowout, even though both look identical in
-            the box score. WPA is the stat that knows the difference.
+            The point of the stat is context. In the box score, a round won with the match on
+            the line looks identical to one won in a blowout. WPA is the stat that knows the
+            difference.
           </p>
           <p style={proseSmall}>
             See it in action on the{' '}
@@ -230,9 +230,9 @@ export default function WpaMethodologyPage() {
             left. Nothing about who the fighters are.
           </p>
           <p style={prose}>
-            That&apos;s deliberate. Fighter quality, opponent quality, and team strength are
-            all excluded — WPA measures what happened to the team&apos;s chances in that
-            situation, not whether it was impressive against that particular opponent.
+            That is deliberate. How good the fighters are, and how good their teams are, is left
+            out entirely. WPA measures what happened to the team&apos;s chances — not how
+            impressive it was against that particular opponent.
           </p>
           <p style={prose}>
             It was built from all 55 matches and 1,314 rounds of the 2026 season. And it

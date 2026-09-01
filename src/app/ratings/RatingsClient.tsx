@@ -3,8 +3,8 @@
 // Sortable opponent-adjusted leaderboard (gazette styling), in two views:
 // Adjusted NPPR with its bootstrap interval, and Strength of Schedule.
 //
-// Divisions here are the 12 canonical weight classes with gender as its own
-// filter — the /rankings convention, not the synthetic "Female X" classes the
+// Divisions here are the 12 canonical weight classes (src/lib/weightClasses.ts)
+// with gender as its own filter — not the synthetic "Female X" classes the
 // /fighters dropdown uses. The division dropdown carries the qualified count
 // for each class, because a division leader over a field of three should be
 // visible as such.
@@ -265,8 +265,8 @@ export function RatingsClient({ rows, lastUpdated, minRounds, meaningfulDiff, fl
           }}
         >
           {view === 'sos'
-            ? 'Click Schedule twice for the easiest schedules — just as interesting'
-            : `Differences under ${meaningfulDiff.toFixed(2)} are not meaningful`}
+            ? 'Click Schedule twice to see the easiest schedules — just as interesting'
+            : `Gaps under ${meaningfulDiff.toFixed(2)} do not mean anything`}
         </span>
       </div>
 
@@ -285,17 +285,17 @@ export function RatingsClient({ rows, lastUpdated, minRounds, meaningfulDiff, fl
               {th('name', 'Fighter', 'left')}
               {plainTh('Team', 'left')}
               {plainTh('Division', 'left')}
-              {th('rounds', 'Rds', 'right', 'Rounds fought — the NPPR denominator')}
-              {th('nppr', 'NPPR', 'right', 'Net points per round, unadjusted')}
+              {th('rounds', 'Rds', 'right', 'Rounds fought this season')}
+              {th('nppr', 'NPPR', 'right', 'Net points per round — the raw number, ignoring who they fought')}
               {view === 'anppr' ? (
                 <>
-                  {th('anppr', 'aNPPR', 'right', 'Opponent-adjusted rating')}
-                  {th('delta', 'Δ', 'right', 'aNPPR minus NPPR — how much the schedule moved them')}
+                  {th('anppr', 'aNPPR', 'right', 'Net points per round after accounting for who they fought')}
+                  {th('delta', 'Δ', 'right', 'How far their schedule moved them from the raw number')}
                   {plainTh('90% Range', 'right')}
-                  {th('bootSd', 'SD', 'right', 'Bootstrap standard deviation of the rating')}
+                  {th('bootSd', 'Wobble', 'right', 'How much the rating moves when we rebuild the season')}
                 </>
               ) : (
-                th('sos', 'SOS', 'right', 'Average opponent NPPR, head-to-head rounds excluded')
+                th('sos', 'SOS', 'right', 'How good their opponents were, not counting rounds against this fighter')
               )}
             </tr>
           </thead>
@@ -373,7 +373,7 @@ export function RatingsClient({ rows, lastUpdated, minRounds, meaningfulDiff, fl
                     </td>
                     <td
                       style={{ textAlign: 'right', padding: '9px 8px', color: 'var(--tbl-ink-soft)' }}
-                      title="aNPPR minus NPPR"
+                      title="How far their schedule moved them from the raw number"
                     >
                       {signed(r.delta)}
                     </td>
@@ -395,7 +395,7 @@ export function RatingsClient({ rows, lastUpdated, minRounds, meaningfulDiff, fl
                       }}
                       title={
                         r.uncertain
-                          ? `Bootstrap SD above ${flagBootSd.toFixed(2)} — this rating is soft`
+                          ? `This rating moves more than ${flagBootSd.toFixed(2)} when we rebuild the season — treat it as soft`
                           : undefined
                       }
                     >
@@ -445,13 +445,14 @@ export function RatingsClient({ rows, lastUpdated, minRounds, meaningfulDiff, fl
           maxWidth: 720,
         }}
       >
-        <strong>aNPPR</strong> ridge-solves every fighter&apos;s rating simultaneously, so it shrinks
-        low-round fighters toward league average by design. <strong>Δ</strong> is the gap from raw
-        NPPR — the movers are the story. <strong>90% Range</strong> is a bootstrap interval over 200
-        refits; a ⚠ marks a rating whose spread exceeds {flagBootSd.toFixed(2)}. Two fighters whose
-        ranges overlap are not distinguishable.{' '}
+        <strong>aNPPR</strong> rates every fighter against each other at once. Fighters with few
+        rounds get pulled toward average on purpose. <strong>Δ</strong> is how far that moves them
+        from their raw NPPR — the big movers are the interesting ones.{' '}
+        <strong>90% Range</strong> is how much the rating shifts when we rebuild the season 200
+        times; a ⚠ marks the wobbliest ones. If two fighters&apos; ranges overlap, treat them as
+        tied.{' '}
         <Link href="/stats/ratings" style={{ color: 'var(--tbl-accent)' }}>
-          Full methodology →
+          How this works →
         </Link>
       </p>
     </div>

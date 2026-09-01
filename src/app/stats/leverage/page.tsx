@@ -277,9 +277,9 @@ export default async function LeverageMethodologyPage() {
             mattered.
           </p>
           <p style={prose}>
-            Contrast <strong>Erika Sanchez</strong>, whose +1.54 WPA comfortably exceeds her
-            +1.09 context-neutral value — a Clutch of <strong>+0.45</strong>. Same league, same
-            model, opposite story.
+            Now take <strong>Erika Sanchez</strong>. Her +1.54 WPA is well clear of the +1.09 the
+            same results would have been worth in ordinary rounds — a Clutch of{' '}
+            <strong>+0.45</strong>. Same league, opposite story.
           </p>
           <p style={proseSmall}>
             Both are on the{' '}

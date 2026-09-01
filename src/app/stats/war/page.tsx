@@ -61,11 +61,13 @@ export default async function WarMethodologyPage() {
       <div style={{ maxWidth: 720 }}>
         <Section title="What WAR Measures">
           <p style={prose}>
-            WAR — Wins Above Replacement — measures a fighter&apos;s total impact in terms of
-            team wins added over a <em>replacement-level</em> fighter: the kind of fighter a
-            team could plug in off the bench. A WAR of 2.0 means &quot;this fighter&apos;s
-            rounds were worth about two more team wins than a replacement would have
-            delivered in the same rounds.&quot;
+            WAR asks a simple question: how many wins did this fighter add, compared to the
+            kind of fighter a team could easily find to replace them?
+            <br />
+            <br />
+            A WAR of 2.0 means their rounds were worth about two extra wins for the team. An
+            easily-replaced fighter, in exactly those same rounds, would have delivered two
+            fewer.
           </p>
           <p style={proseSmall}>
             WAR appears in the Advanced section of every{' '}
@@ -86,19 +88,18 @@ export default async function WarMethodologyPage() {
               points scored minus points conceded, divided by rounds fought.
             </li>
             <li style={{ marginBottom: 8 }}>
-              <strong>Replacement level.</strong> The 25th-percentile scoring rate across
-              every fighter in the league. That&apos;s the bar: production above it adds
-              value, production below it costs value.
+              <strong>The replacement bar.</strong> Line every fighter up by scoring rate and
+              take the one a quarter of the way from the bottom. That is the bar. Score above it
+              and you add value; below it and you cost your team.
             </li>
             <li>
-              <strong>Points per win.</strong> The league-wide average margin of victory in a
-              match. It converts a pile of net points into a number of team wins.
+              <strong>Points per win.</strong> The average margin a match is won by. This is what
+              turns a pile of points into a number of wins.
             </li>
           </ul>
           <p style={prose}>
-            Put together: how far above (or below) replacement level a fighter scores, scaled
-            by how many rounds they fought, converted into wins by the league&apos;s average
-            match margin. In formula form:{' '}
+            Put it together: take how far above the bar a fighter scores, multiply by how many
+            rounds they fought, then convert that into wins. In formula form:{' '}
             <span style={{ fontFamily: 'var(--tbl-font-mono)', fontSize: 13 }}>
               WAR = (NP/R − Replacement NP/R) × Rounds ÷ Avg Margin Per Match
             </span>
@@ -108,9 +109,9 @@ export default async function WarMethodologyPage() {
 
         <Section title="This Season's Constants">
           <p style={prose}>
-            One whole-season baseline is used everywhere — the yardstick never changes
-            between the regular season and the playoffs; only a fighter&apos;s own scoring
-            rate and rounds do:
+            The same two numbers are used everywhere on the site. The yardstick does not change
+            between the regular season and the playoffs — only a fighter&apos;s own scoring rate
+            and round count do:
           </p>
           <div
             style={{
@@ -121,8 +122,8 @@ export default async function WarMethodologyPage() {
             }}
           >
             {[
-              { l: 'Replacement NP/R (25th percentile)', v: baseline.replacementNppr.toFixed(3) },
-              { l: 'Avg Margin Per Match (points per win)', v: baseline.avgMargin.toFixed(2) },
+              { l: 'The replacement bar (NP/R)', v: baseline.replacementNppr.toFixed(3) },
+              { l: 'Points per win (avg match margin)', v: baseline.avgMargin.toFixed(2) },
             ].map((c) => (
               <div key={c.l} style={{ padding: '12px 14px', textAlign: 'center' }}>
                 <div

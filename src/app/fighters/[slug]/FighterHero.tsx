@@ -472,16 +472,17 @@ export function FighterHero({
                 color: 'var(--tbl-ink-soft)',
               }}
             >
-              SOS = average NPPR of the opponents faced, with every head-to-head round excluded ·
-              aNPPR = rating solved against the whole league at once.{' '}
+              SOS = how good their opponents were, not counting rounds against this fighter ·
+              aNPPR = net points per round once you account for who they fought.{' '}
               {rating ? (
                 <>
-                  90% range {signed3(rating.lo)} to {signed3(rating.hi)}
-                  {rating.uncertain ? ' — a wide one; treat this rating as soft' : ''}. Gaps under
-                  0.20 are not meaningful.{' '}
+                  The rating lands between {signed3(rating.lo)} and {signed3(rating.hi)} when we
+                  rebuild the season
+                  {rating.uncertain ? ' — a wide range, so treat it as soft' : ''}. Gaps under 0.20
+                  do not mean anything.{' '}
                 </>
               ) : null}
-              Both are full-season figures and do not follow the view toggle.{' '}
+              Both cover the whole season and do not change with the view toggle above.{' '}
               <Link href="/stats/ratings" style={{ color: 'var(--tbl-accent)' }}>
                 How it works →
               </Link>
@@ -504,10 +505,10 @@ export function FighterHero({
                 color: 'var(--tbl-ink-soft)',
               }}
             >
-              WAR = wins added over a replacement-level fighter · WPA = how much each round moved
-              the team&apos;s chance of winning · Avg LI = how important those rounds were (usage,
-              not performance) · Clutch = WPA above context-neutral. DQ rounds are excluded from
-              Avg LI and Clutch.{' '}
+              WAR = wins this fighter added over an easily replaced one · WPA = how much their
+              rounds moved the team&apos;s chance of winning · Avg LI = how big the moments were
+              they were put in (not how they did) · Clutch = whether their wins came in the rounds
+              that mattered. Disqualifications do not count toward Avg LI or Clutch.{' '}
               <Link href="/stats/war" style={{ color: 'var(--tbl-accent)' }}>
                 WAR →
               </Link>

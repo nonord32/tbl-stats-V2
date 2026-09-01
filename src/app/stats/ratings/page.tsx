@@ -88,17 +88,19 @@ export default async function RatingsMethodologyPage() {
       <div style={{ maxWidth: 720 }}>
         <Section title="The Problem">
           <p style={prose}>
-            Every other rate stat on this site treats beating the best fighter in the league exactly
-            the same as beating the worst. Net points per round counts what you did; it says nothing
-            about who you did it against. Two fighters can post the same NPPR having faced entirely
-            different opposition, and the box score will never tell you which one had the harder
-            season.
+            Beating the best fighter in the league is harder than beating the worst. Every other
+            stat on this site scores them the same.
           </p>
           <p style={prose}>
-            These two stats fix that from opposite directions. <strong>Strength of Schedule</strong>{' '}
-            describes who a fighter faced. <strong>Adjusted NPPR</strong> re-rates the fighter with
-            that opposition already accounted for. They are computed independently, by different
-            methods, and they answer different questions.
+            Net points per round counts what you did. It says nothing about who you did it to. Two
+            fighters can post the same number against completely different opposition, and the box
+            score will never tell you which one had the harder season.
+          </p>
+          <p style={prose}>
+            These two stats fix that from opposite ends.{' '}
+            <strong>Strength of Schedule</strong> tells you who a fighter had to face.{' '}
+            <strong>Adjusted NPPR</strong> re-scores the fighter with that already taken into
+            account.
           </p>
           <p style={proseSmall}>
             See them live on the{' '}
@@ -109,67 +111,69 @@ export default async function RatingsMethodologyPage() {
           </p>
         </Section>
 
-        <Section title="What SOS Measures">
+        <Section title="Strength of Schedule: Who You Fought">
           <p style={prose}>
-            The average quality of the opponents a fighter faced, measured by those opponents&apos;
-            net points per round. Above zero means a harder-than-average schedule; below zero means
-            an easier one. Opponents are weighted by how many rounds were actually fought against
-            them, so the fighter you met four times counts four times as much as the one you met
-            once.
+            Take everyone a fighter faced. Average how good they were, using their net points per
+            round. That is the fighter&apos;s Strength of Schedule.
+          </p>
+          <p style={prose}>
+            Above zero means a harder schedule than most. Below zero means an easier one. Opponents
+            you met four times count four times as much as one you met once.
           </p>
           {summary.toughest && summary.easiest && (
             <p style={prose}>
-              In {RATINGS_MODEL_VERSION.slice(0, 4)}, the toughest schedule in the league belonged to{' '}
-              <strong>{summary.toughest.name}</strong> at {signed(summary.toughest.sos)}, and the
-              easiest to <strong>{summary.easiest.name}</strong> at {signed(summary.easiest.sos)} —
-              a spread of {(summary.toughest.sos - summary.easiest.sos).toFixed(2)} points per round
-              between the two ends of the same league.
+              This season the hardest schedule went to <strong>{summary.toughest.name}</strong> at{' '}
+              {signed(summary.toughest.sos)}. The easiest went to{' '}
+              <strong>{summary.easiest.name}</strong> at {signed(summary.easiest.sos)}. That is a
+              gap of {(summary.toughest.sos - summary.easiest.sos).toFixed(2)} points a round
+              between two fighters in the same league.
             </p>
           )}
         </Section>
 
-        <Section title="Why We Exclude Head-to-Head Rounds">
+        <Section title="Why We Throw Out Your Own Rounds">
           <p style={prose}>
-            This is the part that makes the stat honest, and it is worth explaining plainly.
+            This is the part that makes the number trustworthy, so it is worth spelling out.
           </p>
           <p style={prose}>
-            If a fighter beats an opponent repeatedly, they push that opponent&apos;s numbers down.
-            Do the naive thing — average your opponents&apos; NPPR as it stands — and your own
-            beatings come back to make your schedule look weak. The better you are, the worse your
-            schedule appears. The stat would be punishing fighters for winning.
+            Beat someone four times and you drag their numbers down. Now average your
+            opponents&apos; numbers and your own beatings come back to bite you: your schedule looks
+            weak <em>because</em> you were good. The better you fight, the easier your season would
+            look.
           </p>
           <p style={prose}>
-            So when we work out how good your opponent was, we remove{' '}
-            <strong>every round they fought against you</strong> before computing their NPPR. We ask
-            what they did against the rest of the league, and judge your schedule on that.
+            So before we measure how good your opponent was, we throw out{' '}
+            <strong>every round they fought against you</strong>. We only look at how they did
+            against everybody else.
           </p>
           <p style={prose}>
-            TBL&apos;s Launch / Middle / Money structure makes this unusually severe. About half of
-            all fighter pairings repeat inside the same match, so opponents&apos; records are
-            heavily composed of rounds against you. Here is what the three options do to the
-            correlation between a fighter&apos;s own NPPR and their measured schedule strength —
-            which should be near zero, since being good and having a hard schedule are unrelated:
+            This matters more in TBL than in most leagues. About half of all match-ups repeat inside
+            the same match, so a big chunk of your opponent&apos;s season is rounds against you.
+          </p>
+          <p style={prose}>
+            Here is the proof it works. How good a fighter is should have nothing to do with how
+            hard their schedule looks. So this number should sit at zero:
           </p>
           <div style={{ overflowX: 'auto', margin: '6px 0 14px' }}>
             <table style={{ borderCollapse: 'collapse', minWidth: 360 }}>
               <thead>
                 <tr>
-                  <th style={{ ...monoTh, textAlign: 'left' }}>Method</th>
-                  <th style={monoTh}>corr(NPPR, SOS)</th>
+                  <th style={{ ...monoTh, textAlign: 'left' }}>How we measure the schedule</th>
+                  <th style={monoTh}>How much the fighter&apos;s own skill leaks in</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td style={{ ...monoTd, textAlign: 'left' }}>Naive average opponent NPPR</td>
+                  <td style={{ ...monoTd, textAlign: 'left' }}>Just average the opponents</td>
                   <td style={{ ...monoTd, color: 'var(--tbl-red)' }}>−0.569</td>
                 </tr>
                 <tr>
-                  <td style={{ ...monoTd, textAlign: 'left' }}>Exclude one round</td>
+                  <td style={{ ...monoTd, textAlign: 'left' }}>Throw out one round</td>
                   <td style={{ ...monoTd, color: 'var(--tbl-red)' }}>−0.344</td>
                 </tr>
                 <tr>
                   <td style={{ ...monoTd, textAlign: 'left' }}>
-                    <strong>Exclude all head-to-head rounds</strong>
+                    <strong>Throw out every shared round</strong>
                   </td>
                   <td style={{ ...monoTd, fontWeight: 700, color: 'var(--tbl-green)' }}>
                     {summary.corrNpprSos >= 0 ? '+' : '−'}
@@ -180,92 +184,94 @@ export default async function RatingsMethodologyPage() {
             </table>
           </div>
           <p style={proseSmall}>
-            The bottom row is computed live from this season, not typed in. If it ever drifts back
-            toward −0.5, the exclusion has broken.
+            Zero would be perfect. The bottom row is worked out live from this season, not typed in.
+            If it ever slides back toward −0.5, something has broken.
           </p>
         </Section>
 
-        <Section title="What aNPPR Measures">
+        <Section title="Adjusted NPPR: Rating Everyone At Once">
           <p style={prose}>
-            Adjusted NPPR takes a different route. Rather than rating fighters and then correcting
-            for schedule, it solves for everyone at once. Every round is evidence about two fighters
-            simultaneously — the margin tells you something about how good the winner is{' '}
-            <em>and</em> how good the loser is. Ask which set of ratings best explains all{' '}
-            {summary.pairedRounds.toLocaleString()} rounds of the season together, and that answer
-            is aNPPR.
+            Adjusted NPPR takes a different route. Instead of scoring fighters and then patching the
+            result, it works out everybody&apos;s rating together.
           </p>
           <p style={prose}>
-            It reorders things at the margin rather than reshuffling them — aNPPR and raw NPPR
-            correlate at {summary.corrNpprAnppr.toFixed(2)} across qualified fighters. The movers
-            are the story.
+            Think of it this way. Every round tells you something about{' '}
+            <em>both</em> fighters at the same time. Winning by three says you were good and says
+            your opponent was not. Do that across all{' '}
+            {summary.pairedRounds.toLocaleString()} rounds of the season at once, and you get one
+            set of ratings that fits the whole year.
+          </p>
+          <p style={prose}>
+            It does not blow up the leaderboard. Most fighters land close to where their raw numbers
+            put them. The ones who move are the interesting part.
           </p>
           {mover && (
             <p style={prose}>
-              <strong>{mover.name}</strong> is the clearest case. On raw net points per round he
-              reads as a losing fighter at {signed(mover.nppr)}. Account for who he was in the ring
-              with and he sits at {signed(mover.anppr)} — near league average. The box score was
-              describing his schedule, not him.
+              <strong>{mover.name}</strong> is the clearest example. His raw net points per round is{' '}
+              {signed(mover.nppr)}, which reads like a losing fighter. Account for who he was in
+              there with and he sits at {signed(mover.anppr)} — right around league average. The box
+              score was describing his schedule, not him.
             </p>
           )}
         </Section>
 
-        <Section title="How Precise It Is">
+        <Section title="How Sure Are We?">
           <p style={prose}>
-            Most sites publish a rating and let you assume it is exact. This one tells you how much
-            of it is real.
+            Most sites give you a rating and let you assume it is exact. Here is how solid ours
+            actually is.
           </p>
           <p style={prose}>
-            We refit the whole model {RATINGS_MODEL.bootstrapSamples} times, each on a resampled
-            version of the season, and watch how far each fighter&apos;s rating moves. The typical
-            fighter&apos;s rating wobbles by about {summary.medianBootSd.toFixed(3)}, while the
-            ratings themselves are spread {summary.ratingsStdDev.toFixed(3)} apart. That is a
-            signal-to-noise ratio of roughly{' '}
-            <strong>{summary.signalToNoise.toFixed(2)}</strong> — the ratings carry about twice as
-            much signal as noise. Real, but not precise.
+            We rebuilt the whole thing {RATINGS_MODEL.bootstrapSamples} times, each time on a
+            slightly different version of the season, and watched how much each fighter&apos;s
+            rating moved. A typical rating wobbles by about {summary.medianBootSd.toFixed(2)} either
+            way. The ratings themselves are spread about {summary.ratingsStdDev.toFixed(2)} apart.
           </p>
           <p style={prose}>
-            The practical rule, and we would rather state it than have you infer it:{' '}
+            So there is roughly {summary.signalToNoise.toFixed(1)} times as much real signal as
+            wobble. That is genuinely useful — but it is not precise, and we would rather say so.
+          </p>
+          <p style={prose}>
+            The rule that follows:{' '}
             <strong>
-              rating differences smaller than about {RATINGS_MODEL.meaningfulDiff.toFixed(2)} are
-              not meaningful
+              gaps smaller than about {RATINGS_MODEL.meaningfulDiff.toFixed(2)} do not mean anything
             </strong>
-            . A fighter three spots higher on the leaderboard is frequently not better. Where two
-            fighters&apos; 90% ranges overlap, the ordering between them is close to arbitrary.
+            . A fighter three spots up the leaderboard is often not actually better. Every rating on
+            the site comes with a range; where two fighters&apos; ranges overlap, treat them as tied.
           </p>
           <p style={proseSmall}>
-            Every rating on the site ships with that range. On the leaderboard a ⚠ marks any fighter
-            whose spread exceeds {RATINGS_MODEL.flagBootSd.toFixed(2)}.
+            On the leaderboard, a ⚠ marks any fighter whose rating wobbles more than{' '}
+            {RATINGS_MODEL.flagBootSd.toFixed(2)} — those are the softest numbers on the page.
           </p>
         </Section>
 
-        <Section title="Cross-Division Rankings">
+        <Section title="Comparing Across Weight Classes">
           <p style={prose}>
-            We publish a pound-for-pound leaderboard as well as per-division views, and the reason
-            is worth stating because the intuition runs the other way.
+            We publish a pound-for-pound list as well as one per division. That sounds like the
+            shakier of the two, and we expected it to be. It is not.
           </p>
           <p style={prose}>
-            Comparing fighters across weight classes rests on the fighters who changed class during
-            the season — they are the links that tie the divisions to a common scale. That sounds
-            fragile. But the bootstrap says cross-division ranks are the{' '}
-            <em>more</em> stable ones: {summary.rankStabilityCross.toFixed(3)} pound-for-pound
-            against {summary.rankStabilityWithin.toFixed(3)} within a weight class. Inside a
-            division fighters sit closer together in quality, so a small perturbation reorders them
-            more easily.
+            Comparing across weight classes leans on the fighters who changed class during the
+            season — they are what ties the divisions to a common scale. When we rebuilt the ratings
+            over and over, though, the pound-for-pound order held up{' '}
+            <em>better</em> than the within-division order: {summary.rankStabilityCross.toFixed(2)}{' '}
+            against {summary.rankStabilityWithin.toFixed(2)}, where 1.00 means it never moved.
           </p>
           <p style={prose}>
-            <strong>One caveat that we will not bury.</strong> The bootstrap measures sampling
-            noise — it does not measure systematic bias. If the fighters who cross divisions are
-            unrepresentative, say because fighters who move up in weight tend to be the better ones,
-            that would shift a whole division&apos;s baseline and the bootstrap would never detect
-            it. The cross-division numbers are usable and their uncertainty is quantified; the
-            linkage assumption behind them is not testable with a single season of data.
+            The reason is simple. Fighters inside one division are closer in quality, so it takes
+            less to flip two of them.
+          </p>
+          <p style={prose}>
+            <strong>One warning we are not going to bury.</strong> Rebuilding the season over and
+            over catches random luck. It does not catch a whole division being mis-set. If fighters
+            who move up in weight tend to be the better ones, an entire division could sit too high
+            or too low and none of our checks would notice. One season of data cannot settle that.
           </p>
           {smallest && largest && smallest.weightClass !== largest.weightClass && (
             <p style={prose}>
-              Division size matters too, which is why the division filter shows the qualified count
-              for each. {largest.weightClass} has {largest.qualified} qualified fighters;{' '}
-              {smallest.weightClass} has {smallest.qualified}. A division leader over a field of{' '}
-              {smallest.qualified} should be read as exactly that.
+              Field size matters too, which is why the division menu shows how many fighters
+              qualified. {largest.weightClass} has {largest.qualified}. {smallest.weightClass} has{' '}
+              {smallest.qualified}. Leading a field of {smallest.qualified} should be read as
+              exactly that.
             </p>
           )}
         </Section>
@@ -278,21 +284,20 @@ export default async function RatingsMethodologyPage() {
               <Link href="/stats/leverage" style={{ color: 'var(--tbl-accent)' }}>
                 Leverage and Clutch
               </Link>{' '}
-              measure.
+              are for.
             </li>
             <li style={{ marginBottom: 8 }}>
-              <strong>aNPPR shrinks small samples toward league average on purpose.</strong> A
-              fighter with 11 rounds will read closer to zero than their raw numbers suggest. That
-              is the model declining to over-commit to thin evidence, not an error.
+              <strong>They pull thin records toward the middle on purpose.</strong> A fighter with
+              11 rounds will read closer to average than their raw numbers suggest. With that little
+              evidence, we would rather under-claim than over-claim.
             </li>
             <li style={{ marginBottom: 8 }}>
-              <strong>SOS is a description, not a verdict.</strong> A hard schedule is not an
-              achievement and an easy one is not a failing — it is mostly who the fixture list put
-              in front of you.
+              <strong>A hard schedule is not an achievement.</strong> Strength of Schedule describes
+              what happened to a fighter, not how good they are. Mostly it is just who the fixture
+              list put in front of them.
             </li>
             <li style={{ marginBottom: 8 }}>
-              <strong>One season only.</strong> Ratings are fit on this season alone and carry
-              nothing forward from any other.
+              <strong>This season only.</strong> Nothing carries over from any other year.
             </li>
           </ul>
         </Section>

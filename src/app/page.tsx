@@ -1258,7 +1258,7 @@ function AdvancedStats() {
       code: 'WPA',
       title: 'Win Probability Added',
       blurb:
-        'Every round, scored by how much it moved the team’s chance of winning the match. A round won with the match on the line is worth far more than one won in a blowout.',
+        'Scores every round by how much it moved the team’s chance of winning. A round won with the match on the line counts for far more than one won in a blowout.',
       links: [
         { label: 'Leaderboard →', href: '/wpa' },
         { label: 'How it works →', href: '/stats/wpa' },
@@ -1268,7 +1268,7 @@ function AdvancedStats() {
       code: 'LI',
       title: 'Leverage & Clutch',
       blurb:
-        'How much was at stake before each round, and whether a fighter’s results came in the moments that mattered. 1.00 is an average round; the ceiling is 6.63.',
+        'How much was riding on each round, and whether a fighter delivered in the ones that mattered. 1.00 is an ordinary round; 6.63 is as big as it gets.',
       links: [
         { label: 'Biggest moments →', href: '/moments' },
         { label: 'How it works →', href: '/stats/leverage' },
@@ -1278,7 +1278,7 @@ function AdvancedStats() {
       code: 'CB',
       title: 'Comebacks & Blown Leads',
       blurb:
-        'The lowest a winner’s win probability ever fell — and the highest a loser’s ever climbed. Under 25% counts as a comeback win, and as a blown lead on the other side.',
+        'How close the winner came to losing — and how close the loser came to winning. Fall under 25% and still win, and it counts as a comeback. On the other side, it’s a blown lead.',
       links: [
         { label: 'Biggest comebacks →', href: '/comebacks' },
         { label: 'How it works →', href: '/stats/comebacks' },
@@ -1288,7 +1288,7 @@ function AdvancedStats() {
       code: 'SOS',
       title: 'Adjusted NPPR & Schedule',
       blurb:
-        'Every other stat treats beating the best fighter the same as beating the worst. Adjusted NPPR rates all fighters against each other at once; Strength of Schedule says who they had to face.',
+        'Every other stat treats beating the best fighter the same as beating the worst. These two know the difference: one rates all fighters against each other at once, the other says who they had to face.',
       links: [
         { label: 'Leaderboard →', href: '/ratings' },
         { label: 'How it works →', href: '/stats/ratings' },
@@ -1298,14 +1298,14 @@ function AdvancedStats() {
       code: 'WAR',
       title: 'Wins Above Replacement',
       blurb:
-        'A fighter’s total impact in team wins added over a replacement-level fighter — scoring rate above the league’s 25th percentile, scaled by rounds and converted to wins.',
+        'How many wins a fighter added, compared to the kind of fighter a team could easily find to replace them.',
       links: [{ label: 'How it works →', href: '/stats/war' }],
     },
     {
       code: 'ABC',
       title: 'Stat Glossary',
       blurb:
-        'Net Points, NP/R, Extra Points, KO%, and every other number on the site — what each one means and how it’s counted.',
+        'Net Points, NP/R, KO%, and every other number on the site — what each one means, in plain English.',
       links: [{ label: 'Every stat defined →', href: '/stats/glossary' }],
     },
   ];

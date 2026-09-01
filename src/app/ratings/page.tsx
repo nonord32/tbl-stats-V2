@@ -61,17 +61,19 @@ export default async function RatingsPage() {
             margin: '14px 0 0',
           }}
         >
-          Net points per round says nothing about who you fought.{' '}
-          <strong>Adjusted NPPR</strong> solves for every fighter&apos;s rating at once across all{' '}
-          {summary.pairedRounds.toLocaleString()} rounds, so beating the best in the league counts
-          for more than beating the worst. <strong>Strength of Schedule</strong> is the average NPPR
-          of the opponents a fighter faced — with every head-to-head round removed, so nobody is
-          punished for being good.
+          Beating the best fighter in the league is harder than beating the worst. These two stats
+          are the only ones here that know the difference.
           <br />
           <br />
-          Ratings carry about {summary.signalToNoise.toFixed(1)}× as much signal as noise.{' '}
-          <strong>Differences under {RATINGS_MODEL.meaningfulDiff.toFixed(2)} are not
-          meaningful</strong> — a fighter three spots higher is frequently not better.{' '}
+          <strong>Adjusted NPPR</strong> rates every fighter against each other at once, across all{' '}
+          {summary.pairedRounds.toLocaleString()} rounds of the season.{' '}
+          <strong>Schedule</strong> is how good the opponents were that a fighter had to face.
+          <br />
+          <br />
+          <strong>
+            Gaps under {RATINGS_MODEL.meaningfulDiff.toFixed(2)} do not mean anything
+          </strong>{' '}
+          — a fighter three spots higher is often not better. Every rating shows its range.{' '}
           <Link href="/stats/ratings" style={{ color: 'var(--tbl-accent)' }}>
             How it works →
           </Link>
