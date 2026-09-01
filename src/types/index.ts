@@ -25,8 +25,10 @@ export interface FighterStat {
 // rebuild the fighter roster without the Fighter Stats tabs.
 export interface FighterIdentity {
   name: string;
-  team: string;
+  team: string;          // most-frequent team overall (used for the season view)
   gender: string;
+  regularTeam?: string;  // most-frequent team among regular-season bouts
+  playoffTeam?: string;  // most-frequent team among playoff bouts
 }
 
 export interface MatchRow {

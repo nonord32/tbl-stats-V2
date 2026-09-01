@@ -127,9 +127,18 @@ export function buildFighters(
     const decisions = wins + losses;
     const nppr = rounds > 0 ? netPts / rounds : 0;
 
+    // Team is scope-specific: the playoff view shows the fighter's playoff team,
+    // the regular view their regular-season team. Falls back to the overall team.
+    const team =
+      scope === 'regular'
+        ? identity.regularTeam ?? identity.team
+        : scope === 'playoffs'
+        ? identity.playoffTeam ?? identity.team
+        : identity.team;
+
     const fighter: FighterStat = {
       name: identity.name,
-      team: identity.team,
+      team,
       weightClass: '', // set below from full history
       gender: identity.gender,
       wins,

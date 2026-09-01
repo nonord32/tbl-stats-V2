@@ -337,20 +337,25 @@ function parseMatchData(rows: string[][]): {
 
   // Fighter identity (name/team/gender) captured from the fighter's own rows, so
   // the roster can be rebuilt from the Data tab alone (the per-bout history only
-  // stores the opponent's name/team). Team can theoretically vary across the
-  // season, so we tally per-team appearances and pick the most frequent.
+  // stores the opponent's name/team). Team is tallied per phase as well as
+  // overall, so a fighter who fought for a different team only in the playoffs
+  // shows that playoff team in the playoff view (see buildFighters).
   const fighterIdentity: Record<string, FighterIdentity> = {};
-  const teamCounts: Record<string, Record<string, number>> = {};
-  const recordIdentity = (fighter: string, ownTeam: string, gender: string) => {
+  type TeamTally = { all: Record<string, number>; regular: Record<string, number>; playoffs: Record<string, number> };
+  const teamTally: Record<string, TeamTally> = {};
+  const recordIdentity = (fighter: string, ownTeam: string, gender: string, phase: GamePhase) => {
     if (!fighter || fighter.trim().toUpperCase() === 'N/A') return;
     const slug = toSlug(fighter);
-    if (!teamCounts[slug]) teamCounts[slug] = {};
-    if (ownTeam) teamCounts[slug][ownTeam] = (teamCounts[slug][ownTeam] ?? 0) + 1;
+    if (!teamTally[slug]) teamTally[slug] = { all: {}, regular: {}, playoffs: {} };
+    if (ownTeam) {
+      teamTally[slug].all[ownTeam] = (teamTally[slug].all[ownTeam] ?? 0) + 1;
+      teamTally[slug][phase][ownTeam] = (teamTally[slug][phase][ownTeam] ?? 0) + 1;
+    }
     const prev = fighterIdentity[slug];
     fighterIdentity[slug] = {
       name: prev?.name || fighter,
       gender: prev?.gender || gender,
-      team: prev?.team || ownTeam, // finalized to the most-frequent team below
+      team: prev?.team || ownTeam, // finalized to the most-frequent teams below
     };
   };
 
@@ -482,8 +487,8 @@ function parseMatchData(rows: string[][]): {
         });
       };
 
-      recordIdentity(fighter1, team1, gender);
-      recordIdentity(fighter2, team2, gender);
+      recordIdentity(fighter1, team1, gender, gamePhase);
+      recordIdentity(fighter2, team2, gender, gamePhase);
       addHistory(fighter1, fighter2, team2, r1, netPts1);
       addHistory(fighter2, fighter1, team1, r2, netPts2);
     });
@@ -556,18 +561,24 @@ function parseMatchData(rows: string[][]): {
     teamMatches[team].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   });
 
-  // Finalize each fighter's team to the one they appeared for most often.
-  Object.keys(fighterIdentity).forEach((slug) => {
-    const counts = teamCounts[slug] || {};
-    let bestTeam = fighterIdentity[slug].team;
-    let best = -1;
+  // Finalize each fighter's team(s) to the one they appeared for most often —
+  // overall, and within each phase.
+  const mostFrequent = (counts: Record<string, number>): string | undefined => {
+    let best: string | undefined;
+    let bestN = -1;
     for (const [t, c] of Object.entries(counts)) {
-      if (c > best) {
-        best = c;
-        bestTeam = t;
+      if (c > bestN) {
+        bestN = c;
+        best = t;
       }
     }
-    fighterIdentity[slug].team = bestTeam;
+    return best;
+  };
+  Object.keys(fighterIdentity).forEach((slug) => {
+    const t = teamTally[slug] ?? { all: {}, regular: {}, playoffs: {} };
+    fighterIdentity[slug].team = mostFrequent(t.all) ?? fighterIdentity[slug].team;
+    fighterIdentity[slug].regularTeam = mostFrequent(t.regular);
+    fighterIdentity[slug].playoffTeam = mostFrequent(t.playoffs);
   });
 
   return { teamMatches, fighterHistory, fighterIdentity };
