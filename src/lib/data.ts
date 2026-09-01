@@ -940,7 +940,12 @@ export async function getFighterBySlug(slug: string) {
         fighter.team.startsWith(t.team)
     )?.team ?? fighter.team;
 
-  return { fighter, history, streak, fullTeamName, warRank };
+  // Per-phase stat objects for the profile's Regular/Playoffs toggle. Null when
+  // the fighter has no bouts in that phase.
+  const regular = data.fightersByPhase.regular.find((f) => f.slug === slug) ?? null;
+  const playoffs = data.fightersByPhase.playoffs.find((f) => f.slug === slug) ?? null;
+
+  return { fighter, regular, playoffs, history, streak, fullTeamName, warRank };
 }
 
 export async function getTeamBySlug(slug: string) {
