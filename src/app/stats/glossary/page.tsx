@@ -99,6 +99,33 @@ const TERMS: { section: string; terms: Term[] }[] = [
         ),
       },
       {
+        name: 'LI (Leverage Index)',
+        def: (
+          <>
+            How much win probability was at stake <em>before</em> a round — a property of the
+            situation, identical for both fighters. 1.00 is an average TBL round; the ceiling
+            is 6.63 (tied match, one round left). A fighter&apos;s average LI is a usage stat:
+            it says how big their spots were, not how well they did in them.{' '}
+            <Link href="/stats/leverage" style={{ color: 'var(--tbl-accent)' }}>
+              How Leverage works →
+            </Link>
+          </>
+        ),
+      },
+      {
+        name: 'Clutch',
+        def: (
+          <>
+            WPA minus what the same round results would have been worth at average leverage.
+            Positive means a fighter&apos;s wins landed in bigger spots than their losses.
+            Disqualification rounds are excluded from both Leverage and Clutch.{' '}
+            <Link href="/moments" style={{ color: 'var(--tbl-accent)' }}>
+              Biggest moments →
+            </Link>
+          </>
+        ),
+      },
+      {
         name: 'WPA (Win Probability Added)',
         def: (
           <>

@@ -1265,6 +1265,16 @@ function AdvancedStats() {
       ],
     },
     {
+      code: 'LI',
+      title: 'Leverage & Clutch',
+      blurb:
+        'How much was at stake before each round, and whether a fighter’s results came in the moments that mattered. 1.00 is an average round; the ceiling is 6.63.',
+      links: [
+        { label: 'Biggest moments →', href: '/moments' },
+        { label: 'How it works →', href: '/stats/leverage' },
+      ],
+    },
+    {
       code: 'WAR',
       title: 'Wins Above Replacement',
       blurb:

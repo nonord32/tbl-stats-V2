@@ -116,14 +116,18 @@ function wpaFighterRows(season: SeasonWpa): Cell[][] {
   const rows: Cell[][] = [
     ['WPA MODEL VERSION', WPA_MODEL_VERSION],
     ['NOTE', 'WPA = change in team win probability per round, credited to the round winner. DQ rounds credit neither fighter (their points still count on the scoreboard).'],
+    ['NOTE', 'LI (Leverage Index) = how much was at stake before the round; 1.00 is an average round. Clutch = WPA minus what the same results were worth at average leverage (cnWPA). DQ rounds are excluded from liRounds/avgLi/cnWpa/clutch, so liRounds can be lower than rounds.'],
     [],
-    ['slug', 'name', 'matches', 'rounds', 'roundWins', 'wpa', 'wpaPerRound', 'wpaRegular', 'wpaPlayoffs'],
+    ['slug', 'name', 'matches', 'rounds', 'roundWins', 'wpa', 'wpaPerRound', 'wpaRegular', 'wpaPlayoffs',
+     'liRounds', 'avgLi', 'cnWpa', 'clutch'],
   ];
   for (const f of [...season.byFighter.values()].sort((a, b) => b.wpa - a.wpa)) {
     rows.push([
       f.slug, f.name, f.matches, f.rounds, f.roundWins,
       Number(f.wpa.toFixed(4)), f.rounds > 0 ? Number((f.wpa / f.rounds).toFixed(4)) : 0,
       Number(f.wpaRegular.toFixed(4)), Number(f.wpaPlayoffs.toFixed(4)),
+      // liRounds EXCLUDES DQ rounds, so it can be lower than `rounds`.
+      f.liRounds, Number(f.avgLi.toFixed(4)), Number(f.cnWpa.toFixed(4)), Number(f.clutch.toFixed(4)),
     ]);
   }
   return rows;
@@ -134,7 +138,7 @@ function wpaRoundRows(season: SeasonWpa): Cell[][] {
   const rows: Cell[][] = [[
     'matchIndex', 'date', 'gamePhase', 'team1', 'team2', 'round', 'fighter1', 'fighter2',
     'score1', 'score2', 'diffBefore', 'diffAfter', 'wpBefore', 'wpAfter', 'teamWpa',
-    'fighter1Wpa', 'fighter2Wpa', 'isDq', 'attributed', 'scheduledRounds',
+    'fighter1Wpa', 'fighter2Wpa', 'li', 'roundMargin', 'cnWpa', 'isDq', 'attributed', 'scheduledRounds',
   ]];
   const matches = [...season.byMatch.values()].sort((a, b) => a.matchIndex - b.matchIndex);
   for (const m of matches) {
@@ -144,6 +148,7 @@ function wpaRoundRows(season: SeasonWpa): Cell[][] {
         r.score1, r.score2, r.diffBefore, r.diffAfter,
         Number(r.wpBefore.toFixed(6)), Number(r.wpAfter.toFixed(6)), Number(r.teamWpa.toFixed(6)),
         Number(r.fighter1Wpa.toFixed(6)), Number(r.fighter2Wpa.toFixed(6)),
+        Number(r.li.toFixed(4)), r.roundMargin, Number(r.cnWpa.toFixed(6)),
         r.isDq ? 'DQ' : '', r.attributed ? 'Y' : 'N', m.scheduledRounds,
       ]);
     }

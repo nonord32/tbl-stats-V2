@@ -40,12 +40,27 @@ export interface WpTable {
   rows: number[][]; // rows[r][d - dMin]
 }
 
+// Leverage Index table — same shape/range as the WP table. Row r === 0 is
+// unused (LI needs at least one round left to fight).
+export interface LiTable {
+  modelVersion: string;
+  season: number;
+  dMin: number;
+  dMax: number;
+  rMax: number;
+  liNormalizer: number;
+  rows: number[][]; // rows[r][d - dMin]
+}
+
 export interface WpaModelConfig {
   version: string;
   season: number;
   scheduledRounds: { default: number; overrides: Record<string, number> };
   excludedRounds: { matchIndex: number; round: number; reason?: string }[];
   matchFootnotes?: Record<string, string>;
+  // Context-neutral WPA by round margin — what the result would have been
+  // worth at exactly average leverage. Frozen 2026 constant.
+  cnWpaByMargin: Record<string, number>;
 }
 
 // ── Per-round / per-match / season outputs ───────────────────────────────────
@@ -58,6 +73,9 @@ export interface WpaRound {
   fighter2: string;
   score1: number;
   score2: number;
+  roundMargin: number; // score1 - score2, clamped to the margin scale (+/-4)
+  li: number;          // Leverage Index BEFORE the round — shared by both fighters
+  cnWpa: number;       // context-neutral WPA (team-1 perspective) for this margin
   method?: string;
   diffBefore: number;
   diffAfter: number;
@@ -94,6 +112,20 @@ export interface FighterWpa {
   wpa: number;         // post-adjustment season total
   wpaRegular: number;
   wpaPlayoffs: number;
+  // ── Leverage / Clutch (DQ rounds EXCLUDED — see rule 3) ──
+  liRounds: number;        // rounds counted toward LI/Clutch (excludes DQ)
+  liRoundsRegular: number;
+  liRoundsPlayoffs: number;
+  liSum: number;           // Σ LI over counted rounds
+  liSumRegular: number;
+  liSumPlayoffs: number;
+  avgLi: number;           // liSum / liRounds — a USAGE stat, not a performance one
+  cnWpa: number;           // Σ context-neutral WPA over counted rounds
+  cnWpaRegular: number;
+  cnWpaPlayoffs: number;
+  clutch: number;          // wpa − cnWpa
+  clutchRegular: number;
+  clutchPlayoffs: number;
   perRound: {
     matchIndex: number;
     date: string;
@@ -103,6 +135,8 @@ export interface FighterWpa {
     opponent: string;
     opponentTeam: string;
     wpa: number;
+    li: number;
+    cnWpa: number;
     isDq: boolean;
   }[];
 }
@@ -124,6 +158,9 @@ export interface SeasonWpa {
     // Post-adjustment:
     postAdjustmentFighterTotal: number; // ≠ 0 only by the unattributed DQ swing
     dqRoundsAllZero: boolean;
+    // Leverage / Clutch invariants — both must be 0 (± 1e-6).
+    cnWpaTotal: number;
+    clutchTotal: number;
   };
 }
 
@@ -150,11 +187,27 @@ export function wpLookup(table: WpTable, d: number, r: number): number {
   return table.rows[rc][dc - table.dMin];
 }
 
+// Leverage Index for the state entering a round: differential d with r rounds
+// remaining, r INCLUDING the round about to be fought. Same clamping as wpLookup.
+export function liLookup(table: LiTable, d: number, r: number): number {
+  const dc = Math.min(Math.max(Math.round(d), table.dMin), table.dMax);
+  const rc = Math.min(Math.max(r, 0), table.rMax);
+  return table.rows[rc][dc - table.dMin];
+}
+
+// Context-neutral WPA for a round margin: what the result would have been worth
+// at exactly average leverage. Margins outside the ±4 scoring scale are clamped.
+export function cnWpaFor(margin: number, config: WpaModelConfig): number {
+  const m = Math.min(Math.max(Math.round(margin), -4), 4);
+  return config.cnWpaByMargin[String(m)] ?? 0;
+}
+
 // ── Per-match WPA ────────────────────────────────────────────────────────────
 export function computeMatchWpa(
   match: MatchResult,
   table: WpTable,
   config: WpaModelConfig,
+  liTable: LiTable,
 ): MatchWpa {
   const N = scheduledRoundsFor(match.matchIndex, config);
   const excludedSet = new Set(
@@ -180,6 +233,11 @@ export function computeMatchWpa(
     const roundsAfter = N - t;
     const wpBefore = wpLookup(table, diffBefore, roundsBefore);
     const wpAfter = wpLookup(table, diffAfter, roundsAfter);
+    // roundsBefore already INCLUDES the round about to be fought — exactly the
+    // `r` the LI definition calls for. Both fighters share this value.
+    const li = liLookup(liTable, diffBefore, roundsBefore);
+    const roundMargin = Math.min(Math.max(Math.round(row.score1 - row.score2), -4), 4);
+    const cnWpa = cnWpaFor(roundMargin, config);
     const teamWpa = wpAfter - wpBefore;
 
     const isDq = isDqMethod(row.method);
@@ -196,6 +254,9 @@ export function computeMatchWpa(
       fighter2: row.fighter2,
       score1: row.score1,
       score2: row.score2,
+      roundMargin,
+      li,
+      cnWpa,
       method: row.method,
       diffBefore,
       diffAfter,
@@ -236,6 +297,7 @@ export function computeSeasonWpa(
   table: WpTable,
   config: WpaModelConfig,
   slugify: (name: string) => string,
+  liTable: LiTable,
 ): SeasonWpa {
   const byMatch = new Map<number, MatchWpa>();
   const byFighter = new Map<string, FighterWpa>();
@@ -249,9 +311,11 @@ export function computeSeasonWpa(
   let preAdjustmentFighterTotal = 0;
   let postAdjustmentFighterTotal = 0;
   let dqRoundsAllZero = true;
+  let cnWpaTotal = 0;
+  let clutchTotal = 0;
 
   for (const match of matches) {
-    const mw = computeMatchWpa(match, table, config);
+    const mw = computeMatchWpa(match, table, config, liTable);
     byMatch.set(match.matchIndex, mw);
     excludedRows += mw.excludedRows;
     roundsIncluded += mw.rounds.length;
@@ -274,9 +338,15 @@ export function computeSeasonWpa(
 
       if (!hasFighters) continue;
 
+      // Rule 3: DQ rounds are excluded from fighter-level LI and Clutch. They
+      // already produce zero WPA, so counting their leverage in the denominator
+      // would distort both stats. The round keeps its `li` for match-page display.
+      const countsForLi = !r.isDq;
+
       const record = (
         name: string,
         wpa: number,
+        cnWpa: number,
         wonRound: boolean,
         opponent: string,
         opponentTeam: string,
@@ -293,16 +363,44 @@ export function computeSeasonWpa(
             wpa: 0,
             wpaRegular: 0,
             wpaPlayoffs: 0,
+            liRounds: 0,
+            liRoundsRegular: 0,
+            liRoundsPlayoffs: 0,
+            liSum: 0,
+            liSumRegular: 0,
+            liSumPlayoffs: 0,
+            avgLi: 0,
+            cnWpa: 0,
+            cnWpaRegular: 0,
+            cnWpaPlayoffs: 0,
+            clutch: 0,
+            clutchRegular: 0,
+            clutchPlayoffs: 0,
             perRound: [],
           };
           byFighter.set(slug, f);
           fighterMatches.set(slug, new Set());
         }
+        const isPlayoff = mw.phase === 'playoffs';
         f.rounds++;
         if (wonRound) f.roundWins++;
         f.wpa += wpa;
-        if (mw.phase === 'playoffs') f.wpaPlayoffs += wpa;
+        if (isPlayoff) f.wpaPlayoffs += wpa;
         else f.wpaRegular += wpa;
+        if (countsForLi) {
+          f.liRounds++;
+          f.liSum += r.li;
+          f.cnWpa += cnWpa;
+          if (isPlayoff) {
+            f.liRoundsPlayoffs++;
+            f.liSumPlayoffs += r.li;
+            f.cnWpaPlayoffs += cnWpa;
+          } else {
+            f.liRoundsRegular++;
+            f.liSumRegular += r.li;
+            f.cnWpaRegular += cnWpa;
+          }
+        }
         fighterMatches.get(slug)!.add(mw.matchIndex);
         f.perRound.push({
           matchIndex: mw.matchIndex,
@@ -313,17 +411,27 @@ export function computeSeasonWpa(
           opponent: name === r.fighter1 ? r.fighter2 : r.fighter1,
           opponentTeam: name === r.fighter1 ? mw.team2 : mw.team1,
           wpa,
+          li: r.li,
+          cnWpa,
           isDq: r.isDq,
         });
       };
 
-      record(r.fighter1, r.fighter1Wpa, r.score1 > r.score2, r.fighter2, mw.team2);
-      record(r.fighter2, r.fighter2Wpa, r.score2 > r.score1, r.fighter1, mw.team1);
+      if (countsForLi) cnWpaTotal += r.cnWpa + -r.cnWpa;
+      record(r.fighter1, r.fighter1Wpa, r.cnWpa, r.score1 > r.score2, r.fighter2, mw.team2);
+      record(r.fighter2, r.fighter2Wpa, -r.cnWpa, r.score2 > r.score1, r.fighter1, mw.team1);
     }
   }
 
   for (const [slug, f] of byFighter) {
     f.matches = fighterMatches.get(slug)?.size ?? 0;
+    f.avgLi = f.liRounds > 0 ? f.liSum / f.liRounds : 0;
+    // Clutch = what actually happened minus what it would have been worth at
+    // average leverage. DQ rounds contribute 0 to both sides of this.
+    f.clutch = f.wpa - f.cnWpa;
+    f.clutchRegular = f.wpaRegular - f.cnWpaRegular;
+    f.clutchPlayoffs = f.wpaPlayoffs - f.cnWpaPlayoffs;
+    clutchTotal += f.clutch;
   }
 
   return {
@@ -341,6 +449,8 @@ export function computeSeasonWpa(
       preAdjustmentFighterTotal,
       postAdjustmentFighterTotal,
       dqRoundsAllZero,
+      cnWpaTotal,
+      clutchTotal,
     },
   };
 }

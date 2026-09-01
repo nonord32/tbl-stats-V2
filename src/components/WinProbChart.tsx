@@ -29,7 +29,18 @@ export function WinProbChart({
   // Points: round 0 at the pre-match 50%, then each round's post-round WP.
   const pts: [number, number][] = [[x(0), y(rounds[0].wpBefore)]];
   for (const r of rounds) pts.push([x(r.round), y(r.wpAfter)]);
-  const line = pts.map(([px, py]) => `${px.toFixed(1)},${py.toFixed(1)}`).join(' ');
+
+  // Each segment is drawn separately with its stroke weight scaled by that
+  // round's Leverage Index, so the high-stakes stretch of the match reads at a
+  // glance. LI 1.00 is an average round; the ceiling is 6.63.
+  const segments = rounds.map((r, i) => ({
+    from: pts[i],
+    to: pts[i + 1],
+    li: r.li,
+    round: r.round,
+  }));
+  const strokeFor = (li: number) => Math.min(6.5, 1.4 + Math.sqrt(Math.max(li, 0)) * 1.5);
+  const peak = rounds.reduce((best, r) => (r.li > best.li ? r : best));
 
   const final = rounds[rounds.length - 1];
   const gridP = [0, 0.25, 0.5, 0.75, 1];
@@ -116,15 +127,43 @@ export function WinProbChart({
         {team2Label.toUpperCase()} WINNING
       </text>
 
-      {/* the win-probability line */}
-      <polyline
-        points={line}
-        fill="none"
-        stroke="var(--tbl-accent)"
-        strokeWidth={2.25}
-        strokeLinejoin="round"
-        strokeLinecap="round"
+      {/* highest-leverage round of the match */}
+      <line
+        x1={x(peak.round - 1)}
+        x2={x(peak.round - 1)}
+        y1={PAD.top}
+        y2={H - PAD.bottom}
+        stroke="var(--tbl-ink-soft)"
+        strokeWidth={1}
+        strokeDasharray="2 3"
+        opacity={0.7}
       />
+      <text
+        x={x(peak.round - 1) + 4}
+        y={PAD.top + 24}
+        style={{
+          fontFamily: 'var(--tbl-font-mono)',
+          fontSize: 8,
+          letterSpacing: '0.12em',
+          fill: 'var(--tbl-ink-soft)',
+        }}
+      >
+        {`BIGGEST · R${peak.round} · LI ${peak.li.toFixed(2)}`}
+      </text>
+
+      {/* the win-probability line, thickened where leverage was highest */}
+      {segments.map((seg) => (
+        <line
+          key={seg.round}
+          x1={seg.from[0]}
+          y1={seg.from[1]}
+          x2={seg.to[0]}
+          y2={seg.to[1]}
+          stroke="var(--tbl-accent)"
+          strokeWidth={strokeFor(seg.li)}
+          strokeLinecap="round"
+        />
+      ))}
       {/* endpoint dot */}
       <circle cx={x(final.round)} cy={y(final.wpAfter)} r={3.5} fill="var(--tbl-accent)" />
     </svg>

@@ -93,6 +93,12 @@ export default async function MatchPage({
   );
   const wpaOf = (row: { round: number; roundId?: number }) =>
     wpaRounds.get(row.roundId ?? -row.round);
+  // The single highest-leverage round of the match — marked in the table and
+  // on the win-probability chart.
+  const peakLiRound =
+    matchWpa && matchWpa.rounds.length > 0
+      ? matchWpa.rounds.reduce((best, r) => (r.li > best.li ? r : best)).round
+      : null;
 
   // For playoff games, label the round (Quarterfinals / Semifinals / MegaBrawl)
   // instead of the week number.
@@ -538,7 +544,10 @@ export default async function MatchPage({
       {/* Win Probability — team 1's chance of winning, round by round */}
       {matchWpa && matchWpa.rounds.length > 0 && (
         <div style={{ padding: '18px 32px 8px' }}>
-          <SectionRule left="Win Probability" right={`WPA model ${WPA_MODEL_VERSION}`} />
+          <SectionRule
+            left="Win Probability"
+            right={`Line weight = leverage · WPA model ${WPA_MODEL_VERSION}`}
+          />
           <WinProbChart wpa={matchWpa} team1Label={team1Abbr} team2Label={team2Abbr} />
           <div
             style={{
@@ -554,9 +563,14 @@ export default async function MatchPage({
             }}
           >
             <span>
-              Each round&apos;s swing is credited to its fighters as WPA — see the table below.{' '}
+              Each round&apos;s swing is credited to its fighters as WPA — see the table below.
+              The line thickens where the leverage was highest.{' '}
               <Link href="/stats/wpa" style={{ color: 'var(--tbl-accent)' }}>
                 How WPA works →
+              </Link>
+              {'  ·  '}
+              <Link href="/stats/leverage" style={{ color: 'var(--tbl-accent)' }}>
+                Leverage →
               </Link>
             </span>
           </div>
@@ -682,7 +696,7 @@ export default async function MatchPage({
                         <span>{team2Abbr}</span>
                       </div>
                     </th>
-                    <th colSpan={matchWpa ? 2 : 1} />
+                    <th colSpan={matchWpa ? 3 : 1} />
                   </tr>
                   <tr style={{ borderBottom: '2px solid var(--tbl-ink)' }}>
                     {[
@@ -693,7 +707,12 @@ export default async function MatchPage({
                       { label: 'Pts', align: 'center' as const },
                       { label: 'Fighter', align: 'left' as const },
                       { label: 'Method', align: 'left' as const },
-                      ...(matchWpa ? [{ label: 'WPA', align: 'right' as const }] : []),
+                      ...(matchWpa
+                        ? [
+                            { label: 'WPA', align: 'right' as const },
+                            { label: 'LI', align: 'right' as const },
+                          ]
+                        : []),
                     ].map((h, idx) => (
                       <th
                         key={idx}
@@ -831,6 +850,33 @@ export default async function MatchPage({
                             </td>
                           );
                         })()}
+                        {matchWpa && (() => {
+                          const w = wpaOf(row);
+                          const isPeak = w != null && peakLiRound === row.round;
+                          return (
+                            <td
+                              style={{
+                                ...cellBase,
+                                textAlign: 'right',
+                                whiteSpace: 'nowrap',
+                                fontWeight: isPeak ? 700 : 400,
+                                color: isPeak ? 'var(--tbl-accent)' : 'var(--tbl-ink-soft)',
+                              }}
+                              title={
+                                w == null
+                                  ? undefined
+                                  : `Leverage Index — how much was at stake before this round (1.00 = average)`
+                              }
+                            >
+                              {w == null ? '—' : w.li.toFixed(2)}
+                              {isPeak && (
+                                <div style={{ fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                                  biggest
+                                </div>
+                              )}
+                            </td>
+                          );
+                        })()}
                       </tr>
                     );
                   })}
@@ -874,7 +920,7 @@ export default async function MatchPage({
                     >
                       {totalB.toFixed(1)}
                     </td>
-                    <td colSpan={matchWpa ? 3 : 2} />
+                    <td colSpan={matchWpa ? 4 : 2} />
                   </tr>
                 </tbody>
               </table>
@@ -916,9 +962,14 @@ export default async function MatchPage({
                           return <span style={{ color: 'var(--tbl-ink-mute)' }}> · WPA DQ</span>;
                         }
                         return (
-                          <span style={{ color: w.teamWpa >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)' }}>
-                            {` · WPA ${w.teamWpa >= 0 ? '+' : ''}${w.teamWpa.toFixed(2)}`}
-                          </span>
+                          <>
+                            <span style={{ color: w.teamWpa >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)' }}>
+                              {` · WPA ${w.teamWpa >= 0 ? '+' : ''}${w.teamWpa.toFixed(2)}`}
+                            </span>
+                            <span style={{ color: peakLiRound === row.round ? 'var(--tbl-accent)' : 'var(--tbl-ink-soft)' }}>
+                              {` · LI ${w.li.toFixed(2)}`}
+                            </span>
+                          </>
                         );
                       })()}
                     </span>

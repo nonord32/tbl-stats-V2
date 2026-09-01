@@ -127,10 +127,19 @@ function StatStrip({
   );
 }
 
+export interface WpaScope {
+  total: number;
+  perRound: number;
+  // Leverage / Clutch. liRounds excludes DQ rounds, so it can be lower than
+  // the fighter's WPA round count.
+  avgLi: number;
+  liRounds: number;
+  clutch: number;
+}
 export interface WpaScopes {
-  all: { total: number; perRound: number };
-  regular: { total: number; perRound: number };
-  playoffs: { total: number; perRound: number };
+  all: WpaScope;
+  regular: WpaScope;
+  playoffs: WpaScope;
 }
 
 export function FighterHero({
@@ -201,6 +210,23 @@ export function FighterHero({
           sub: `${activeWpa.perRound >= 0 ? '+' : ''}${activeWpa.perRound.toFixed(3)} per round`,
         }
       : { l: 'WPA', v: '—', color: 'var(--tbl-ink-soft)', sub: 'no rounds credited' },
+    // Average Leverage is a USAGE stat — how important the rounds they were put
+    // in were. A high number is not an achievement; the sub-label says so.
+    activeWpa && activeWpa.liRounds > 0
+      ? {
+          l: 'Avg Leverage',
+          v: activeWpa.avgLi.toFixed(2),
+          sub: `how big their ${activeWpa.liRounds} rounds were · 1.00 = average`,
+        }
+      : { l: 'Avg Leverage', v: '—', color: 'var(--tbl-ink-soft)', sub: 'usage, not performance' },
+    activeWpa && activeWpa.liRounds > 0
+      ? {
+          l: 'Clutch',
+          v: `${activeWpa.clutch >= 0 ? '+' : ''}${activeWpa.clutch.toFixed(3)}`,
+          color: activeWpa.clutch >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)',
+          sub: 'WPA above context-neutral',
+        }
+      : { l: 'Clutch', v: '—', color: 'var(--tbl-ink-soft)', sub: 'no counted rounds' },
   ];
 
   return (
@@ -330,13 +356,19 @@ export function FighterHero({
           }}
         >
           WAR = wins added over a replacement-level fighter · WPA = how much each round moved
-          the team&apos;s chance of winning.{' '}
+          the team&apos;s chance of winning · Avg Leverage = how important those rounds were
+          (usage, not performance) · Clutch = WPA minus what the same results were worth at
+          average leverage. Disqualification rounds are excluded from Leverage and Clutch.{' '}
           <Link href="/stats/war" style={{ color: 'var(--tbl-accent)' }}>
             How WAR works →
           </Link>
           {'  ·  '}
           <Link href="/stats/wpa" style={{ color: 'var(--tbl-accent)' }}>
             How WPA works →
+          </Link>
+          {'  ·  '}
+          <Link href="/stats/leverage" style={{ color: 'var(--tbl-accent)' }}>
+            How Leverage &amp; Clutch work →
           </Link>
         </div>
       </div>

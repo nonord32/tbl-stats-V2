@@ -74,14 +74,33 @@ export default async function FighterPage({
     const playoffRounds = fighterWpa.rounds - regularRounds;
     const rate = (total: number, rounds: number) => (rounds > 0 ? total / rounds : 0);
     return {
-      all: { total: fighterWpa.wpa, perRound: rate(fighterWpa.wpa, fighterWpa.rounds) },
-      regular: { total: fighterWpa.wpaRegular, perRound: rate(fighterWpa.wpaRegular, regularRounds) },
-      playoffs: { total: fighterWpa.wpaPlayoffs, perRound: rate(fighterWpa.wpaPlayoffs, playoffRounds) },
+      all: {
+        total: fighterWpa.wpa,
+        perRound: rate(fighterWpa.wpa, fighterWpa.rounds),
+        avgLi: fighterWpa.avgLi,
+        liRounds: fighterWpa.liRounds,
+        clutch: fighterWpa.clutch,
+      },
+      regular: {
+        total: fighterWpa.wpaRegular,
+        perRound: rate(fighterWpa.wpaRegular, regularRounds),
+        avgLi: rate(fighterWpa.liSumRegular, fighterWpa.liRoundsRegular),
+        liRounds: fighterWpa.liRoundsRegular,
+        clutch: fighterWpa.clutchRegular,
+      },
+      playoffs: {
+        total: fighterWpa.wpaPlayoffs,
+        perRound: rate(fighterWpa.wpaPlayoffs, playoffRounds),
+        avgLi: rate(fighterWpa.liSumPlayoffs, fighterWpa.liRoundsPlayoffs),
+        liRounds: fighterWpa.liRoundsPlayoffs,
+        clutch: fighterWpa.clutchPlayoffs,
+      },
     };
   })();
   const wpaRoundKey = (matchIndex: number, roundId: number | undefined, round: number) =>
     `${matchIndex}:${roundId ?? `r${round}`}`;
   const wpaByRound: Record<string, number> = {};
+  const liByRound: Record<string, number> = {};
   let bestKey: string | undefined;
   let worstKey: string | undefined;
   if (fighterWpa) {
@@ -90,6 +109,7 @@ export default async function FighterPage({
     for (const p of fighterWpa.perRound) {
       const key = wpaRoundKey(p.matchIndex, p.roundId, p.round);
       wpaByRound[key] = p.wpa;
+      if (!p.isDq) liByRound[key] = p.li;
       if (p.wpa > best) {
         best = p.wpa;
         bestKey = key;
@@ -182,6 +202,7 @@ export default async function FighterPage({
         history={history}
         roundLabels={roundLabels}
         wpaByRound={wpaByRound}
+        liByRound={liByRound}
         wpaBestKey={bestKey}
         wpaWorstKey={worstKey}
       />

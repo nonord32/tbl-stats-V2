@@ -14,6 +14,7 @@ export function FightHistory({
   history,
   roundLabels = {},
   wpaByRound = {},
+  liByRound = {},
   wpaBestKey,
   wpaWorstKey,
 }: {
@@ -22,6 +23,8 @@ export function FightHistory({
   roundLabels?: Record<number, string>;
   // matchIndex:roundId → this fighter's WPA for that bout (see fighters/[slug]/page.tsx)
   wpaByRound?: Record<string, number>;
+  // matchIndex:roundId → Leverage Index for that bout (DQ rounds omitted)
+  liByRound?: Record<string, number>;
   wpaBestKey?: string; // key of the fighter's single biggest positive round
   wpaWorstKey?: string; // ... and biggest negative round
 }) {
@@ -59,6 +62,7 @@ export function FightHistory({
   // Join key into wpaByRound — must mirror wpaRoundKey in fighters/[slug]/page.tsx.
   const wpaKey = (h: FightHistoryEntry) => `${h.matchIndex}:${h.roundId}`;
   const hasWpa = Object.keys(wpaByRound).length > 0;
+  const hasLi = Object.keys(liByRound).length > 0;
   const fmtWpa = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(3)}`;
   const wpaMarker = (key: string): { label: string; color: string } | null => {
     if (key === wpaBestKey) return { label: '▲ best', color: 'var(--tbl-green)' };
@@ -115,6 +119,9 @@ export function FightHistory({
                   </span>
                 )}
               </>
+            )}
+            {hasLi && liByRound[wpaKey(h)] != null && (
+              <> · LI {liByRound[wpaKey(h)].toFixed(2)}</>
             )}
           </div>
         </div>
@@ -235,6 +242,14 @@ export function FightHistory({
               ) : (
                 <span style={{ color: 'var(--tbl-ink-mute)' }}>—</span>
               )}
+            </td>
+          );
+        })()}
+        {hasLi && (() => {
+          const li = liByRound[wpaKey(h)];
+          return (
+            <td style={{ padding: '10px 6px', textAlign: 'right', color: 'var(--tbl-ink-soft)' }}>
+              {li != null ? li.toFixed(2) : <span style={{ color: 'var(--tbl-ink-mute)' }}>—</span>}
             </td>
           );
         })()}
@@ -360,6 +375,7 @@ export function FightHistory({
                         ['Result', 'right'],
                         ['Net', 'right'],
                         ...(hasWpa ? ([['WPA', 'right']] as [string, 'left' | 'right'][]) : []),
+                        ...(hasLi ? ([['LI', 'right']] as [string, 'left' | 'right'][]) : []),
                       ] as [string, 'left' | 'right'][]).map(([h, align]) => (
                         <th
                           key={h}
@@ -384,7 +400,7 @@ export function FightHistory({
                         {g.label && (
                           <tr>
                             <td
-                              colSpan={hasWpa ? 8 : 7}
+                              colSpan={7 + (hasWpa ? 1 : 0) + (hasLi ? 1 : 0)}
                               style={{
                                 padding: '16px 6px 6px',
                                 borderBottom: '1.5px solid var(--tbl-ink)',

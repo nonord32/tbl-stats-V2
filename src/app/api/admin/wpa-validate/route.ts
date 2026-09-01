@@ -5,7 +5,7 @@
 // special-case matches, and the reference fighter totals from the model spec.
 // Same RESOLVE_SECRET bearer auth as the other admin routes.
 import { getAllData } from '@/lib/data';
-import { getWpaData, WPA_MODEL, WPA_MODEL_VERSION } from '@/lib/wpa';
+import { getWpaData, WPA_MODEL, WPA_MODEL_VERSION, type FighterWpa } from '@/lib/wpa';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,6 +71,36 @@ export async function GET(request: Request) {
     m25 ? `team1Total=${m25.team1Total.toExponential(3)}, outcome=${m25.outcome}` : 'match 25 not found',
   );
 
+  // ── Leverage / Clutch invariants ──
+  add(
+    'Σ cnWPA across all fighter-rounds == 0.000 (tol 1e-6)',
+    Math.abs(v.cnWpaTotal) < 1e-6,
+    `Σ = ${v.cnWpaTotal.toExponential(3)}`,
+  );
+  add(
+    'Σ Clutch across all fighters == 0.000 (tol 1e-6)',
+    Math.abs(v.clutchTotal) < 1e-6,
+    `Σ = ${v.clutchTotal.toExponential(3)}`,
+  );
+  {
+    // Both fighters in any round must face identical LI, and DQ rounds must be
+    // excluded from fighter LI/Clutch while keeping their own LI for display.
+    let liMismatch = 0;
+    let dqWithLiCredit = 0;
+    for (const m of season.byMatch.values()) {
+      for (const r of m.rounds) {
+        if (!Number.isFinite(r.li)) liMismatch++;
+        if (r.isDq && r.li <= 0) dqWithLiCredit++;
+      }
+    }
+    add('Every round carries a finite LI shared by both fighters', liMismatch === 0, `${liMismatch} bad`);
+    add(
+      'DQ rounds still carry an LI for match-page display',
+      dqWithLiCredit === 0,
+      `${dqWithLiCredit} DQ round(s) missing an LI`,
+    );
+  }
+
   // ── Reference fighter totals from the model spec ──
   const byName = new Map<string, number>();
   for (const f of season.byFighter.values()) byName.set(f.name.toLowerCase(), f.wpa);
@@ -84,6 +114,52 @@ export async function GET(request: Request) {
     referenceResults.every((r) => r.pass),
     `${referenceResults.filter((r) => r.pass).length}/${referenceResults.length} match`,
   );
+
+  // ── Leverage / Clutch reference fighters (rounds here EXCLUDE DQ rounds) ──
+  const byNameFull = new Map<string, FighterWpa>();
+  for (const f of season.byFighter.values()) byNameFull.set(f.name.toLowerCase(), f);
+  const liReferenceResults = WPA_MODEL.liReferenceTotals.map((ref) => {
+    const f = byNameFull.get(ref.name.toLowerCase());
+    const near = (got: number | undefined, want: number, tol = 5e-4) =>
+      got != null && Math.abs(got - want) < tol;
+    const pass =
+      !!f &&
+      f.liRounds === ref.rounds &&
+      near(f.avgLi, ref.avgLi) &&
+      near(f.wpa, ref.wpa) &&
+      near(f.cnWpa, ref.cnWpa) &&
+      near(f.clutch, ref.clutch);
+    return {
+      name: ref.name,
+      expected: ref,
+      got: f
+        ? {
+            rounds: f.liRounds,
+            wpaRounds: f.rounds,
+            avgLi: Number(f.avgLi.toFixed(3)),
+            wpa: Number(f.wpa.toFixed(3)),
+            cnWpa: Number(f.cnWpa.toFixed(3)),
+            clutch: Number(f.clutch.toFixed(3)),
+          }
+        : null,
+      pass,
+    };
+  });
+  add(
+    'Leverage / Clutch reference fighters match to 3 decimals',
+    liReferenceResults.every((r) => r.pass),
+    `${liReferenceResults.filter((r) => r.pass).length}/${liReferenceResults.length} match`,
+  );
+
+  // Steven Sumpter is the documented DQ case: 13 WPA rounds, 12 LI/Clutch rounds.
+  {
+    const sumpter = byNameFull.get('steven sumpter');
+    add(
+      'Sumpter shows 13 WPA rounds but 12 LI/Clutch rounds (DQ excluded)',
+      !!sumpter && sumpter.rounds === 13 && sumpter.liRounds === 12,
+      sumpter ? `rounds=${sumpter.rounds}, liRounds=${sumpter.liRounds}` : 'not found',
+    );
+  }
 
   const allPass = checks.every((c) => c.pass);
   return new Response(
@@ -101,6 +177,7 @@ export async function GET(request: Request) {
         },
         checks,
         referenceResults,
+        liReferenceResults,
       },
       null,
       2,

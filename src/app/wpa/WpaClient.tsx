@@ -18,9 +18,20 @@ export interface WpaRow {
   roundWins: number;
   wpa: number;
   wpaPerRound: number;
+  avgLi: number;
+  liRounds: number; // rounds counted toward LI/Clutch — excludes DQ rounds
+  clutch: number;
 }
 
-type SortKey = 'wpa' | 'wpaPerRound' | 'rounds' | 'roundWins' | 'matches' | 'name';
+type SortKey =
+  | 'wpa'
+  | 'wpaPerRound'
+  | 'avgLi'
+  | 'clutch'
+  | 'rounds'
+  | 'roundWins'
+  | 'matches'
+  | 'name';
 
 const MIN_ROUNDS = 10;
 
@@ -82,7 +93,7 @@ export function WpaClient({ rows, lastUpdated }: { rows: WpaRow[]; lastUpdated?:
   return (
     <div style={{ padding: '20px 32px 40px' }}>
       <SectionRule
-        left={`WPA Leaderboard · ${sorted.length} Fighters`}
+        left={`Advanced Leaderboard · ${sorted.length} Fighters`}
         right={lastUpdated ? `Updated ${lastUpdated}` : undefined}
       />
       <div
@@ -117,7 +128,7 @@ export function WpaClient({ rows, lastUpdated }: { rows: WpaRow[]; lastUpdated?:
             color: 'var(--tbl-ink-soft)',
           }}
         >
-          Click any column to sort
+          Click any column to sort · Rds counts every round; Avg LI and Clutch exclude DQ rounds
         </span>
       </div>
 
@@ -142,6 +153,8 @@ export function WpaClient({ rows, lastUpdated }: { rows: WpaRow[]; lastUpdated?:
               {th('roundWins', 'Rd Wins', 'right')}
               {th('wpa', 'Total WPA', 'right', 'Season Win Probability Added')}
               {th('wpaPerRound', 'WPA / Rd', 'right', 'WPA per round fought')}
+              {th('avgLi', 'Avg LI', 'right', 'Average Leverage Index of the rounds they fought — usage, not performance. 1.00 is an average TBL round. Excludes DQ rounds.')}
+              {th('clutch', 'Clutch', 'right', 'WPA minus what the same results were worth at average leverage. Excludes DQ rounds.')}
             </tr>
           </thead>
           <tbody>
@@ -191,6 +204,22 @@ export function WpaClient({ rows, lastUpdated }: { rows: WpaRow[]; lastUpdated?:
                     }}
                   >
                     {fmtWpa(r.wpaPerRound)}
+                  </td>
+                  <td
+                    style={{ padding: '9px 8px', textAlign: 'right', color: 'var(--tbl-ink-soft)' }}
+                    title={`${r.liRounds} rounds counted`}
+                  >
+                    {r.liRounds > 0 ? r.avgLi.toFixed(2) : '—'}
+                  </td>
+                  <td
+                    style={{
+                      padding: '9px 8px',
+                      textAlign: 'right',
+                      fontWeight: 700,
+                      color: r.clutch >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)',
+                    }}
+                  >
+                    {r.liRounds > 0 ? fmtWpa(r.clutch) : '—'}
                   </td>
                 </tr>
               );

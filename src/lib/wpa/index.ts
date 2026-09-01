@@ -15,27 +15,44 @@ import {
   computeSeasonWpa,
   computeMatchWpa,
   wpLookup,
+  liLookup,
+  cnWpaFor,
   type WpTable,
+  type LiTable,
   type WpaModelConfig,
   type SeasonWpa,
   type MatchWpa,
   type FighterWpa,
 } from './core';
 import tableJson from './wp-table-2026.json';
+import liTableJson from './li-table-2026.json';
 import modelJson from './wpa-model-2026.json';
 
 export const WPA_TABLE = tableJson as WpTable;
+export const LI_TABLE = liTableJson as LiTable;
 export const WPA_MODEL = modelJson as unknown as WpaModelConfig & {
   gamma: number;
   marginDistribution: Record<string, number>;
   dqRuleReason: string;
   referenceTotals: { name: string; wpa: number }[];
   checksums: { d: number; r: number; wp: number }[];
+  // Frozen 2026 Leverage / Clutch constants.
+  liNormalizer: number;
+  cnScale: number;
+  liChecksums: { d: number; r: number; li: number }[];
+  liReferenceTotals: {
+    name: string;
+    rounds: number;
+    avgLi: number;
+    wpa: number;
+    cnWpa: number;
+    clutch: number;
+  }[];
 };
 export const WPA_MODEL_VERSION = WPA_TABLE.modelVersion;
 
 export type { SeasonWpa, MatchWpa, FighterWpa };
-export { wpLookup, computeMatchWpa };
+export { wpLookup, liLookup, cnWpaFor, computeMatchWpa };
 
 // Season WPA for every fighter and match, derived from the same match data the
 // rest of the site uses. React cache() dedupes within a request; the underlying
@@ -43,7 +60,7 @@ export { wpLookup, computeMatchWpa };
 export const getWpaData = cache(async (): Promise<SeasonWpa> => {
   const data = await getAllData();
   const matches = extractUniqueMatches(data.teamMatches);
-  return computeSeasonWpa(matches, WPA_TABLE, WPA_MODEL, toSlug);
+  return computeSeasonWpa(matches, WPA_TABLE, WPA_MODEL, toSlug, LI_TABLE);
 });
 
 // A fighter's WPA rank (1-based) over qualified fighters isn't needed; the

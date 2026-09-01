@@ -1,4 +1,4 @@
-// Run once: node scripts/generate-wpa-table.mjs
+// Run once: node scripts/generate-wpa-table.mjs   (npm run gen:wpa)
 //
 // Generates the WPA win-probability lookup table (src/lib/wpa/wp-table-2026.json)
 // from the versioned model config (src/lib/wpa/wpa-model-2026.json).
@@ -109,15 +109,79 @@ if (failures > 0) {
   process.exit(1);
 }
 
-const out = {
-  modelVersion: model.version,
-  season: model.season,
-  dMin,
-  dMax,
-  rMax,
-  rows,
+// ─────────────────────────────────────────────────────────────────────────────
+// Leverage Index — how much win probability is at stake BEFORE a round is
+// fought. A property of the situation: both fighters in a round share it.
+//
+//   rawLI(d, r) = SUM over margins v of [ P(v) * | WP(d + v, r - 1) - WP(d, r) | ]
+//   LI(d, r)    = rawLI(d, r) / LI_NORMALIZER
+//
+// r INCLUDES the round about to be fought. LI_NORMALIZER is the frozen mean
+// rawLI over the 2026 season — never recomputed per season, so an LI of 1.20
+// means the same thing in every year.
+const LI_NORM = model.liNormalizer;
+if (!LI_NORM) throw new Error('liNormalizer missing from model config');
+
+// Clamped WP accessor: d + margin can run past the table edge for extreme
+// differentials (|d| >= dMax - 4). Those states are already certainty, so
+// clamping is exact rather than an approximation.
+const wpC = (d, r) => wp(Math.min(Math.max(d, dMin), dMax), r);
+
+const liRows = [];
+for (let r = 0; r <= rMax; r++) {
+  const row = new Array(dMax - dMin + 1).fill(0);
+  // r === 0 means there is no round left to fight — LI undefined; leave zeroed.
+  if (r > 0) {
+    for (let d = 0; d <= dMax; d++) {
+      let raw = 0;
+      for (const [m, q] of margin) raw += q * Math.abs(wpC(d + m, r - 1) - wpC(d, r));
+      const value = raw / LI_NORM;
+      row[d - dMin] = value;
+      // Mirror so LI(d,r) === LI(-d,r) holds EXACTLY in floating point.
+      if (d > 0) row[-d - dMin] = value;
+    }
+  }
+  liRows.push(row);
+}
+const li = (d, r) => liRows[r][d - dMin];
+
+let liFailures = 0;
+for (const { d, r, li: want } of model.liChecksums) {
+  const got = li(d, r);
+  const ok = Math.abs(got - want) < 5e-4; // 3 decimals
+  console.log(`${ok ? '✓' : '✗'} LI(${String(d).padStart(3)}, ${String(r).padStart(2)}) = ${got.toFixed(3)} (expected ${want.toFixed(3)})`);
+  if (!ok) liFailures++;
+}
+for (let r = 1; r <= rMax; r++) {
+  for (let d = dMin; d <= dMax; d++) {
+    if (li(d, r) !== li(-d, r)) {
+      console.error(`✗ LI symmetry broken at d=${d}, r=${r}`);
+      liFailures++;
+    }
+  }
+}
+if (liFailures === 0) console.log('✓ symmetry LI(d,r) == LI(-d,r) holds exactly for every cell');
+
+// The most important situation possible in TBL: tied match, one round left.
+const liMax = Math.max(...liRows.flat());
+if (Math.abs(liMax - 6.625) > 5e-4) {
+  console.error(`✗ max LI is ${liMax.toFixed(3)}, expected 6.625`);
+  liFailures++;
+} else {
+  console.log(`✓ max LI = ${liMax.toFixed(3)} (tied match, one round left)`);
+}
+
+if (liFailures > 0) {
+  console.error(`\n${liFailures} LI verification failure(s) — tables NOT written.`);
+  process.exit(1);
+}
+
+const meta = { modelVersion: model.version, season: model.season, dMin, dMax, rMax };
+const write = (name, payload, label) => {
+  const outPath = path.join(wpaDir, name);
+  fs.writeFileSync(outPath, JSON.stringify(payload));
+  const kb = (fs.statSync(outPath).size / 1024).toFixed(0);
+  console.log(`✓ wrote ${path.relative(root, outPath)} (${kb} KB, ${label}, model ${model.version})`);
 };
-const outPath = path.join(wpaDir, 'wp-table-2026.json');
-fs.writeFileSync(outPath, JSON.stringify(out));
-const kb = (fs.statSync(outPath).size / 1024).toFixed(0);
-console.log(`✓ wrote ${path.relative(root, outPath)} (${kb} KB, ${rows.length} × ${dMax - dMin + 1} cells, model ${model.version})`);
+write('wp-table-2026.json', { ...meta, rows }, `${rows.length} × ${dMax - dMin + 1} cells`);
+write('li-table-2026.json', { ...meta, liNormalizer: LI_NORM, rows: liRows }, `${liRows.length} × ${dMax - dMin + 1} cells`);

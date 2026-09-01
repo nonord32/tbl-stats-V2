@@ -112,9 +112,14 @@ export default function WpaMethodologyPage() {
           <p style={proseSmall}>
             See it in action on the{' '}
             <Link href="/wpa" style={{ color: 'var(--tbl-accent)' }}>
-              WPA leaderboard
+              advanced leaderboard
             </Link>
             , on every fighter profile, and as the win-probability chart on every match page.
+            Two stats build directly on this model:{' '}
+            <Link href="/stats/leverage" style={{ color: 'var(--tbl-accent)' }}>
+              Leverage Index and Clutch
+            </Link>
+            .
           </p>
         </Section>
 

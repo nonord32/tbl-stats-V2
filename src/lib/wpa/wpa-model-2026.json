@@ -4,20 +4,27 @@
   "description": "TBL Win Probability Added model, fit on the 2026 season (55 matches, 1,314 rounds). Two stages: per-round margin distribution convolved over remaining rounds, then logit sharpening by gamma. Historical 2026 WPA figures must remain reproducible from this file — never edit in place for a new season; create wpa-model-2027.json instead.",
   "gamma": 1.4164008922,
   "marginDistribution": {
-    "-4": 0.0258751903,
-    "-3": 0.00304414,
-    "-2": 0.0384322679,
-    "-1": 0.4315068493,
     "0": 0.002283105,
     "1": 0.4315068493,
     "2": 0.0384322679,
     "3": 0.00304414,
-    "4": 0.0258751903
+    "4": 0.0258751903,
+    "-4": 0.0258751903,
+    "-3": 0.00304414,
+    "-2": 0.0384322679,
+    "-1": 0.4315068493
   },
-  "table": { "dMin": -110, "dMax": 110, "rMax": 24 },
+  "table": {
+    "dMin": -110,
+    "dMax": 110,
+    "rMax": 24
+  },
   "scheduledRounds": {
     "default": 24,
-    "overrides": { "7": 21, "48": 21 }
+    "overrides": {
+      "7": 21,
+      "48": 21
+    }
   },
   "excludedRounds": [
     {
@@ -32,26 +39,221 @@
   "dqRule": "zero-credit-both-sides",
   "dqRuleReason": "A disqualification is a referee's decision, not a boxing performance, and the source data records only who was awarded the points, not who was disqualified. Rather than credit or charge the wrong fighter, WPA attributes disqualification rounds to neither fighter. The points still count on the scoreboard and still affect every subsequent round's win probability.",
   "checksums": [
-    { "d": 0, "r": 24, "wp": 0.5 },
-    { "d": 1, "r": 23, "wp": 0.581752 },
-    { "d": 1, "r": 12, "wp": 0.612958 },
-    { "d": 5, "r": 12, "wp": 0.915959 },
-    { "d": -1, "r": 1, "wp": 0.211486 },
-    { "d": 7, "r": 2, "wp": 0.999963 },
-    { "d": 1, "r": 1, "wp": 0.788514 },
-    { "d": 2, "r": 1, "wp": 0.985615 },
-    { "d": 3, "r": 4, "wp": 0.929089 },
-    { "d": 10, "r": 20, "wp": 0.980335 },
-    { "d": -3, "r": 8, "wp": 0.1497 }
+    {
+      "d": 0,
+      "r": 24,
+      "wp": 0.5
+    },
+    {
+      "d": 1,
+      "r": 23,
+      "wp": 0.581752
+    },
+    {
+      "d": 1,
+      "r": 12,
+      "wp": 0.612958
+    },
+    {
+      "d": 5,
+      "r": 12,
+      "wp": 0.915959
+    },
+    {
+      "d": -1,
+      "r": 1,
+      "wp": 0.211486
+    },
+    {
+      "d": 7,
+      "r": 2,
+      "wp": 0.999963
+    },
+    {
+      "d": 1,
+      "r": 1,
+      "wp": 0.788514
+    },
+    {
+      "d": 2,
+      "r": 1,
+      "wp": 0.985615
+    },
+    {
+      "d": 3,
+      "r": 4,
+      "wp": 0.929089
+    },
+    {
+      "d": 10,
+      "r": 20,
+      "wp": 0.980335
+    },
+    {
+      "d": -3,
+      "r": 8,
+      "wp": 0.1497
+    }
   ],
   "referenceTotals": [
-    { "name": "Erika Sanchez", "wpa": 1.539 },
-    { "name": "Rashidi Ellis", "wpa": 1.46 },
-    { "name": "Stacia Suttles", "wpa": 1.456 },
-    { "name": "Shakilya Ellis", "wpa": 1.401 },
-    { "name": "Yojanler Martinez", "wpa": 1.102 },
-    { "name": "Abril Anguiano", "wpa": -0.868 },
-    { "name": "Steven Sumpter", "wpa": -0.872 },
-    { "name": "Jordyn Edewards", "wpa": -1.175 }
+    {
+      "name": "Erika Sanchez",
+      "wpa": 1.539
+    },
+    {
+      "name": "Rashidi Ellis",
+      "wpa": 1.46
+    },
+    {
+      "name": "Stacia Suttles",
+      "wpa": 1.456
+    },
+    {
+      "name": "Shakilya Ellis",
+      "wpa": 1.401
+    },
+    {
+      "name": "Yojanler Martinez",
+      "wpa": 1.102
+    },
+    {
+      "name": "Abril Anguiano",
+      "wpa": -0.868
+    },
+    {
+      "name": "Steven Sumpter",
+      "wpa": -0.872
+    },
+    {
+      "name": "Jordyn Edewards",
+      "wpa": -1.175
+    }
+  ],
+  "liNormalizer": 0.0753028919,
+  "liNormalizerNote": "Mean rawLI across all 1,314 competitive rounds of 2026. FROZEN — never recompute per season, or an LI of 1.20 would mean different things in different years and stop being comparable.",
+  "cnScale": 0.7579047422,
+  "cnWpaNote": "Context-neutral WPA by round margin, derived as (WP(v, 23) - 0.5) * cnScale — a tied match at the opening bell, rescaled to exactly average leverage. Symmetric by construction.",
+  "cnWpaByMargin": {
+    "0": 0,
+    "1": 0.06196,
+    "2": 0.121034,
+    "3": 0.174726,
+    "4": 0.221511,
+    "-4": -0.221511,
+    "-3": -0.174726,
+    "-2": -0.121034,
+    "-1": -0.06196
+  },
+  "liChecksums": [
+    {
+      "d": 0,
+      "r": 24,
+      "li": 1.319
+    },
+    {
+      "d": 0,
+      "r": 12,
+      "li": 1.855
+    },
+    {
+      "d": 0,
+      "r": 4,
+      "li": 3.105
+    },
+    {
+      "d": 0,
+      "r": 2,
+      "li": 4.184
+    },
+    {
+      "d": 0,
+      "r": 1,
+      "li": 6.625
+    },
+    {
+      "d": 2,
+      "r": 2,
+      "li": 1.803
+    },
+    {
+      "d": 1,
+      "r": 12,
+      "li": 1.782
+    },
+    {
+      "d": 3,
+      "r": 12,
+      "li": 1.258
+    },
+    {
+      "d": 3,
+      "r": 4,
+      "li": 1.001
+    },
+    {
+      "d": 5,
+      "r": 8,
+      "li": 0.513
+    },
+    {
+      "d": 10,
+      "r": 8,
+      "li": 0.016
+    },
+    {
+      "d": 15,
+      "r": 4,
+      "li": 0
+    }
+  ],
+  "liReferenceTotals": [
+    {
+      "name": "Erika Sanchez",
+      "rounds": 16,
+      "avgLi": 1.186,
+      "wpa": 1.539,
+      "cnWpa": 1.086,
+      "clutch": 0.453
+    },
+    {
+      "name": "Rashidi Ellis",
+      "rounds": 16,
+      "avgLi": 1.155,
+      "wpa": 1.46,
+      "cnWpa": 1.039,
+      "clutch": 0.42
+    },
+    {
+      "name": "Kye Brooks",
+      "rounds": 13,
+      "avgLi": 1.524,
+      "wpa": 0.896,
+      "cnWpa": 0.564,
+      "clutch": 0.332
+    },
+    {
+      "name": "Steven Sumpter",
+      "rounds": 12,
+      "avgLi": 1.176,
+      "wpa": -0.872,
+      "cnWpa": -0.744,
+      "clutch": -0.128
+    },
+    {
+      "name": "Jordyn Edewards",
+      "rounds": 15,
+      "avgLi": 1.324,
+      "wpa": -1.175,
+      "cnWpa": -0.865,
+      "clutch": -0.31
+    },
+    {
+      "name": "Money Powell",
+      "rounds": 19,
+      "avgLi": 0.406,
+      "wpa": 0.04,
+      "cnWpa": 0.588,
+      "clutch": -0.548
+    }
   ]
 }

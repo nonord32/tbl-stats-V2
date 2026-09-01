@@ -10,7 +10,7 @@ import { WpaClient, type WpaRow } from './WpaClient';
 export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: 'WPA Leaderboard — Win Probability Added',
+  title: 'Advanced Leaderboard — WPA, Leverage & Clutch',
   description:
     'TBL Win Probability Added: every round scored by how much it moved the team’s chance of winning the match. Sortable leaderboard of the fighters who swung the season.',
   openGraph: {
@@ -35,6 +35,9 @@ export default async function WpaPage() {
     roundWins: f.roundWins,
     wpa: f.wpa,
     wpaPerRound: f.rounds > 0 ? f.wpa / f.rounds : 0,
+    avgLi: f.avgLi,
+    liRounds: f.liRounds,
+    clutch: f.clutch,
   }));
 
   return (
@@ -42,7 +45,7 @@ export default async function WpaPage() {
       <div style={{ padding: '22px 32px 0' }}>
         <div className="tbl-eyebrow">Advanced Stat · Model {WPA_MODEL_VERSION}</div>
         <div className="tbl-display" style={{ fontSize: 54, lineHeight: 0.95, marginTop: 4 }}>
-          Win Probability Added
+          Advanced Leaderboard
         </div>
         <p
           style={{
@@ -54,11 +57,20 @@ export default async function WpaPage() {
             margin: '14px 0 0',
           }}
         >
-          Every round moves a team&apos;s chance of winning the match. WPA is that change,
-          credited to the fighter who caused it — a round won with the match on the line is
-          worth far more than a round won in a blowout.{' '}
+          <strong>WPA</strong> is how much a fighter changed their team&apos;s chance of
+          winning. <strong>Avg Leverage</strong> is how much was at stake in the rounds they
+          were put in — usage, not performance. <strong>Clutch</strong> is WPA minus what the
+          same results were worth at average leverage. Sort by any column.{' '}
           <Link href="/stats/wpa" style={{ color: 'var(--tbl-accent)' }}>
             How WPA works →
+          </Link>
+          {'  ·  '}
+          <Link href="/stats/leverage" style={{ color: 'var(--tbl-accent)' }}>
+            Leverage &amp; Clutch →
+          </Link>
+          {'  ·  '}
+          <Link href="/moments" style={{ color: 'var(--tbl-accent)' }}>
+            Biggest moments →
           </Link>
         </p>
       </div>
