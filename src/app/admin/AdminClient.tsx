@@ -241,11 +241,12 @@ export function AdminClient({ matches, picks: initialPicks, players: initialPlay
     }
   }
 
-  async function handleExport(type: 'fighters' | 'standings' | 'matches') {
-    setExporting(type);
+  async function handleExport(kind: 'fighters' | 'standings' | 'matches' | 'xlsx') {
+    setExporting(kind);
     setExportError(null);
     try {
-      const res = await fetch(`/api/admin/export?type=${type}`, {
+      const query = kind === 'xlsx' ? 'format=xlsx' : `type=${kind}`;
+      const res = await fetch(`/api/admin/export?${query}`, {
         headers: { Authorization: `Bearer ${secret}` },
       });
       if (!res.ok) {
@@ -257,7 +258,7 @@ export function AdminClient({ matches, picks: initialPicks, players: initialPlay
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `tbl-${type}.csv`;
+      a.download = kind === 'xlsx' ? 'tbl-data.xlsx' : `tbl-${kind}.csv`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -339,24 +340,34 @@ export function AdminClient({ matches, picks: initialPicks, players: initialPlay
             Export Data
           </h2>
           <p style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', marginBottom: 16 }}>
-            Download the code-recalculated data as CSV. The Fighters export lists every stat plus the WAR formula and its league constants (replacement PPR + avg margin), so you can see exactly where each number comes from.
+            Download the code-recalculated data. The Excel workbook bundles every dataset as tabs (incl. the WAR formula + league constants); the CSVs are one dataset each. Either way, the Fighters data shows every stat plus the replacement PPR + avg margin, so you can see exactly where each number comes from.
           </p>
           {exportError && (
             <div style={{ padding: '8px 0', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--result-l)' }}>
               {exportError}
             </div>
           )}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={exporting === 'xlsx'}
+              onClick={() => handleExport('xlsx')}
+              style={{ opacity: exporting === 'xlsx' ? 0.6 : 1, cursor: exporting === 'xlsx' ? 'wait' : 'pointer' }}
+            >
+              {exporting === 'xlsx' ? 'Exporting…' : 'Excel workbook (.xlsx)'}
+            </button>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>or CSV:</span>
             {(['fighters', 'standings', 'matches'] as const).map((t) => (
               <button
                 key={t}
                 type="button"
-                className="btn btn-primary"
+                className="btn"
                 disabled={exporting === t}
                 onClick={() => handleExport(t)}
                 style={{ opacity: exporting === t ? 0.6 : 1, cursor: exporting === t ? 'wait' : 'pointer' }}
               >
-                {exporting === t ? 'Exporting…' : `${t[0].toUpperCase()}${t.slice(1)} CSV`}
+                {exporting === t ? 'Exporting…' : `${t[0].toUpperCase()}${t.slice(1)}`}
               </button>
             ))}
           </div>
