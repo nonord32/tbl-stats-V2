@@ -443,6 +443,15 @@ function parseMatchData(rows: string[][]): {
         }).join(' ');
       };
       const resultMethod = extractMethod(result1Raw) || extractMethod(result2Raw);
+      // A disqualification. Its points still count toward the team match total
+      // (PF/PA, match W/L, standings) via the box score below, but the bout is
+      // excluded from every per-fighter stat — record, rounds, net pts, NPPR,
+      // WAR, form/streak — to mirror the Google Sheet's fighter-stat tabs, which
+      // do not count DQs.
+      const isDq =
+        /\bDQ\b/i.test(result1Raw) ||
+        /\bDQ\b/i.test(result2Raw) ||
+        resultMethod.toUpperCase().includes('DQ');
 
       // Points Earned = actual score, Net Points = pts earned minus pts allowed
       const pts1 = safeNum(pick(f1Row, 'Points Earned', 'Points', 'Score', 'Pts'));
@@ -489,8 +498,12 @@ function parseMatchData(rows: string[][]): {
 
       recordIdentity(fighter1, team1, gender, gamePhase);
       recordIdentity(fighter2, team2, gender, gamePhase);
-      addHistory(fighter1, fighter2, team2, r1, netPts1);
-      addHistory(fighter2, fighter1, team1, r2, netPts2);
+      // DQ bouts are kept out of fighter statkeeping (they remain in the box
+      // score above so the team match total still includes their points).
+      if (!isDq) {
+        addHistory(fighter1, fighter2, team2, r1, netPts1);
+        addHistory(fighter2, fighter1, team1, r2, netPts2);
+      }
     });
 
     boxScore.sort((a, b) => a.round - b.round);
