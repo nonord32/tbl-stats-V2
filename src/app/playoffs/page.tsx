@@ -106,7 +106,10 @@ export default async function PlayoffsPage() {
               ) : (
                 <>If the playoffs started today</>
               )}
-              {lastWeek != null && <> · Through Week {lastWeek}</>}
+              {/* "Through Week N" only makes sense for the pre-playoff projection;
+                  once the postseason is underway (and certainly once a champion is
+                  crowned) it's dropped. */}
+              {!anyPlayed && lastWeek != null && <> · Through Week {lastWeek}</>}
               <> · Top {PLAYOFF_SPOTS} seeds</>
             </div>
           </div>
@@ -355,7 +358,11 @@ function FinalMatch({
 
   if (champion) {
     const logo = getTeamLogoPathByName(champion.team.team);
-    const scoreLine = match.score ? `${match.score[0]}–${match.score[1]}` : null;
+    // Winner's score first (e.g. 14–13, not 13–14). match.score is [a, b].
+    const champIsA = a?.team.slug === match.winnerSlug;
+    const scoreLine = match.score
+      ? `${champIsA ? match.score[0] : match.score[1]}–${champIsA ? match.score[1] : match.score[0]}`
+      : null;
     return (
       <div className="po-match po-match--final po-match--champion">
         <div className="po-final__ribbon">Champion</div>

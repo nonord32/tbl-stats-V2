@@ -73,6 +73,24 @@ function matchesRows(data: ParsedSheetData): Cell[][] {
   return rows;
 }
 
+// Pure per-round extract: one row per bout (round) of every game, straight from
+// the box scores — the rawest view of the underlying results.
+function boutsRows(data: ParsedSheetData): Cell[][] {
+  const rows: Cell[][] = [[
+    'matchIndex', 'date', 'gamePhase', 'team1', 'team2', 'round', 'weightClass',
+    'roundPhase', 'fighter1', 'score1', 'fighter2', 'score2', 'winner', 'method',
+  ]];
+  for (const m of extractUniqueMatches(data.teamMatches)) {
+    for (const r of m.boxScore) {
+      rows.push([
+        m.matchIndex, m.date, m.phase, m.team1, m.team2, r.round, r.weightClass ?? '',
+        r.phase ?? '', r.fighter1, r.score1, r.fighter2, r.score2, r.winner ?? '', r.method ?? '',
+      ]);
+    }
+  }
+  return rows;
+}
+
 // ── CSV ──
 function csvCell(v: Cell): string {
   const s = String(v ?? '');
@@ -106,6 +124,7 @@ async function buildWorkbook(data: ParsedSheetData): Promise<Uint8Array<ArrayBuf
   addSheet('Fighters', fighterTableRows(data), 1);
   addSheet('Standings', standingsRows(data), 1);
   addSheet('Matches', matchesRows(data), 1);
+  addSheet('Bouts (raw rounds)', boutsRows(data), 1);
   // Copy into a Uint8Array with a concrete ArrayBuffer backing so it's a valid
   // Response/Blob body under the current typed-array generics.
   return Uint8Array.from(await wb.xlsx.writeBuffer() as unknown as ArrayLike<number>);
@@ -144,6 +163,8 @@ export async function GET(request: Request) {
     rows = standingsRows(data);
   } else if (type === 'matches') {
     rows = matchesRows(data);
+  } else if (type === 'bouts') {
+    rows = boutsRows(data);
   } else {
     return new Response(JSON.stringify({ error: `Unknown type "${type}"` }), {
       status: 400,
