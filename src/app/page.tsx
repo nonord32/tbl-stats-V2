@@ -1244,6 +1244,115 @@ function MobileStandings({ teams }: { teams: TeamStanding[] }) {
   );
 }
 
+// ─── Advanced Stats (bottom of page) ─────────────────────────────────────────
+// Each advanced stat has its own public page; this section is the front door.
+function AdvancedStats() {
+  const cards: {
+    code: string;
+    title: string;
+    blurb: string;
+    links: { label: string; href: string }[];
+  }[] = [
+    {
+      code: 'WPA',
+      title: 'Win Probability Added',
+      blurb:
+        'Every round, scored by how much it moved the team’s chance of winning the match. A round won with the match on the line is worth far more than one won in a blowout.',
+      links: [
+        { label: 'Leaderboard →', href: '/wpa' },
+        { label: 'How it works →', href: '/stats/wpa' },
+      ],
+    },
+    {
+      code: 'WAR',
+      title: 'Wins Above Replacement',
+      blurb:
+        'A fighter’s total impact in team wins added over a replacement-level fighter — scoring rate above the league’s 25th percentile, scaled by rounds and converted to wins.',
+      links: [{ label: 'How it works →', href: '/stats/war' }],
+    },
+    {
+      code: 'ABC',
+      title: 'Stat Glossary',
+      blurb:
+        'Net Points, NP/R, Extra Points, KO%, and every other number on the site — what each one means and how it’s counted.',
+      links: [{ label: 'Every stat defined →', href: '/stats/glossary' }],
+    },
+  ];
+
+  return (
+    <div style={{ padding: '0 32px 44px' }}>
+      <div style={{ marginBottom: 16 }}>
+        <div className="tbl-eyebrow">Beyond the Box Score</div>
+        <div className="tbl-display" style={{ fontSize: 34, lineHeight: 1, marginTop: 4 }}>
+          Advanced Stats
+        </div>
+      </div>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gap: 14,
+        }}
+      >
+        {cards.map((c) => (
+          <div
+            key={c.code}
+            style={{
+              background: 'var(--tbl-paper)',
+              border: '1.5px solid var(--tbl-ink)',
+              padding: '16px 18px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+            }}
+          >
+            <div
+              className="tbl-display"
+              style={{ fontSize: 30, lineHeight: 1, color: 'var(--tbl-accent)', letterSpacing: '-0.02em' }}
+            >
+              {c.code}
+            </div>
+            <div className="tbl-display" style={{ fontSize: 17, fontWeight: 800 }}>
+              {c.title}
+            </div>
+            <p
+              style={{
+                margin: 0,
+                fontFamily: 'var(--tbl-font-body)',
+                fontSize: 13,
+                lineHeight: 1.65,
+                color: 'var(--tbl-ink-soft)',
+                flex: 1,
+              }}
+            >
+              {c.blurb}
+            </p>
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+              {c.links.map((l) => (
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  style={{
+                    fontFamily: 'var(--tbl-font-mono)',
+                    fontSize: 11,
+                    letterSpacing: '0.14em',
+                    textTransform: 'uppercase',
+                    color: 'var(--tbl-accent)',
+                    textDecoration: 'none',
+                    fontWeight: 700,
+                  }}
+                >
+                  {l.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 export default async function HomePage() {
   const { fighters, fightersByPhase, fighterHistory, teams, schedule, teamMatches, awards } =
@@ -1488,6 +1597,8 @@ export default async function HomePage() {
           <HallOfChampions awards={awards} fighterSlugs={fighterSlugs} />
         </div>
       )}
+
+      <AdvancedStats />
     </>
   );
 }

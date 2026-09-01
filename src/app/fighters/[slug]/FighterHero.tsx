@@ -329,10 +329,14 @@ export function FighterHero({
             color: 'var(--tbl-ink-soft)',
           }}
         >
-          WPA = Win Probability Added — how much each round moved the team&apos;s chance of
-          winning.{' '}
+          WAR = wins added over a replacement-level fighter · WPA = how much each round moved
+          the team&apos;s chance of winning.{' '}
+          <Link href="/stats/war" style={{ color: 'var(--tbl-accent)' }}>
+            How WAR works →
+          </Link>
+          {'  ·  '}
           <Link href="/stats/wpa" style={{ color: 'var(--tbl-accent)' }}>
-            How it works →
+            How WPA works →
           </Link>
         </div>
       </div>
