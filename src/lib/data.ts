@@ -52,7 +52,15 @@ export function toSlug(name: string): string {
 // Fetch raw CSV rows as string arrays (no automatic header parsing)
 // so we can handle sheets with title rows before the real header
 async function fetchRawCSV(url: string): Promise<string[][]> {
-  const res = await fetch(url, { next: { revalidate: 120 } });
+  // Hard timeout: a hung Google fetch must fail fast, not stall the render.
+  // During `next build`, one hanging fetch can wedge EVERY static page (they
+  // all funnel through the shared fetch cache) and kill the deploy; at
+  // runtime the per-tab try/catch in getAllData degrades gracefully and ISR
+  // retries within 120s.
+  const res = await fetch(url, {
+    next: { revalidate: 120 },
+    signal: AbortSignal.timeout(20_000),
+  });
   if (!res.ok) throw new Error(`Failed to fetch CSV: ${url}`);
   const text = await res.text();
   const result = Papa.parse<string[]>(text, {
@@ -775,9 +783,14 @@ export const getAllData = cache(async (): Promise<ParsedSheetData> => {
     const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (url && anon) {
       const sb = createSupabaseClient(url, anon);
-      const { data: rows, error } = await sb
-        .from('fighter_socials')
-        .select('fighter_slug, instagram');
+      // Same fail-fast rule as the CSV fetches: never let a hung read stall
+      // static generation.
+      const { data: rows, error } = await Promise.race([
+        sb.from('fighter_socials').select('fighter_slug, instagram'),
+        new Promise<{ data: null; error: Error }>((resolve) =>
+          setTimeout(() => resolve({ data: null, error: new Error('fighter_socials timeout') }), 8_000),
+        ),
+      ]);
       if (!error && rows) {
         for (const r of rows as { fighter_slug: string; instagram: string | null }[]) {
           socials.set(r.fighter_slug, r.instagram ?? '');

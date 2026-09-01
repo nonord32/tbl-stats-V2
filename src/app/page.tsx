@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getAllData, extractUniqueMatches } from '@/lib/data';
 import { getBracketContext } from '@/lib/bracketData';
+import { playoffRoundLabelsByMatch } from '@/lib/playoffs';
 import { getDisplayedCurrentWeek } from '@/lib/week';
 import { sortStandings } from '@/lib/standings';
 import {
@@ -1435,12 +1436,25 @@ export default async function HomePage() {
     if (s.matchIndex != null) weekByMatchIndex.set(s.matchIndex, s.week);
   });
 
+  // Bracket context: playoff round labels for result cards, and the MegaBrawl
+  // champion for the hero poster below.
+  const { bracket } = getBracketContext(await getAllData());
+  const playoffLabels = playoffRoundLabelsByMatch(bracket);
+
   // Real match results from the teamMatches data (same source the /results
-  // page uses), sorted newest-first and capped at 6 cards.
+  // page uses), sorted newest-first and capped at 6 cards. Playoff games are
+  // labeled by round (Quarterfinals / Semifinals / MegaBrawl IV), never
+  // "Week 0".
   const completed: ResultCard[] = extractUniqueMatches(teamMatches)
     .slice(0, 6)
     .map((m: MatchResult) => {
       const wk = weekByMatchIndex.get(m.matchIndex);
+      const phase =
+        m.phase === 'playoffs'
+          ? playoffLabels.get(m.matchIndex) ?? 'Playoffs'
+          : wk != null && wk > 0
+          ? `Week ${wk}`
+          : undefined;
       return {
         matchIndex: m.matchIndex,
         date: m.date,
@@ -1448,7 +1462,7 @@ export default async function HomePage() {
         team2: m.team2,
         s1: m.score1,
         s2: m.score2,
-        phase: wk != null ? `Week ${wk}` : undefined,
+        phase,
       };
     });
 
@@ -1494,8 +1508,7 @@ export default async function HomePage() {
   const lastCompleted = completed[0] ?? null;
 
   // MegaBrawl champion — only once the final has been played. Derived from the
-  // live bracket, with the winner's score shown first.
-  const { bracket } = getBracketContext(await getAllData());
+  // live bracket (computed above), with the winner's score shown first.
   const finalMatch = bracket.final;
   const champSeed =
     finalMatch.status === 'played'

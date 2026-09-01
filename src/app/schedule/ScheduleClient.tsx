@@ -21,10 +21,14 @@ interface Props {
   schedule: ScheduleEntry[];
   currentWeek: number | null;
   scores: Record<number, ScoreInfo>;
-  // week number → playoff round label ("Quarterfinals" / "Semifinals" /
-  // "MegaBrawl") for playoff weeks; other weeks are absent.
-  weekLabels?: Record<number, string>;
+  // matchIndex → playoff round for identified playoff games. Their schedule
+  // rows carry week 0 in the sheet, so they're grouped under the round name
+  // ("Quarterfinals" / "Semifinals" / "MegaBrawl IV") instead of a week.
+  playoffRounds?: Record<number, { label: string; order: number }>;
 }
+
+// Synthetic group keys for playoff rounds, sorted above every regular week.
+const PLAYOFF_BASE = 1000;
 
 function short(team: string): string {
   const city = getCityName(team).toUpperCase();
@@ -222,10 +226,21 @@ function GameCard({ entry, score }: GameCardProps) {
   return body;
 }
 
-export function ScheduleClient({ schedule, currentWeek, scores, weekLabels = {} }: Props) {
-  // Section/label text for a week: the playoff round name if it's a playoff
-  // week, otherwise "Week N".
-  const weekHeading = (wk: number): string => weekLabels[wk] ?? `Week ${wk}`;
+export function ScheduleClient({ schedule, currentWeek, scores, playoffRounds = {} }: Props) {
+  // Group key for an entry: playoff games group by round (above every week),
+  // everything else by week number.
+  const groupKeyOf = (e: ScheduleEntry): number => {
+    const pr = e.matchIndex != null ? playoffRounds[e.matchIndex] : undefined;
+    return pr ? PLAYOFF_BASE + pr.order : e.week || 0;
+  };
+  // Synthetic key → round label ("Quarterfinals" / "Semifinals" / "MegaBrawl IV").
+  const playoffHeading = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const pr of Object.values(playoffRounds)) map.set(PLAYOFF_BASE + pr.order, pr.label);
+    return map;
+  }, [playoffRounds]);
+  // Section/label text for a group: the playoff round name, otherwise "Week N".
+  const weekHeading = (wk: number): string => playoffHeading.get(wk) ?? `Week ${wk}`;
   // Default: show current week + last week only. Flip to "All" via the filter.
   const defaultWeek = currentWeek != null ? String(currentWeek) : 'All';
   const [weekFilter, setWeekFilter] = useState<string>(defaultWeek);
@@ -234,10 +249,12 @@ export function ScheduleClient({ schedule, currentWeek, scores, weekLabels = {} 
   const allWeeks = useMemo(() => {
     const set = new Set<number>();
     schedule.forEach((s) => {
-      if (s.week > 0) set.add(s.week);
+      const k = groupKeyOf(s);
+      if (k > 0) set.add(k);
     });
     return Array.from(set).sort((a, b) => a - b);
-  }, [schedule]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schedule, playoffRounds]);
 
   const allClubs = useMemo(() => {
     const set = new Set<string>();
@@ -253,7 +270,7 @@ export function ScheduleClient({ schedule, currentWeek, scores, weekLabels = {} 
   const shown = useMemo(() => {
     const byWeek = new Map<number, ScheduleEntry[]>();
     for (const e of schedule) {
-      const wk = e.week || 0;
+      const wk = groupKeyOf(e);
       if (wk <= 0) continue;
       if (
         clubFilter !== 'All' &&
@@ -267,24 +284,28 @@ export function ScheduleClient({ schedule, currentWeek, scores, weekLabels = {} 
     }
 
     // Which weeks to show:
-    //  - explicit week selected → just that one
-    //  - "All" → all weeks
-    //  - default (no selection, current week known) → current + previous
+    //  - explicit week/round selected → just that one
+    //  - "All" → all weeks + playoff rounds
+    //  - default (no selection, current week known) → current + previous, plus
+    //    any playoff rounds (post-season, those are the headline card).
     let weeks: number[];
     if (weekFilter === 'All') {
       weeks = Array.from(byWeek.keys());
     } else {
       const w = parseInt(weekFilter, 10);
       weeks = isNaN(w) ? [] : [w];
-      // When defaulting to current, also include previous week.
-      if (!isNaN(w) && weekFilter === defaultWeek && byWeek.has(w - 1)) {
-        weeks.push(w - 1);
+      if (!isNaN(w) && weekFilter === defaultWeek) {
+        // When defaulting to current, also include previous week.
+        if (byWeek.has(w - 1)) weeks.push(w - 1);
+        // ...and the playoff rounds, which sit above the week sections.
+        for (const k of byWeek.keys()) if (k > PLAYOFF_BASE) weeks.push(k);
       }
     }
-    // Newest week first so "this week" sits on top.
+    // Newest first — playoff rounds (MegaBrawl on top), then this week, last week.
     weeks.sort((a, b) => b - a);
     return weeks.map((n) => [n, byWeek.get(n) ?? []] as const);
-  }, [schedule, weekFilter, clubFilter, defaultWeek]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schedule, weekFilter, clubFilter, defaultWeek, playoffRounds]);
 
   const filterSlot = (
     <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -298,7 +319,7 @@ export function ScheduleClient({ schedule, currentWeek, scores, weekLabels = {} 
           <option value="All">All</option>
           {allWeeks.map((w) => (
             <option key={w} value={String(w)}>
-              {weekLabels[w] ?? w}
+              {w > PLAYOFF_BASE ? weekHeading(w) : w}
             </option>
           ))}
         </select>
@@ -351,7 +372,9 @@ export function ScheduleClient({ schedule, currentWeek, scores, weekLabels = {} 
             // week, the one just before it, and genuinely future weeks are
             // labeled.
             const label =
-              wk === currentWeek
+              wk > PLAYOFF_BASE
+                ? 'Postseason'
+                : wk === currentWeek
                 ? 'This Week'
                 : currentWeek != null && wk === currentWeek - 1
                 ? 'Last Week'

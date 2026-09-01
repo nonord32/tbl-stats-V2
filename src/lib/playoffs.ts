@@ -30,11 +30,11 @@ export type SlotStatus = 'played' | 'pending' | 'tbd';
 
 export type Round = 'QF' | 'SF' | 'F';
 
-// Human-facing round names. The final is branded "MegaBrawl".
+// Human-facing round names. The final is branded "MegaBrawl IV".
 export const ROUND_LABELS: Record<Round, string> = {
   QF: 'Quarterfinals',
   SF: 'Semifinals',
-  F: 'MegaBrawl',
+  F: 'MegaBrawl IV',
 };
 
 export interface BracketMatch {
