@@ -2490,46 +2490,21 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Gazette — fighter profile responsive
+   The stats render as full-width StatStrip rows (see FighterHero.tsx); the grid
+   is auto-fit so it wraps cleanly on its own. These rules just scale the name/
+   team link and tighten the strip's numbers on small screens.
    =========================================================================== */
-@media (max-width: 900px) {
-  .gz-fighter-hero { grid-template-columns: 1fr !important; align-items: flex-start !important; }
-  .gz-fighter-hero .gz-hero-stats {
-    border-left: none !important;
-    padding-left: 0 !important;
-    border-top: 2px solid var(--tbl-ink);
-    padding-top: 14px !important;
-    grid-template-columns: repeat(3, 1fr) !important;
-    width: 100%;
-  }
-  .gz-fighter-body { grid-template-columns: 1fr !important; }
-  .gz-fighter-left { border-right: none !important; border-bottom: 1px solid rgba(20,17,11,0.2); }
-}
 @media (max-width: 540px) {
-  /* Only the fighter's name gets the 56px treatment — previously this rule
-     was scoped to .gz-fighter-hero .tbl-display, which also blew up the
-     team link to 56px (huge orange "Las Vegas Hustle" wrapping across the
-     hero). Pin it to the dedicated class instead. */
+  /* Only the fighter's name gets the 56px treatment — pinned to the dedicated
+     class so the team link isn't blown up with it. */
   .gz-fighter-name { font-size: 56px !important; }
-  /* Keep the 6 stat tiles in a 3-col × 2-row grid on phones (per spec)
-     and frame them with thin black rules above and below so the section
-     reads like a self-contained block. */
-  .gz-fighter-hero .gz-hero-stats {
-    grid-template-columns: repeat(3, 1fr) !important;
-    column-gap: 12px !important;
-    row-gap: 10px !important;
-    border-top: 1.5px solid var(--tbl-ink) !important;
-    border-bottom: 1.5px solid var(--tbl-ink) !important;
-    padding: 12px 0 !important;
-    margin-top: 14px !important;
-  }
-  .gz-fighter-hero .gz-hero-stats .tbl-display { font-size: 26px !important; }
-  /* Keep the team link readable but small + dark to match the spec
-     screenshot (no longer a giant orange block). */
+  /* Keep the team link readable but small + dark (not a giant orange block). */
   .gz-fighter-team-link {
     font-size: 16px !important;
     color: var(--tbl-ink) !important;
   }
-  .gz-fighter-hero img { width: 26px !important; height: 26px !important; }
+  .gz-profile-strip { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)) !important; }
+  .gz-profile-strip .tbl-display { font-size: 24px !important; }
 }
 
 /* Schedule 2-col grid collapses to single column on narrow screens */
