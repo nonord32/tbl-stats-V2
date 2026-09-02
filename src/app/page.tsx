@@ -1012,15 +1012,20 @@ function WeekendResults({ results }: { results: ResultCard[] }) {
 function MobileMatchBanner({
   featured,
   lastCompleted,
+  heroResult,
   teamRecords,
 }: {
   featured: ScheduleEntry | null;
   lastCompleted: ResultCard | null;
+  heroResult: HeroResult | null;
   teamRecords: Map<string, string>;
 }) {
-  // Prefer upcoming match; fall back to the most recent completed match.
-  const team1 = featured ? featured.team1 : lastCompleted?.team1;
-  const team2 = featured ? featured.team2 : lastCompleted?.team2;
+  // Prefer an upcoming match. With none, fall back to heroResult — the same
+  // value the desktop poster uses, so the MegaBrawl champion crowning reads
+  // the same on a phone. Winner sits on the left in that case, which is why
+  // this prefers heroResult's winner/loser over the raw match order.
+  const team1 = featured ? featured.team1 : heroResult?.winnerTeam ?? lastCompleted?.team1;
+  const team2 = featured ? featured.team2 : heroResult?.loserTeam ?? lastCompleted?.team2;
   if (!team1 || !team2) return null;
 
   const logo1 = getTeamLogoPathByName(team1);
@@ -1030,28 +1035,41 @@ function MobileMatchBanner({
   const rec1 = teamRecords.get(team1) ?? '';
   const rec2 = teamRecords.get(team2) ?? '';
 
-  const score1 = lastCompleted?.s1;
-  const score2 = lastCompleted?.s2;
-  const showScore = !featured && score1 != null && score2 != null;
-  const team1Won = showScore && (score1 as number) > (score2 as number);
-  const team2Won = showScore && (score2 as number) > (score1 as number);
-  const href =
-    featured && featured.matchIndex
+  // heroResult's scoreLine is always winner-first ("17–13"); split it so the
+  // two halves can be coloured independently, as the score is on desktop.
+  const [winScore, loseScore] = (heroResult?.scoreLine ?? '').split('–');
+  const showScore = !featured && winScore != null && loseScore != null && winScore !== '';
+  const isDraw = heroResult?.verb === 'drew';
+  const href = featured
+    ? featured.matchIndex
       ? `/matches/${featured.matchIndex}`
-      : lastCompleted
-      ? `/matches/${lastCompleted.matchIndex}`
-      : '/schedule';
+      : '/schedule'
+    : heroResult
+    ? heroResult.href
+    : lastCompleted
+    ? `/matches/${lastCompleted.matchIndex}`
+    : '/schedule';
 
   return (
     <div className="home-mobile-only" style={{ padding: '16px 16px 8px' }}>
       <div className="tbl-eyebrow" style={{ color: 'var(--tbl-accent)' }}>
-        {featured ? 'Fight of the Week' : 'Latest Result'}
+        {featured ? 'Fight of the Week' : heroResult ? heroResult.eyebrow : 'Latest Result'}
       </div>
-      <div className="tbl-display" style={{ fontSize: 44, lineHeight: 0.95, marginTop: 4 }}>
-        {abbr1}{' '}
-        <span style={{ color: 'var(--tbl-accent)', fontStyle: 'italic', fontWeight: 900 }}>vs</span>{' '}
-        {abbr2}
-      </div>
+      {featured || !heroResult ? (
+        <div className="tbl-display" style={{ fontSize: 44, lineHeight: 0.95, marginTop: 4 }}>
+          {abbr1}{' '}
+          <span style={{ color: 'var(--tbl-accent)', fontStyle: 'italic', fontWeight: 900 }}>
+            vs
+          </span>{' '}
+          {abbr2}
+        </div>
+      ) : (
+        /* No upcoming fight: name the winner, the way the desktop poster does,
+           rather than showing two abbreviations and leaving the crowning off. */
+        <div className="tbl-display" style={{ fontSize: 38, lineHeight: 0.98, marginTop: 4 }}>
+          {heroResult.winnerName}
+        </div>
+      )}
       <Link
         href={href}
         className="home-mobile-banner"
@@ -1103,13 +1121,13 @@ function MobileMatchBanner({
                 whiteSpace: 'nowrap',
               }}
             >
-              <span style={{ color: team1Won ? 'var(--tbl-accent-bright)' : 'var(--tbl-bg)' }}>
-                {(score1 as number).toFixed(0)}
+              <span
+                style={{ color: isDraw ? 'var(--tbl-bg)' : 'var(--tbl-accent-bright)' }}
+              >
+                {winScore}
               </span>
               <span style={{ color: 'rgba(244,237,224,0.5)', margin: '0 4px' }}>—</span>
-              <span style={{ color: team2Won ? 'var(--tbl-accent-bright)' : 'var(--tbl-bg)' }}>
-                {(score2 as number).toFixed(0)}
-              </span>
+              <span style={{ color: 'var(--tbl-bg)' }}>{loseScore}</span>
             </div>
           ) : (
             <div
@@ -1135,7 +1153,13 @@ function MobileMatchBanner({
               fontWeight: 700,
             }}
           >
-            {featured ? (featured.time ? featured.time.replace(/\s*local/i, '').trim() : 'Upcoming') : 'Final'}
+            {featured
+              ? featured.time
+                ? featured.time.replace(/\s*local/i, '').trim()
+                : 'Upcoming'
+              : heroResult?.isChampion
+              ? 'Champion'
+              : 'Final'}
           </div>
         </div>
 
@@ -1168,15 +1192,16 @@ function MobileMatchBanner({
 
 function MobileTopFighters({ fighters }: { fighters: FighterStat[] }) {
   if (fighters.length === 0) return null;
-  const top4 = fighters.slice(0, 4);
+  // Six, matching the desktop Top Six — this used to show four.
+  const top6 = fighters.slice(0, 6);
   return (
     <div className="home-mobile-only home-mobile-section">
       <div className="home-mobile-section__head">
-        <span>Top Fighters · Net Pts</span>
+        <span>Top Six · Net Pts</span>
         <Link href="/fighters">See all →</Link>
       </div>
       <div className="home-mobile-list">
-        {top4.map((f, i) => {
+        {top6.map((f, i) => {
           const logo = getTeamLogoPathByName(f.team);
           return (
             <Link key={f.slug} href={`/fighters/${f.slug}`} className="home-mobile-list__row">
@@ -1207,15 +1232,15 @@ function MobileTopFighters({ fighters }: { fighters: FighterStat[] }) {
 
 function MobileStandings({ teams }: { teams: TeamStanding[] }) {
   if (teams.length === 0) return null;
-  const top6 = teams.slice(0, 6);
+  // Every club, matching the desktop table — this used to stop at six.
   return (
     <div className="home-mobile-only home-mobile-section">
       <div className="home-mobile-section__head">
-        <span>Standings · Top 6</span>
+        <span>Standings · {teams.length} Clubs</span>
         <Link href="/teams">Teams →</Link>
       </div>
       <div className="home-mobile-list">
-        {top6.map((t, i) => {
+        {teams.map((t, i) => {
           const logo = getTeamLogoPathByName(t.team);
           return (
             <Link key={t.slug} href={`/teams/${t.slug}`} className="home-mobile-list__row is-team">
@@ -1571,6 +1596,7 @@ export default async function HomePage() {
       <MobileMatchBanner
         featured={featured}
         lastCompleted={lastCompleted}
+        heroResult={heroResult}
         teamRecords={teamRecords}
       />
       <MobileTopFighters fighters={fightersByNetPts} />
