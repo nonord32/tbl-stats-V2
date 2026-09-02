@@ -483,11 +483,11 @@ export function FighterHero({
                 </>
               ) : null}
               Both cover the whole season and do not change with the view toggle above.{' '}
-              <Link href="/stats/ratings" style={{ color: 'var(--tbl-accent)' }}>
+              <Link href="/stats#ratings" style={{ color: 'var(--tbl-accent)' }}>
                 How it works →
               </Link>
               {'  ·  '}
-              <Link href="/ratings" style={{ color: 'var(--tbl-accent)' }}>
+              <Link href="/advanced?view=fighters&amp;stat=ratings" style={{ color: 'var(--tbl-accent)' }}>
                 Leaderboard →
               </Link>
             </div>
@@ -509,15 +509,15 @@ export function FighterHero({
               rounds moved the team&apos;s chance of winning · Avg LI = how big the moments were
               they were put in (not how they did) · Clutch = whether their wins came in the rounds
               that mattered. Disqualifications do not count toward Avg LI or Clutch.{' '}
-              <Link href="/stats/war" style={{ color: 'var(--tbl-accent)' }}>
+              <Link href="/stats#war" style={{ color: 'var(--tbl-accent)' }}>
                 WAR →
               </Link>
               {'  ·  '}
-              <Link href="/stats/wpa" style={{ color: 'var(--tbl-accent)' }}>
+              <Link href="/stats#wpa" style={{ color: 'var(--tbl-accent)' }}>
                 WPA →
               </Link>
               {'  ·  '}
-              <Link href="/stats/leverage" style={{ color: 'var(--tbl-accent)' }}>
+              <Link href="/stats#leverage" style={{ color: 'var(--tbl-accent)' }}>
                 Leverage &amp; Clutch →
               </Link>
             </div>

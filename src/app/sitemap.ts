@@ -27,30 +27,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
-  // Leaderboards built on the advanced stats. These change with the season, so
-  // they refresh daily alongside the core pages.
-  const statLeaderboards = ['/wpa', '/ratings', '/comebacks', '/moments'].map((path) => ({
-    url: `${base}${path}`,
+  // The advanced stats: one leaderboard page with three views, and one
+  // explainer page with a section per stat.
+  const statPages = [
+    { path: '/advanced', freq: 'daily' as const, priority: 0.8 },
+    { path: '/stats', freq: 'weekly' as const, priority: 0.7 },
+  ].map((p) => ({
+    url: `${base}${p.path}`,
     lastModified: new Date(),
-    changeFrequency: 'daily' as const,
-    priority: 0.8,
-  }));
-
-  // The methodology pages. Evergreen explainers — they only change when a model
-  // does — but they need to be indexed, since they are what a search for
-  // "win probability added boxing" should land on.
-  const statMethodology = [
-    '/stats/wpa',
-    '/stats/leverage',
-    '/stats/comebacks',
-    '/stats/ratings',
-    '/stats/war',
-    '/stats/glossary',
-  ].map((path) => ({
-    url: `${base}${path}`,
-    lastModified: new Date(),
-    changeFrequency: 'monthly' as const,
-    priority: 0.6,
+    changeFrequency: p.freq,
+    priority: p.priority,
   }));
 
   return [
@@ -61,8 +47,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/schedule`,      lastModified: new Date(), changeFrequency: 'daily',  priority: 0.8 },
     { url: `${base}/playoffs`,      lastModified: new Date(), changeFrequency: 'daily',  priority: 0.7 },
     { url: `${base}/awards`,        lastModified: new Date(), changeFrequency: 'monthly', priority: 0.6 },
-    ...statLeaderboards,
-    ...statMethodology,
+    ...statPages,
     ...fighterUrls,
     ...teamUrls,
     ...matchUrls,

@@ -18,23 +18,18 @@ const COLUMNS: { heading: string; links: { label: string; href: string }[] }[] =
     ],
   },
   {
-    heading: 'Leaderboards',
+    heading: 'Advanced Stats',
     links: [
-      { label: 'Win Probability Added', href: '/wpa' },
-      { label: 'Adjusted Ratings', href: '/ratings' },
-      { label: 'Biggest Comebacks', href: '/comebacks' },
-      { label: 'Biggest Moments', href: '/moments' },
+      { label: 'Biggest Rounds', href: '/advanced?view=rounds' },
+      { label: 'Fighter Leaderboard', href: '/advanced?view=fighters' },
+      { label: 'Biggest Comebacks', href: '/advanced?view=matches' },
     ],
   },
   {
-    heading: 'How the Stats Work',
+    heading: 'Reference',
     links: [
-      { label: 'Stat Glossary', href: '/stats/glossary' },
-      { label: 'Win Probability Added', href: '/stats/wpa' },
-      { label: 'Leverage & Clutch', href: '/stats/leverage' },
-      { label: 'Comebacks', href: '/stats/comebacks' },
-      { label: 'Adjusted Ratings', href: '/stats/ratings' },
-      { label: 'Wins Above Replacement', href: '/stats/war' },
+      { label: 'How the Stats Work', href: '/stats' },
+      { label: 'Every Stat Defined', href: '/stats#glossary' },
     ],
   },
 ];

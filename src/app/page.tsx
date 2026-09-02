@@ -1254,59 +1254,22 @@ function AdvancedStats() {
     blurb: string;
     links: { label: string; href: string }[];
   }[] = [
-    {
-      code: 'WPA',
-      title: 'Win Probability Added',
+     {
+      code: 'ADV',
+      title: 'Advanced Stats',
       blurb:
-        'Scores every round by how much it moved the team’s chance of winning. A round won with the match on the line counts for far more than one won in a blowout.',
+        'The biggest rounds of the season, a leaderboard for every advanced stat, and the biggest comebacks — all in one place.',
       links: [
-        { label: 'Leaderboard →', href: '/wpa' },
-        { label: 'How it works →', href: '/stats/wpa' },
+        { label: 'Biggest rounds →', href: '/advanced' },
+        { label: 'Fighter leaderboard →', href: '/advanced?view=fighters' },
       ],
-    },
-    {
-      code: 'LI',
-      title: 'Leverage & Clutch',
-      blurb:
-        'How much was riding on each round, and whether a fighter delivered in the ones that mattered. 1.00 is an ordinary round; 6.63 is as big as it gets.',
-      links: [
-        { label: 'Biggest moments →', href: '/moments' },
-        { label: 'How it works →', href: '/stats/leverage' },
-      ],
-    },
-    {
-      code: 'CB',
-      title: 'Comebacks & Blown Leads',
-      blurb:
-        'How close the winner came to losing — and how close the loser came to winning. Fall under 25% and still win, and it counts as a comeback. On the other side, it’s a blown lead.',
-      links: [
-        { label: 'Biggest comebacks →', href: '/comebacks' },
-        { label: 'How it works →', href: '/stats/comebacks' },
-      ],
-    },
-    {
-      code: 'SOS',
-      title: 'Adjusted NPPR & Schedule',
-      blurb:
-        'Every other stat treats beating the best fighter the same as beating the worst. These two know the difference: one rates all fighters against each other at once, the other says who they had to face.',
-      links: [
-        { label: 'Leaderboard →', href: '/ratings' },
-        { label: 'How it works →', href: '/stats/ratings' },
-      ],
-    },
-    {
-      code: 'WAR',
-      title: 'Wins Above Replacement',
-      blurb:
-        'How many wins a fighter added, compared to the kind of fighter a team could easily find to replace them.',
-      links: [{ label: 'How it works →', href: '/stats/war' }],
     },
     {
       code: 'ABC',
-      title: 'Stat Glossary',
+      title: 'How the Stats Work',
       blurb:
-        'Net Points, NP/R, KO%, and every other number on the site — what each one means, in plain English.',
-      links: [{ label: 'Every stat defined →', href: '/stats/glossary' }],
+        'Win Probability, Leverage, Clutch, Comebacks, Adjusted NPPR, Schedule and WAR — what each one means, in plain English.',
+      links: [{ label: 'Every stat explained →', href: '/stats' }],
     },
   ];
 

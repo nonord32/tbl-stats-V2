@@ -1,30 +1,29 @@
 'use client';
-// src/app/comebacks/ComebacksClient.tsx
-// Sortable table of every decided match by how close the winner came to losing.
+// src/app/advanced/MatchesView.tsx
+// Comebacks and blown leads: how close each winner came to losing. Featured
+// cards for the biggest, then every decided match in a sortable table.
+// Lifted from the old /comebacks page and its client.
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { getTeamLogoPathByName, getCityName } from '@/lib/teams';
 import { SectionRule } from '@/components/chrome/SectionRule';
-
-export interface ComebackRow {
-  matchIndex: number;
-  date: string;
-  winnerTeam: string;
-  loserTeam: string;
-  comebackLow: number;
-  lowRound: number;
-  deficitAtLow: number;
-  finalMargin: number;
-  isComeback: boolean;
-  footnote?: string;
-}
+import type { AdvancedMeta, MatchRow } from './types';
 
 type SortKey = 'comebackLow' | 'lowRound' | 'deficitAtLow' | 'finalMargin' | 'matchIndex';
 
-const pct = (v: number) => `${(v * 100).toFixed(2)}%`;
+const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
 
-export function ComebacksClient({ rows, threshold }: { rows: ComebackRow[]; threshold: number }) {
+export function MatchesView({
+  rows,
+  featured,
+  lastUpdated,
+  meta,
+}: {
+  rows: MatchRow[];
+  featured: MatchRow[];
+  lastUpdated?: string;
+  meta: AdvancedMeta;
+}) {
   const [sortKey, setSortKey] = useState<SortKey>('comebackLow');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [onlyComebacks, setOnlyComebacks] = useState(false);
@@ -33,7 +32,7 @@ export function ComebacksClient({ rows, threshold }: { rows: ComebackRow[]; thre
     if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     else {
       setSortKey(key);
-      // Lower is a bigger comeback; everything else reads best high-first.
+      // A lower low is a bigger comeback; everything else reads best high-first.
       setSortDir(key === 'comebackLow' ? 'asc' : 'desc');
     }
   };
@@ -41,9 +40,8 @@ export function ComebacksClient({ rows, threshold }: { rows: ComebackRow[]; thre
   const shown = useMemo(() => {
     const base = onlyComebacks ? rows.filter((r) => r.isComeback) : rows;
     return [...base].sort((a, b) => {
-      const va = a[sortKey];
-      const vb = b[sortKey];
-      return sortDir === 'asc' ? va - vb : vb - va;
+      const d = a[sortKey] - b[sortKey];
+      return sortDir === 'asc' ? d : -d;
     });
   }, [rows, onlyComebacks, sortKey, sortDir]);
 
@@ -69,8 +67,95 @@ export function ComebacksClient({ rows, threshold }: { rows: ComebackRow[]; thre
     </th>
   );
 
+  const footnoted = featured.find((f) => f.footnote);
+
   return (
     <div style={{ padding: '20px 32px 40px' }}>
+      {featured.length > 0 && (
+        <>
+          <SectionRule
+            left={`Biggest Comebacks · ${meta.comebackCount} of ${meta.decidedMatches} matches`}
+            right={lastUpdated ? `Updated ${lastUpdated}` : undefined}
+          />
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+              gap: 12,
+              margin: '0 0 26px',
+            }}
+          >
+            {featured.map((m, i) => (
+              <div
+                key={m.matchIndex}
+                style={{
+                  background: 'var(--tbl-paper)',
+                  border: '1.5px solid var(--tbl-ink)',
+                  padding: '13px 15px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 6,
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily: 'var(--tbl-font-mono)',
+                    fontSize: 9,
+                    letterSpacing: '0.2em',
+                    textTransform: 'uppercase',
+                    color: 'var(--tbl-ink-mute)',
+                    fontWeight: 700,
+                  }}
+                >
+                  No. {i + 1}
+                </div>
+                <div className="tbl-display" style={{ fontSize: 38, lineHeight: 1, color: 'var(--tbl-accent)' }}>
+                  {pct(m.comebackLow)}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {m.winnerLogo && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={m.winnerLogo} alt="" style={{ width: 18, height: 18, objectFit: 'contain' }} />
+                  )}
+                  <span className="tbl-display" style={{ fontSize: 17, fontWeight: 800 }}>
+                    {m.winnerTeam}
+                  </span>
+                  {m.footnote && <span style={{ color: 'var(--tbl-ink-soft)' }} title={m.footnote}>†</span>}
+                </div>
+                <div
+                  style={{
+                    fontFamily: 'var(--tbl-font-mono)',
+                    fontSize: 10,
+                    lineHeight: 1.6,
+                    color: 'var(--tbl-ink-soft)',
+                  }}
+                >
+                  Down {Math.abs(m.deficitAtLow)} after round {m.lowRound} against {m.loserTeam}. Won
+                  by {m.finalMargin}.{' '}
+                  <Link href={`/matches/${m.matchIndex}`} style={{ color: 'var(--tbl-accent)', textDecoration: 'none' }}>
+                    Match #{m.matchIndex} →
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+          {footnoted?.footnote && (
+            <p
+              style={{
+                fontFamily: 'var(--tbl-font-mono)',
+                fontSize: 10,
+                lineHeight: 1.65,
+                color: 'var(--tbl-ink-soft)',
+                margin: '-16px 0 24px',
+                maxWidth: 720,
+              }}
+            >
+              † {footnoted.footnote}
+            </p>
+          )}
+        </>
+      )}
+
       <SectionRule left={`Every Decided Match · ${shown.length}`} right="Click any column to sort" />
       <label
         className="gz-filter"
@@ -83,18 +168,13 @@ export function ComebacksClient({ rows, threshold }: { rows: ComebackRow[]; thre
           style={{ accentColor: 'var(--tbl-accent)' }}
         />
         <span className="gz-filter__label">
-          Only comeback wins (winner once below {(threshold * 100).toFixed(0)}%)
+          Only comeback wins (winner once below {(meta.comebackThreshold * 100).toFixed(0)}%)
         </span>
       </label>
 
       <div style={{ overflowX: 'auto' }}>
         <table
-          style={{
-            width: '100%',
-            borderCollapse: 'collapse',
-            fontFamily: 'var(--tbl-font-mono)',
-            fontSize: 12,
-          }}
+          style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--tbl-font-mono)', fontSize: 12 }}
         >
           <thead>
             <tr style={{ borderBottom: '2px solid var(--tbl-ink)' }}>
@@ -105,9 +185,9 @@ export function ComebacksClient({ rows, threshold }: { rows: ComebackRow[]; thre
               <th style={{ textAlign: 'left', padding: '7px 8px', fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--tbl-ink-soft)', fontWeight: 700 }}>
                 Loser
               </th>
-              {th('comebackLow', 'Low WP', 'The winner’s lowest win probability at any point after a round')}
+              {th('comebackLow', 'Low Point', 'The lowest the winner’s chances ever fell after a round')}
               {th('lowRound', 'At Round')}
-              {th('deficitAtLow', 'Deficit Then', 'The winner’s score differential at their low point')}
+              {th('deficitAtLow', 'Behind By', 'The winner’s score differential at their low point')}
               {th('finalMargin', 'Won By')}
               {th('matchIndex', 'Match')}
             </tr>
@@ -118,13 +198,11 @@ export function ComebacksClient({ rows, threshold }: { rows: ComebackRow[]; thre
                 <td style={{ padding: '9px 4px', color: 'var(--tbl-ink-soft)', fontWeight: 700 }}>{i + 1}.</td>
                 <td style={{ padding: '9px 8px' }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    {getTeamLogoPathByName(r.winnerTeam) && (
+                    {r.winnerLogo && (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={getTeamLogoPathByName(r.winnerTeam)} alt="" style={{ width: 16, height: 16, objectFit: 'contain' }} />
+                      <img src={r.winnerLogo} alt="" style={{ width: 16, height: 16, objectFit: 'contain' }} />
                     )}
-                    <span className="tbl-display" style={{ fontSize: 14, fontWeight: 700 }}>
-                      {getCityName(r.winnerTeam)}
-                    </span>
+                    <span className="tbl-display" style={{ fontSize: 14, fontWeight: 700 }}>{r.winnerTeam}</span>
                     {r.isComeback && (
                       <span
                         style={{
@@ -142,9 +220,7 @@ export function ComebacksClient({ rows, threshold }: { rows: ComebackRow[]; thre
                     {r.footnote && <span style={{ color: 'var(--tbl-ink-soft)' }} title={r.footnote}>†</span>}
                   </span>
                 </td>
-                <td style={{ padding: '9px 8px', color: 'var(--tbl-ink-soft)' }}>
-                  {getCityName(r.loserTeam)}
-                </td>
+                <td style={{ padding: '9px 8px', color: 'var(--tbl-ink-soft)' }}>{r.loserTeam}</td>
                 <td
                   style={{
                     padding: '9px 8px',
@@ -163,8 +239,7 @@ export function ComebacksClient({ rows, threshold }: { rows: ComebackRow[]; thre
                     color: r.deficitAtLow < 0 ? 'var(--tbl-red)' : 'var(--tbl-ink-soft)',
                   }}
                 >
-                  {r.deficitAtLow > 0 ? '+' : ''}
-                  {r.deficitAtLow}
+                  {r.deficitAtLow > 0 ? '+' : ''}{r.deficitAtLow}
                 </td>
                 <td style={{ padding: '9px 8px', textAlign: 'right', color: 'var(--tbl-green)', fontWeight: 700 }}>
                   +{r.finalMargin}
@@ -179,6 +254,7 @@ export function ComebacksClient({ rows, threshold }: { rows: ComebackRow[]; thre
           </tbody>
         </table>
       </div>
+
       {shown.length === 0 && (
         <p style={{ fontFamily: 'var(--tbl-font-mono)', fontSize: 12, color: 'var(--tbl-ink-soft)' }}>
           No matches yet.

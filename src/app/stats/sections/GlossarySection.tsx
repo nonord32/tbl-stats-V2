@@ -1,29 +1,16 @@
 // src/app/stats/glossary/page.tsx
 // Every stat on the site, defined in one place. Linked from the homepage
 // Advanced Stats section.
-import type { Metadata } from 'next';
 import Link from 'next/link';
 import { SectionRule } from '@/components/chrome/SectionRule';
+import { StatSection } from '../shared';
 
-export const revalidate = 3600;
-
-export const metadata: Metadata = {
-  title: 'Stat Glossary — Every TBL Stat Defined',
-  description:
-    'Definitions for every stat on TBL Stats: Record, Win%, Net Points, NP/R, Points For/Against, Extra Points, KO%, WAR, and WPA.',
-  openGraph: {
-    url: 'https://tblstats.com/stats/glossary',
-    title: 'Stat Glossary | TBL Stats',
-    description: 'Every TBL stat, defined.',
-  },
-};
-
-interface Term {
+export interface Term {
   name: string;
   def: React.ReactNode;
 }
 
-const TERMS: { section: string; terms: Term[] }[] = [
+export const TERMS: { section: string; terms: Term[] }[] = [
   {
     section: 'The Basics',
     terms: [
@@ -93,7 +80,7 @@ const TERMS: { section: string; terms: Term[] }[] = [
             How many wins a fighter added compared to the kind of fighter a team could easily
             find to replace them. Built from their scoring rate, how many rounds they fought, and
             what a win costs in points.{' '}
-            <Link href="/stats/war" style={{ color: 'var(--tbl-accent)' }}>
+            <Link href="/stats#war" style={{ color: 'var(--tbl-accent)' }}>
               How WAR works →
             </Link>
           </>
@@ -107,7 +94,7 @@ const TERMS: { section: string; terms: Term[] }[] = [
             fighter, so both fighters in a round have the same number. 1.00 is an ordinary round;
             6.63 is the maximum — a tied match with one round to go. A fighter&apos;s average tells
             you how big their moments were, not how they did in them.{' '}
-            <Link href="/stats/leverage" style={{ color: 'var(--tbl-accent)' }}>
+            <Link href="/stats#leverage" style={{ color: 'var(--tbl-accent)' }}>
               How Leverage works →
             </Link>
           </>
@@ -120,7 +107,7 @@ const TERMS: { section: string; terms: Term[] }[] = [
             Whether a fighter&apos;s results came in the rounds that mattered. We compare what
             they actually did to what the same results would have been worth in ordinary rounds.
             Positive means their wins landed in the big moments. Disqualifications do not count.{' '}
-            <Link href="/moments" style={{ color: 'var(--tbl-accent)' }}>
+            <Link href="/advanced?view=rounds" style={{ color: 'var(--tbl-accent)' }}>
               Biggest moments →
             </Link>
           </>
@@ -133,11 +120,11 @@ const TERMS: { section: string; terms: Term[] }[] = [
             How much a round moved the team&apos;s chance of winning, credited to the fighter who
             caused it. A round won with the match on the line is worth far more than one won in a
             blowout.{' '}
-            <Link href="/stats/wpa" style={{ color: 'var(--tbl-accent)' }}>
+            <Link href="/stats#wpa" style={{ color: 'var(--tbl-accent)' }}>
               How WPA works →
             </Link>{' '}
             ·{' '}
-            <Link href="/wpa" style={{ color: 'var(--tbl-accent)' }}>
+            <Link href="/advanced?view=fighters" style={{ color: 'var(--tbl-accent)' }}>
               Leaderboard →
             </Link>
           </>
@@ -151,11 +138,11 @@ const TERMS: { section: string; terms: Term[] }[] = [
             schedule than most. Rounds an opponent fought <em>against this fighter</em> are thrown
             out first — otherwise beating someone four times would drag their numbers down and make
             your own schedule look easy.{' '}
-            <Link href="/stats/ratings" style={{ color: 'var(--tbl-accent)' }}>
+            <Link href="/stats#ratings" style={{ color: 'var(--tbl-accent)' }}>
               How it works →
             </Link>{' '}
             ·{' '}
-            <Link href="/ratings" style={{ color: 'var(--tbl-accent)' }}>
+            <Link href="/advanced?view=fighters&amp;stat=ratings" style={{ color: 'var(--tbl-accent)' }}>
               Leaderboard →
             </Link>
           </>
@@ -169,7 +156,7 @@ const TERMS: { section: string; terms: Term[] }[] = [
             fighter is rated against every other at the same time, across the whole season.
             Fighters with few rounds get pulled toward average on purpose. Each rating shows a
             range; gaps under 0.20 do not mean anything.{' '}
-            <Link href="/stats/ratings" style={{ color: 'var(--tbl-accent)' }}>
+            <Link href="/stats#ratings" style={{ color: 'var(--tbl-accent)' }}>
               How it works →
             </Link>
           </>
@@ -182,11 +169,11 @@ const TERMS: { section: string; terms: Term[] }[] = [
             The lowest the eventual winner&apos;s chances ever fell during a match. Dip under 25%
             and it counts as a comeback win — and, from the other side, a blown lead for the team
             that let it slip. Draws do not count.{' '}
-            <Link href="/stats/comebacks" style={{ color: 'var(--tbl-accent)' }}>
+            <Link href="/stats#comebacks" style={{ color: 'var(--tbl-accent)' }}>
               How it works →
             </Link>{' '}
             ·{' '}
-            <Link href="/comebacks" style={{ color: 'var(--tbl-accent)' }}>
+            <Link href="/advanced?view=matches" style={{ color: 'var(--tbl-accent)' }}>
               Biggest comebacks →
             </Link>
           </>
@@ -196,13 +183,13 @@ const TERMS: { section: string; terms: Term[] }[] = [
   },
 ];
 
-export default function GlossaryPage() {
+export function GlossarySection() {
   return (
-    <div style={{ padding: '22px 32px 48px' }}>
-      <div className="tbl-eyebrow">Reference</div>
-      <h1 className="tbl-display" style={{ fontSize: 54, lineHeight: 0.95, margin: '4px 0 0' }}>
-        Stat Glossary
-      </h1>
+    <StatSection
+      id="glossary"
+      title="Every Stat, Defined"
+      standfirst="Every number on the site in one place, including the basics."
+    >
 
       <div style={{ maxWidth: 720 }}>
         {TERMS.map((group) => (
@@ -237,6 +224,6 @@ export default function GlossaryPage() {
           </section>
         ))}
       </div>
-    </div>
+    </StatSection>
   );
 }

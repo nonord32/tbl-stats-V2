@@ -3,65 +3,22 @@
 // not a statistician — the formal spec lives in the collapsible "Technical
 // details" section at the bottom. Live figures come from the season rather than
 // being typed in, so the page cannot drift from the leaderboard.
-import type { Metadata } from 'next';
 import Link from 'next/link';
-import { SectionRule } from '@/components/chrome/SectionRule';
 import { getRatingsData, RATINGS_MODEL, RATINGS_MODEL_VERSION } from '@/lib/ratings';
+import {
+  Block,
+  StatSection,
+  TechDetails,
+  prose,
+  proseSmall,
+  monoTh,
+  monoTd,
+} from '../shared';
 
-export const revalidate = 300;
-
-export const metadata: Metadata = {
-  title: 'How Adjusted NPPR & Strength of Schedule Work',
-  description:
-    'Why beating the best fighter in the league should count for more than beating the worst — and how TBL Stats measures it, including how precise the numbers actually are.',
-  openGraph: {
-    url: 'https://tblstats.com/stats/ratings',
-    title: 'How Adjusted Ratings Work | TBL Stats',
-    description:
-      'Strength of Schedule, Adjusted NPPR, and an honest account of how much of each number is signal.',
-  },
-};
-
-const prose: React.CSSProperties = {
-  fontFamily: 'var(--tbl-font-body)',
-  fontSize: 15,
-  lineHeight: 1.75,
-  color: 'var(--tbl-ink)',
-  margin: '0 0 14px',
-};
-const proseSmall: React.CSSProperties = { ...prose, fontSize: 13, color: 'var(--tbl-ink-soft)' };
-
-const monoTh: React.CSSProperties = {
-  fontFamily: 'var(--tbl-font-mono)',
-  fontSize: 10,
-  letterSpacing: '0.12em',
-  textTransform: 'uppercase',
-  color: 'var(--tbl-ink-soft)',
-  fontWeight: 700,
-  padding: '6px 10px',
-  borderBottom: '1.5px solid var(--tbl-ink)',
-  textAlign: 'right',
-};
-const monoTd: React.CSSProperties = {
-  fontFamily: 'var(--tbl-font-mono)',
-  fontSize: 12,
-  padding: '7px 10px',
-  borderBottom: '1px dotted rgba(20,17,11,0.3)',
-  textAlign: 'right',
-};
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section style={{ marginTop: 30 }}>
-      <SectionRule left={title} />
-      {children}
-    </section>
-  );
-}
 
 const signed = (v: number, dp = 3) => `${v >= 0 ? '+' : ''}${v.toFixed(dp)}`;
 
-export default async function RatingsMethodologyPage() {
+export async function RatingsSection() {
   const season = await getRatingsData();
   const { summary } = season;
 
@@ -79,14 +36,10 @@ export default async function RatingsMethodologyPage() {
   const largest = [...divisionsWithField].sort((a, b) => b.qualified - a.qualified)[0];
 
   return (
-    <div style={{ padding: '22px 32px 48px' }}>
-      <div className="tbl-eyebrow">Methodology · Model {RATINGS_MODEL_VERSION}</div>
-      <h1 className="tbl-display" style={{ fontSize: 54, lineHeight: 0.95, margin: '4px 0 0' }}>
-        How Adjusted Ratings Work
-      </h1>
+    <StatSection id="ratings" title="Adjusted NPPR &amp; Schedule" standfirst="Beating the best fighter in the league is harder than beating the worst. These two stats are the only ones here that know the difference.">
 
       <div style={{ maxWidth: 720 }}>
-        <Section title="The Problem">
+        <Block title="The Problem">
           <p style={prose}>
             Beating the best fighter in the league is harder than beating the worst. Every other
             stat on this site scores them the same.
@@ -104,14 +57,14 @@ export default async function RatingsMethodologyPage() {
           </p>
           <p style={proseSmall}>
             See them live on the{' '}
-            <Link href="/ratings" style={{ color: 'var(--tbl-accent)' }}>
+            <Link href="/advanced?view=fighters&amp;stat=ratings" style={{ color: 'var(--tbl-accent)' }}>
               adjusted ratings leaderboard
             </Link>{' '}
             and on every fighter profile.
           </p>
-        </Section>
+        </Block>
 
-        <Section title="Strength of Schedule: Who You Fought">
+        <Block title="Strength of Schedule: Who You Fought">
           <p style={prose}>
             Take everyone a fighter faced. Average how good they were, using their net points per
             round. That is the fighter&apos;s Strength of Schedule.
@@ -129,9 +82,9 @@ export default async function RatingsMethodologyPage() {
               between two fighters in the same league.
             </p>
           )}
-        </Section>
+        </Block>
 
-        <Section title="Why We Throw Out Your Own Rounds">
+        <Block title="Why We Throw Out Your Own Rounds">
           <p style={prose}>
             This is the part that makes the number trustworthy, so it is worth spelling out.
           </p>
@@ -187,9 +140,9 @@ export default async function RatingsMethodologyPage() {
             Zero would be perfect. The bottom row is worked out live from this season, not typed in.
             If it ever slides back toward −0.5, something has broken.
           </p>
-        </Section>
+        </Block>
 
-        <Section title="Adjusted NPPR: Rating Everyone At Once">
+        <Block title="Adjusted NPPR: Rating Everyone At Once">
           <p style={prose}>
             Adjusted NPPR takes a different route. Instead of scoring fighters and then patching the
             result, it works out everybody&apos;s rating together.
@@ -213,9 +166,9 @@ export default async function RatingsMethodologyPage() {
               score was describing his schedule, not him.
             </p>
           )}
-        </Section>
+        </Block>
 
-        <Section title="How Sure Are We?">
+        <Block title="How Sure Are We?">
           <p style={prose}>
             Most sites give you a rating and let you assume it is exact. Here is how solid ours
             actually is.
@@ -242,9 +195,9 @@ export default async function RatingsMethodologyPage() {
             On the leaderboard, a ⚠ marks any fighter whose rating wobbles more than{' '}
             {RATINGS_MODEL.flagBootSd.toFixed(2)} — those are the softest numbers on the page.
           </p>
-        </Section>
+        </Block>
 
-        <Section title="Comparing Across Weight Classes">
+        <Block title="Comparing Across Weight Classes">
           <p style={prose}>
             We publish a pound-for-pound list as well as one per division. That sounds like the
             shakier of the two, and we expected it to be. It is not.
@@ -274,14 +227,14 @@ export default async function RatingsMethodologyPage() {
               exactly that.
             </p>
           )}
-        </Section>
+        </Block>
 
-        <Section title="What These Stats Do Not Do">
+        <Block title="What These Stats Do Not Do">
           <ul style={{ ...prose, paddingLeft: 22 }}>
             <li style={{ marginBottom: 8 }}>
               <strong>They ignore when a round happened.</strong> A round won with the match on the
               line counts the same as one won in a blowout. That is what{' '}
-              <Link href="/stats/leverage" style={{ color: 'var(--tbl-accent)' }}>
+              <Link href="/stats#leverage" style={{ color: 'var(--tbl-accent)' }}>
                 Leverage and Clutch
               </Link>{' '}
               are for.
@@ -300,27 +253,10 @@ export default async function RatingsMethodologyPage() {
               <strong>This season only.</strong> Nothing carries over from any other year.
             </li>
           </ul>
-        </Section>
+        </Block>
       </div>
 
-      <details style={{ marginTop: 36, maxWidth: 860 }}>
-        <summary
-          style={{
-            cursor: 'pointer',
-            fontFamily: 'var(--tbl-font-mono)',
-            fontSize: 11,
-            letterSpacing: '0.2em',
-            textTransform: 'uppercase',
-            fontWeight: 700,
-            color: 'var(--tbl-accent)',
-            padding: '10px 0',
-            borderTop: '1.5px solid var(--tbl-ink)',
-            borderBottom: '1.5px solid var(--tbl-ink)',
-          }}
-        >
-          Technical Details — the formal spec
-        </summary>
-        <div style={{ paddingTop: 16 }}>
+      <TechDetails>
           <p style={proseSmall}>
             <strong>Strength of Schedule.</strong> For fighter A, over each opponent X faced k
             times:
@@ -385,8 +321,7 @@ export default async function RatingsMethodologyPage() {
             count — are asserted against live data by the admin validation route. Point estimates
             are exactly reproducible; bootstrap spreads are stochastic and checked as ranges.
           </p>
-        </div>
-      </details>
-    </div>
+      </TechDetails>
+    </StatSection>
   );
 }

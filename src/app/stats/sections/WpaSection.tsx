@@ -2,68 +2,23 @@
 // Public methodology page for WPA (Win Probability Added). Written for a
 // boxing fan, not a statistician — the formal spec lives in the collapsible
 // "Technical details" section at the bottom. Linked from every WPA surface.
-import type { Metadata } from 'next';
 import Link from 'next/link';
-import { SectionRule } from '@/components/chrome/SectionRule';
 import { WPA_TABLE, WPA_MODEL, WPA_MODEL_VERSION, wpLookup } from '@/lib/wpa';
-
-export const revalidate = 3600;
-
-export const metadata: Metadata = {
-  title: 'How WPA Works — Win Probability Added Methodology',
-  description:
-    'How TBL Stats computes Win Probability Added: every round scored by how much it moved the team’s chance of winning the match. The model, the rules, and what it can and can’t tell you.',
-  openGraph: {
-    url: 'https://tblstats.com/stats/wpa',
-    title: 'How WPA Works | TBL Stats',
-    description: 'Win Probability Added, explained for fight fans.',
-  },
-};
+import {
+  Block,
+  StatSection,
+  TechDetails,
+  prose,
+  proseSmall,
+  monoTh,
+  monoTd,
+} from '../shared';
 
 // ── Local prose styling (gazette long-form) ──────────────────────────────────
-const prose: React.CSSProperties = {
-  fontFamily: 'var(--tbl-font-body)',
-  fontSize: 15,
-  lineHeight: 1.75,
-  color: 'var(--tbl-ink)',
-  margin: '0 0 14px',
-};
-const proseSmall: React.CSSProperties = {
-  ...prose,
-  fontSize: 13,
-  color: 'var(--tbl-ink-soft)',
-};
-const monoTh: React.CSSProperties = {
-  fontFamily: 'var(--tbl-font-mono)',
-  fontSize: 10,
-  letterSpacing: '0.12em',
-  textTransform: 'uppercase',
-  color: 'var(--tbl-ink-soft)',
-  fontWeight: 700,
-  padding: '6px 10px',
-  borderBottom: '1.5px solid var(--tbl-ink)',
-  textAlign: 'right',
-};
-const monoTd: React.CSSProperties = {
-  fontFamily: 'var(--tbl-font-mono)',
-  fontSize: 12,
-  padding: '7px 10px',
-  borderBottom: '1px dotted rgba(20,17,11,0.3)',
-  textAlign: 'right',
-};
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section style={{ marginTop: 30 }}>
-      <SectionRule left={title} />
-      {children}
-    </section>
-  );
-}
 
 const fmtWpa = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}`;
 
-export default function WpaMethodologyPage() {
+export function WpaSection() {
   const wp = (d: number, r: number) => wpLookup(WPA_TABLE, d, r);
 
   // "Same win, different value": a 1-point decision win, from a tie, at
@@ -90,14 +45,10 @@ export default function WpaMethodologyPage() {
   const gridRs = Array.from({ length: 25 }, (_, i) => i); // 0 … 24
 
   return (
-    <div style={{ padding: '22px 32px 48px' }}>
-      <div className="tbl-eyebrow">Methodology · Model {WPA_MODEL_VERSION}</div>
-      <h1 className="tbl-display" style={{ fontSize: 54, lineHeight: 0.95, margin: '4px 0 0' }}>
-        How WPA Works
-      </h1>
+    <StatSection id="wpa" title="Win Probability Added" standfirst="Every round changes your team's chance of winning. WPA is that change, credited to the fighter who caused it.">
 
       <div style={{ maxWidth: 720 }}>
-        <Section title="What WPA Measures">
+        <Block title="What WPA Measures">
           <p style={prose}>
             Every round changes your team&apos;s chance of winning the match. WPA — Win
             Probability Added — is that change, credited to the fighter who caused it. Win a
@@ -111,23 +62,23 @@ export default function WpaMethodologyPage() {
           </p>
           <p style={proseSmall}>
             See it in action on the{' '}
-            <Link href="/wpa" style={{ color: 'var(--tbl-accent)' }}>
+            <Link href="/advanced?view=fighters" style={{ color: 'var(--tbl-accent)' }}>
               advanced leaderboard
             </Link>
             , on every fighter profile, and round by round on every match page. Two stats
             build directly on this model:{' '}
-            <Link href="/stats/leverage" style={{ color: 'var(--tbl-accent)' }}>
+            <Link href="/stats#leverage" style={{ color: 'var(--tbl-accent)' }}>
               Leverage Index and Clutch
             </Link>{' '}
             and{' '}
-            <Link href="/stats/comebacks" style={{ color: 'var(--tbl-accent)' }}>
+            <Link href="/stats#comebacks" style={{ color: 'var(--tbl-accent)' }}>
               Comebacks and Blown Leads
             </Link>
             .
           </p>
-        </Section>
+        </Block>
 
-        <Section title="A Worked Example">
+        <Block title="A Worked Example">
           <p style={prose}>
             Match 6, Phoenix vs Boston, round 16. Phoenix trailed by 2 points with 8 rounds
             left to fight. In that spot, teams win about <strong>25%</strong> of the time —
@@ -144,9 +95,9 @@ export default function WpaMethodologyPage() {
             <strong>WPA +0.500</strong> — the biggest single round of the 2026 season. His
             opponent is charged the mirror image, −0.500.
           </p>
-        </Section>
+        </Block>
 
-        <Section title="The Same Win Isn't Always Worth the Same">
+        <Block title="The Same Win Isn't Always Worth the Same">
           <p style={prose}>
             Take the most ordinary result there is: a 1-point decision win while the match is
             tied. Watch what it&apos;s worth as the match runs out of road:
@@ -184,9 +135,9 @@ export default function WpaMethodologyPage() {
             intuitively from watching — a tied final round is everything, a tied 4th round is
             a skirmish. WPA just gives that intuition a number.
           </p>
-        </Section>
+        </Block>
 
-        <Section title="Why Time Itself Matters">
+        <Block title="Why Time Itself Matters">
           <p style={prose}>
             Holding a lead while rounds tick away raises your win probability even when the
             score doesn&apos;t move. Fewer remaining rounds means fewer chances for the
@@ -199,9 +150,9 @@ export default function WpaMethodologyPage() {
             lost round late can still be a &quot;good&quot; round for the team protecting a
             big lead. This is intended behavior, not a quirk.
           </p>
-        </Section>
+        </Block>
 
-        <Section title="How Disqualifications Are Handled">
+        <Block title="How Disqualifications Are Handled">
           <p style={prose}>
             Disqualification rounds are credited to <strong>neither fighter</strong>. Both
             fighters receive exactly zero WPA for a DQ round.
@@ -222,9 +173,9 @@ export default function WpaMethodologyPage() {
             largest came in match 13, where a DQ in the final round of a tied match decided
             it — worth 0.500 of win probability, now attributed to nobody.
           </p>
-        </Section>
+        </Block>
 
-        <Section title="How the Model Was Built">
+        <Block title="How the Model Was Built">
           <p style={prose}>
             The model uses exactly two inputs: the score differential and how many rounds are
             left. Nothing about who the fighters are.
@@ -240,9 +191,9 @@ export default function WpaMethodologyPage() {
             winning team splits exactly +0.500 of WPA between them, and every fighter on a
             losing team splits −0.500. Nothing is invented and nothing goes missing.
           </p>
-        </Section>
+        </Block>
 
-        <Section title="How Accurate Is It">
+        <Block title="How Accurate Is It">
           <p style={prose}>
             Read this table as: &quot;when the model said 62%, teams actually won about 65% of
             the time.&quot; Across every round of the season, the model&apos;s stated chances
@@ -268,9 +219,9 @@ export default function WpaMethodologyPage() {
               </tbody>
             </table>
           </div>
-        </Section>
+        </Block>
 
-        <Section title="What WPA Does Not Do">
+        <Block title="What WPA Does Not Do">
           <ul style={{ ...prose, paddingLeft: 22 }}>
             <li style={{ marginBottom: 8 }}>
               It does not account for opponent difficulty. Beating the best fighter in the
@@ -293,28 +244,11 @@ export default function WpaMethodologyPage() {
               probability in a handful of matches is unassigned.
             </li>
           </ul>
-        </Section>
+        </Block>
       </div>
 
       {/* ── Technical details (collapsible) ────────────────────────────────── */}
-      <details style={{ marginTop: 36, maxWidth: 860 }}>
-        <summary
-          style={{
-            cursor: 'pointer',
-            fontFamily: 'var(--tbl-font-mono)',
-            fontSize: 11,
-            letterSpacing: '0.2em',
-            textTransform: 'uppercase',
-            fontWeight: 700,
-            color: 'var(--tbl-accent)',
-            padding: '10px 0',
-            borderTop: '1.5px solid var(--tbl-ink)',
-            borderBottom: '1.5px solid var(--tbl-ink)',
-          }}
-        >
-          Technical Details — the formal spec
-        </summary>
-        <div style={{ paddingTop: 16 }}>
+      <TechDetails>
           <p style={proseSmall}>
             <strong>Two-stage model (version {WPA_MODEL_VERSION}, fit on the {WPA_MODEL.season} season).</strong>{' '}
             Stage 1: the per-round point margin follows a fixed empirical distribution
@@ -418,8 +352,7 @@ export default function WpaMethodologyPage() {
               </tbody>
             </table>
           </div>
-        </div>
-      </details>
-    </div>
+      </TechDetails>
+    </StatSection>
   );
 }

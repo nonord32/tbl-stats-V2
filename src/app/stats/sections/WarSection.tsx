@@ -1,48 +1,21 @@
 // src/app/stats/war/page.tsx
 // Public explainer for WAR (Wins Above Replacement) — plain language first,
 // with the league constants computed live from the same data the site uses.
-import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getAllData, extractUniqueMatches } from '@/lib/data';
 import { leagueBaseline } from '@/lib/warStats';
-import { SectionRule } from '@/components/chrome/SectionRule';
+import {
+  Block,
+  StatSection,
+  TechDetails,
+  prose,
+  proseSmall,
+  monoTh,
+  monoTd,
+} from '../shared';
 
-export const revalidate = 300;
 
-export const metadata: Metadata = {
-  title: 'How WAR Works — Wins Above Replacement Methodology',
-  description:
-    'How TBL Stats computes Wins Above Replacement: a fighter’s total impact in team wins added over a replacement-level fighter, derived from net points per round and league-wide match margins.',
-  openGraph: {
-    url: 'https://tblstats.com/stats/war',
-    title: 'How WAR Works | TBL Stats',
-    description: 'Wins Above Replacement, explained for fight fans.',
-  },
-};
-
-const prose: React.CSSProperties = {
-  fontFamily: 'var(--tbl-font-body)',
-  fontSize: 15,
-  lineHeight: 1.75,
-  color: 'var(--tbl-ink)',
-  margin: '0 0 14px',
-};
-const proseSmall: React.CSSProperties = {
-  ...prose,
-  fontSize: 13,
-  color: 'var(--tbl-ink-soft)',
-};
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section style={{ marginTop: 30 }}>
-      <SectionRule left={title} />
-      {children}
-    </section>
-  );
-}
-
-export default async function WarMethodologyPage() {
+export async function WarSection() {
   const data = await getAllData();
   // The one league-wide baseline every WAR figure is measured against.
   const baseline = leagueBaseline(
@@ -52,14 +25,10 @@ export default async function WarMethodologyPage() {
   );
 
   return (
-    <div style={{ padding: '22px 32px 48px' }}>
-      <div className="tbl-eyebrow">Methodology</div>
-      <h1 className="tbl-display" style={{ fontSize: 54, lineHeight: 0.95, margin: '4px 0 0' }}>
-        How WAR Works
-      </h1>
+    <StatSection id="war" title="Wins Above Replacement" standfirst="How many wins a fighter added, compared to the kind of fighter a team could easily find to replace them.">
 
       <div style={{ maxWidth: 720 }}>
-        <Section title="What WAR Measures">
+        <Block title="What WAR Measures">
           <p style={prose}>
             WAR asks a simple question: how many wins did this fighter add, compared to the
             kind of fighter a team could easily find to replace them?
@@ -76,9 +45,9 @@ export default async function WarMethodologyPage() {
             </Link>
             .
           </p>
-        </Section>
+        </Block>
 
-        <Section title="How It's Computed">
+        <Block title="How It's Computed">
           <p style={prose}>
             Three ingredients, all derived from the round-by-round results:
           </p>
@@ -105,9 +74,9 @@ export default async function WarMethodologyPage() {
             </span>
             .
           </p>
-        </Section>
+        </Block>
 
-        <Section title="This Season's Constants">
+        <Block title="This Season's Constants">
           <p style={prose}>
             The same two numbers are used everywhere on the site. The yardstick does not change
             between the regular season and the playoffs — only a fighter&apos;s own scoring rate
@@ -150,14 +119,14 @@ export default async function WarMethodologyPage() {
             fighter statkeeping (and therefore from WAR), though their points still count in
             match results.
           </p>
-        </Section>
+        </Block>
 
-        <Section title="What WAR Does Not Do">
+        <Block title="What WAR Does Not Do">
           <ul style={{ ...prose, paddingLeft: 22 }}>
             <li style={{ marginBottom: 8 }}>
               It doesn&apos;t know <em>when</em> points were scored. A garbage-time knockout
               counts the same as a match-winning one — that&apos;s what{' '}
-              <Link href="/stats/wpa" style={{ color: 'var(--tbl-accent)' }}>
+              <Link href="/stats#wpa" style={{ color: 'var(--tbl-accent)' }}>
                 WPA
               </Link>{' '}
               is for.
@@ -165,7 +134,7 @@ export default async function WarMethodologyPage() {
             <li style={{ marginBottom: 8 }}>
               It doesn&apos;t adjust for opponent quality — beating the best fighter in the league
               counts the same as beating the worst. That&apos;s what{' '}
-              <Link href="/stats/ratings" style={{ color: 'var(--tbl-accent)' }}>
+              <Link href="/stats#ratings" style={{ color: 'var(--tbl-accent)' }}>
                 Adjusted NPPR and Strength of Schedule
               </Link>{' '}
               are for.
@@ -174,8 +143,8 @@ export default async function WarMethodologyPage() {
               Fighters with few rounds can post noisy values, up or down.
             </li>
           </ul>
-        </Section>
+        </Block>
       </div>
-    </div>
+    </StatSection>
   );
 }

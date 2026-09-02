@@ -2,59 +2,18 @@
 // Public methodology for Leverage Index (LI) and Clutch. Fan-level language;
 // the formal spec is collapsed at the bottom. Cross-linked with /stats/wpa,
 // which covers the win-probability model both stats are built on.
-import type { Metadata } from 'next';
 import Link from 'next/link';
-import { SectionRule } from '@/components/chrome/SectionRule';
 import { LI_TABLE, WPA_MODEL, WPA_MODEL_VERSION, liLookup, getWpaData } from '@/lib/wpa';
+import {
+  Block,
+  StatSection,
+  TechDetails,
+  prose,
+  proseSmall,
+  monoTh,
+  monoTd,
+} from '../shared';
 
-export const revalidate = 300;
-
-export const metadata: Metadata = {
-  title: 'How Leverage & Clutch Work — TBL Methodology',
-  description:
-    'Leverage Index measures how much was at stake before a round. Clutch measures whether a fighter’s results came in the moments that mattered. How both are built, and what they can and cannot tell you.',
-  openGraph: {
-    url: 'https://tblstats.com/stats/leverage',
-    title: 'How Leverage & Clutch Work | TBL Stats',
-    description: 'Not every round matters equally. Leverage Index is the number that knows the difference.',
-  },
-};
-
-const prose: React.CSSProperties = {
-  fontFamily: 'var(--tbl-font-body)',
-  fontSize: 15,
-  lineHeight: 1.75,
-  color: 'var(--tbl-ink)',
-  margin: '0 0 14px',
-};
-const proseSmall: React.CSSProperties = { ...prose, fontSize: 13, color: 'var(--tbl-ink-soft)' };
-const th: React.CSSProperties = {
-  fontFamily: 'var(--tbl-font-mono)',
-  fontSize: 10,
-  letterSpacing: '0.12em',
-  textTransform: 'uppercase',
-  color: 'var(--tbl-ink-soft)',
-  fontWeight: 700,
-  padding: '6px 12px',
-  borderBottom: '1.5px solid var(--tbl-ink)',
-  textAlign: 'right',
-};
-const td: React.CSSProperties = {
-  fontFamily: 'var(--tbl-font-mono)',
-  fontSize: 12,
-  padding: '7px 12px',
-  borderBottom: '1px dotted rgba(20,17,11,0.3)',
-  textAlign: 'right',
-};
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section style={{ marginTop: 30 }}>
-      <SectionRule left={title} />
-      {children}
-    </section>
-  );
-}
 
 // Round-phase stats are COMPUTED from the live season rather than hardcoded, so
 // the page stays correct whenever rounds are re-tagged between phases.
@@ -67,7 +26,7 @@ interface PhaseStat {
 }
 const PHASE_ORDER = ['launch', 'middle', 'money'];
 
-export default async function LeverageMethodologyPage() {
+export async function LeverageSection() {
   const li = (d: number, r: number) => liLookup(LI_TABLE, d, r);
   const season = await getWpaData();
 
@@ -126,14 +85,10 @@ export default async function LeverageMethodologyPage() {
   ];
 
   return (
-    <div style={{ padding: '22px 32px 48px' }}>
-      <div className="tbl-eyebrow">Methodology · Model {WPA_MODEL_VERSION}</div>
-      <h1 className="tbl-display" style={{ fontSize: 54, lineHeight: 0.95, margin: '4px 0 0' }}>
-        Leverage &amp; Clutch
-      </h1>
+    <StatSection id="leverage" title="Leverage &amp; Clutch" standfirst="How much was riding on a round before it started, and whether a fighter delivered in the ones that mattered.">
 
       <div style={{ maxWidth: 720 }}>
-        <Section title="What Leverage Index Measures">
+        <Block title="What Leverage Index Measures">
           <p style={prose}>
             Not every round matters equally. Leverage Index is how much win probability is on
             the table <em>before</em> a round starts — how big a swing the round is capable of
@@ -151,29 +106,29 @@ export default async function LeverageMethodologyPage() {
           </p>
           <p style={proseSmall}>
             See the highest-leverage rounds of the season on the{' '}
-            <Link href="/moments" style={{ color: 'var(--tbl-accent)' }}>
+            <Link href="/advanced?view=rounds" style={{ color: 'var(--tbl-accent)' }}>
               Biggest Moments
             </Link>{' '}
             board.
           </p>
-        </Section>
+        </Block>
 
-        <Section title="The Scale">
+        <Block title="The Scale">
           <div style={{ overflowX: 'auto', margin: '4px 0 14px' }}>
             <table style={{ borderCollapse: 'collapse', minWidth: 360 }}>
               <thead>
                 <tr>
-                  <th style={{ ...th, textAlign: 'left' }}>Situation</th>
-                  <th style={th}>LI</th>
+                  <th style={{ ...monoTh, textAlign: 'left' }}>Situation</th>
+                  <th style={monoTh}>LI</th>
                 </tr>
               </thead>
               <tbody>
                 {scale.map(([label, value]) => (
                   <tr key={label}>
-                    <td style={{ ...td, textAlign: 'left' }}>{label}</td>
+                    <td style={{ ...monoTd, textAlign: 'left' }}>{label}</td>
                     <td
                       style={{
-                        ...td,
+                        ...monoTd,
                         fontWeight: 700,
                         color: value >= 2 ? 'var(--tbl-accent)' : 'var(--tbl-ink)',
                       }}
@@ -190,9 +145,9 @@ export default async function LeverageMethodologyPage() {
             zero once a lead is out of reach. Up 15 with 4 rounds left, the match is over in all
             but name — LI 0.00.
           </p>
-        </Section>
+        </Block>
 
-        <Section title="The Money Round Finding">
+        <Block title="The Money Round Finding">
           <p style={prose}>
             TBL matches run in three phases{equalPhases ? ' of equal length' : ''}. Sort every
             round by phase and something counterintuitive falls out:
@@ -203,11 +158,11 @@ export default async function LeverageMethodologyPage() {
                 <table style={{ borderCollapse: 'collapse', minWidth: 420 }}>
                   <thead>
                     <tr>
-                      <th style={{ ...th, textAlign: 'left' }}>Phase</th>
-                      <th style={th}>Rounds</th>
-                      <th style={th}>Avg LI</th>
-                      <th style={th}>Median LI</th>
-                      <th style={th}>Max LI</th>
+                      <th style={{ ...monoTh, textAlign: 'left' }}>Phase</th>
+                      <th style={monoTh}>Rounds</th>
+                      <th style={monoTh}>Avg LI</th>
+                      <th style={monoTh}>Median LI</th>
+                      <th style={monoTh}>Max LI</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -215,13 +170,13 @@ export default async function LeverageMethodologyPage() {
                       const isMoney = p.phase.toLowerCase() === 'money';
                       return (
                         <tr key={p.phase}>
-                          <td style={{ ...td, textAlign: 'left', fontWeight: isMoney ? 700 : 400 }}>
+                          <td style={{ ...monoTd, textAlign: 'left', fontWeight: isMoney ? 700 : 400 }}>
                             {p.phase}
                           </td>
-                          <td style={td}>{p.rounds}</td>
-                          <td style={td}>{p.avg.toFixed(2)}</td>
-                          <td style={td}>{p.median.toFixed(2)}</td>
-                          <td style={{ ...td, fontWeight: 700, color: isMoney ? 'var(--tbl-accent)' : 'inherit' }}>
+                          <td style={monoTd}>{p.rounds}</td>
+                          <td style={monoTd}>{p.avg.toFixed(2)}</td>
+                          <td style={monoTd}>{p.median.toFixed(2)}</td>
+                          <td style={{ ...monoTd, fontWeight: 700, color: isMoney ? 'var(--tbl-accent)' : 'inherit' }}>
                             {p.max.toFixed(2)}
                           </td>
                         </tr>
@@ -256,9 +211,9 @@ export default async function LeverageMethodologyPage() {
           ) : (
             <p style={proseSmall}>Round-phase figures are unavailable right now.</p>
           )}
-        </Section>
+        </Block>
 
-        <Section title="What Clutch Measures">
+        <Block title="What Clutch Measures">
           <p style={prose}>
             Did a fighter&apos;s results come in the moments that mattered? Clutch takes what
             each round result would have been worth at <em>average</em> importance, and
@@ -283,14 +238,14 @@ export default async function LeverageMethodologyPage() {
           </p>
           <p style={proseSmall}>
             Both are on the{' '}
-            <Link href="/wpa" style={{ color: 'var(--tbl-accent)' }}>
+            <Link href="/advanced?view=fighters" style={{ color: 'var(--tbl-accent)' }}>
               advanced leaderboard
             </Link>
             , sortable by Clutch and by average leverage.
           </p>
-        </Section>
+        </Block>
 
-        <Section title="What These Stats Do Not Do">
+        <Block title="What These Stats Do Not Do">
           <ul style={{ ...prose, paddingLeft: 22 }}>
             <li style={{ marginBottom: 8 }}>
               <strong>LI is descriptive, not evaluative.</strong> A high average leverage means
@@ -305,27 +260,10 @@ export default async function LeverageMethodologyPage() {
             <li style={{ marginBottom: 8 }}>Neither adjusts for opponent quality.</li>
             <li>Disqualification rounds are excluded from both.</li>
           </ul>
-        </Section>
+        </Block>
       </div>
 
-      <details style={{ marginTop: 36, maxWidth: 860 }}>
-        <summary
-          style={{
-            cursor: 'pointer',
-            fontFamily: 'var(--tbl-font-mono)',
-            fontSize: 11,
-            letterSpacing: '0.2em',
-            textTransform: 'uppercase',
-            fontWeight: 700,
-            color: 'var(--tbl-accent)',
-            padding: '10px 0',
-            borderTop: '1.5px solid var(--tbl-ink)',
-            borderBottom: '1.5px solid var(--tbl-ink)',
-          }}
-        >
-          Technical Details — the formal spec
-        </summary>
-        <div style={{ paddingTop: 16 }}>
+      <TechDetails>
           <p style={proseSmall}>
             <strong>Leverage Index.</strong> Before a round, the state is a score differential{' '}
             <code>d</code> and rounds remaining <code>r</code> — where <code>r</code> INCLUDES
@@ -338,7 +276,7 @@ export default async function LeverageMethodologyPage() {
             <br />
             <code>P(v)</code> is the same per-round margin distribution the win-probability
             model uses (see{' '}
-            <Link href="/stats/wpa" style={{ color: 'var(--tbl-accent)' }}>
+            <Link href="/stats#wpa" style={{ color: 'var(--tbl-accent)' }}>
               How WPA Works
             </Link>
             ) — it is not redefined here.
@@ -362,12 +300,12 @@ export default async function LeverageMethodologyPage() {
             <table style={{ borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <th style={{ ...th, textAlign: 'left' }}>Round margin</th>
+                  <th style={{ ...monoTh, textAlign: 'left' }}>Round margin</th>
                   {Object.keys(WPA_MODEL.cnWpaByMargin)
                     .map(Number)
                     .sort((a, b) => a - b)
                     .map((m) => (
-                      <th key={m} style={th}>
+                      <th key={m} style={monoTh}>
                         {m > 0 ? `+${m}` : m}
                       </th>
                     ))}
@@ -375,12 +313,12 @@ export default async function LeverageMethodologyPage() {
               </thead>
               <tbody>
                 <tr>
-                  <td style={{ ...td, textAlign: 'left', fontWeight: 700 }}>cnWPA</td>
+                  <td style={{ ...monoTd, textAlign: 'left', fontWeight: 700 }}>cnWPA</td>
                   {Object.entries(WPA_MODEL.cnWpaByMargin)
                     .map(([m, v]) => [Number(m), v] as const)
                     .sort((a, b) => a[0] - b[0])
                     .map(([m, v]) => (
-                      <td key={m} style={td}>
+                      <td key={m} style={monoTd}>
                         {v >= 0 ? '+' : ''}
                         {v.toFixed(6)}
                       </td>
@@ -400,8 +338,7 @@ export default async function LeverageMethodologyPage() {
             round 25 is excluded entirely. Rounds scored 0-0 count normally: they carry real
             leverage and a small, real WPA. Leaguewide, Σ cnWPA and Σ Clutch are both 0.000.
           </p>
-        </div>
-      </details>
-    </div>
+      </TechDetails>
+    </StatSection>
   );
 }

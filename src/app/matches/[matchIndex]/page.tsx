@@ -651,7 +651,7 @@ export default async function MatchPage({
             }}
           >
             Biggest win-probability swings by the winning side from the low point onward.{' '}
-            <Link href="/stats/comebacks" style={{ color: 'var(--tbl-accent)' }}>
+            <Link href="/stats#comebacks" style={{ color: 'var(--tbl-accent)' }}>
               How comebacks are measured →
             </Link>
           </p>
