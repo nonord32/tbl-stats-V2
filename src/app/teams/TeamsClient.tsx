@@ -12,6 +12,7 @@ import {
 import { getTeamColor, getTeamLogoPath, getFullTeamName, getCityName } from '@/lib/teams';
 import { sortStandings, getH2HTiebreakerWinners } from '@/lib/standings';
 import { PageHeader } from '@/components/chrome/PageHeader';
+import { DataTable, type Column } from '@/components/ui';
 
 type SortKey = 'record' | 'pf' | 'pa' | 'diff' | 'streak' | 'cb' | 'bl';
 
@@ -227,11 +228,6 @@ function streakVal(s: string): number {
   return 0; // draws sort between wins and losses
 }
 
-function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: 'asc' | 'desc' }) {
-  if (col !== sortKey) return <span style={{ opacity: 0.25, marginLeft: 3 }}>↕</span>;
-  return <span style={{ marginLeft: 3 }}>{sortDir === 'desc' ? '↓' : '↑'}</span>;
-}
-
 export function TeamsClient({
   teams: allTeams,
   teamMatches: allMatches,
@@ -294,6 +290,178 @@ export function TeamsClient({
     };
     return [...teams].sort((a, b) => sortDir === 'desc' ? base(a, b) : -base(a, b));
   }, [teams, sortKey, sortDir, recordSorted, comebacks]);
+
+  const columns: Column<TeamStanding>[] = [
+    {
+      key: 'team',
+      label: 'Team',
+      align: 'left',
+      render: (t) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {getTeamColor(t.slug) && (
+            <span
+              style={{
+                display: 'inline-block',
+                width: 3,
+                height: 22,
+                borderRadius: 2,
+                background: getTeamColor(t.slug),
+                flexShrink: 0,
+              }}
+            />
+          )}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={getTeamLogoPath(t.slug)}
+            alt={t.team}
+            style={{ width: 24, height: 24, objectFit: 'contain', flexShrink: 0 }}
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+          />
+          <Link
+            href={`/teams/${t.slug}`}
+            className="tbl-display"
+            style={{ color: 'var(--tbl-ink)', textDecoration: 'none', fontSize: 15, fontWeight: 700 }}
+          >
+            <ClinchMark mark={clinchFor(t.slug)} />
+            {t.team}
+            {sortKey === 'record' && h2hWinners.has(t.slug) && (
+              <span
+                title={`Wins tiebreaker over ${h2hWinners.get(t.slug)!.join(', ')} via head-to-head record`}
+                style={{ color: 'var(--tbl-accent)', marginLeft: 2, fontSize: 11 }}
+              >
+                *
+              </span>
+            )}
+          </Link>
+        </div>
+      ),
+    },
+    {
+      key: 'record',
+      label: 'Record',
+      sortable: true,
+      value: (t) => t.wins,
+      render: (t) => t.record,
+    },
+    {
+      key: 'pf',
+      label: 'PF',
+      sortable: true,
+      hideOnMobile: true,
+      value: (t) => t.pf,
+      render: (t) => t.pf.toFixed(0),
+    },
+    {
+      key: 'pa',
+      label: 'PA',
+      sortable: true,
+      hideOnMobile: true,
+      value: (t) => t.pa,
+      render: (t) => t.pa.toFixed(0),
+    },
+    {
+      key: 'diff',
+      label: 'Diff',
+      sortable: true,
+      value: (t) => t.diff,
+      render: (t) => (
+        <span
+          style={{
+            color: t.diff >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)',
+            fontWeight: 600,
+          }}
+        >
+          {t.diff >= 0 ? '+' : ''}
+          {t.diff.toFixed(0)}
+        </span>
+      ),
+    },
+    {
+      key: 'cb',
+      label: 'CB',
+      title: 'Comeback wins — once below 25% and still won',
+      sortable: true,
+      hideOnMobile: true,
+      value: (t) => comebacks[t.slug]?.comebackWins ?? 0,
+      render: (t) => (
+        <span
+          style={{
+            color:
+              (comebacks[t.slug]?.comebackWins ?? 0) > 0
+                ? 'var(--tbl-green)'
+                : 'var(--tbl-ink-mute)',
+          }}
+        >
+          {comebacks[t.slug]?.comebackWins ?? 0}
+        </span>
+      ),
+    },
+    {
+      key: 'bl',
+      label: 'BL',
+      title: 'Blown leads — once above 75% and still lost',
+      sortable: true,
+      hideOnMobile: true,
+      value: (t) => comebacks[t.slug]?.blownLeads ?? 0,
+      render: (t) => (
+        <span
+          style={{
+            color:
+              (comebacks[t.slug]?.blownLeads ?? 0) > 0 ? 'var(--tbl-red)' : 'var(--tbl-ink-mute)',
+          }}
+        >
+          {comebacks[t.slug]?.blownLeads ?? 0}
+        </span>
+      ),
+    },
+    {
+      key: 'gb',
+      label: 'GB',
+      title: 'Games from the playoff cutoff (+ ahead / behind)',
+      hideOnMobile: true,
+      render: (t) => {
+        const gb = calcGB(t);
+        return (
+          <span
+            style={{
+              color:
+                gb > 0 ? 'var(--tbl-green)' : gb < 0 ? 'var(--tbl-red)' : 'var(--tbl-ink-mute)',
+              fontWeight: gb !== 0 ? 600 : 400,
+            }}
+          >
+            {gb === 0
+              ? '0'
+              : gb > 0
+              ? `+${gb % 1 === 0 ? gb : gb.toFixed(1)}`
+              : `${gb % 1 === 0 ? Math.abs(gb) : Math.abs(gb).toFixed(1)}`}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'streak',
+      label: 'Streak',
+      align: 'left',
+      sortable: true,
+      value: (t) => streakVal(t.streak || ''),
+      render: (t) => {
+        const streak = t.streak || calcTeamStreak(teamMatches[t.team] || []);
+        return streak ? <StreakBadge streak={streak} /> : null;
+      },
+    },
+  ];
+
+  const PLAYOFF_SPOTS = 8;
+
+  // Games back is always measured against the record-order standings, whatever
+  // the table is currently sorted by — the 8th seed is the 8th seed.
+  const calcGB = (t: TeamStanding) => {
+    const cutoff = recordSorted[PLAYOFF_SPOTS - 1];
+    if (!cutoff) return 0;
+    return (t.wins - cutoff.wins + (cutoff.losses - t.losses)) / 2;
+  };
 
   const h2hWinners = useMemo(
     () => getH2HTiebreakerWinners(teams, teamMatches),
@@ -410,40 +578,46 @@ export function TeamsClient({
         )}
       </div>
 
-      <div className="container teams-desktop-only">
-        <div
-          className="page-header"
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-end',
-            gap: 16,
-            flexWrap: 'wrap',
-          }}
-        >
-          <div>
-            <h1>Team Standings</h1>
-            <div className="subtitle">
-              Team Rankings · 2026 TBL Season
-              {formattedUpdate && (
-                <span style={{ marginLeft: 10, fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>
-                  · Updated {formattedUpdate}
-                </span>
-              )}
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div className="teams-desktop-only">
+        <PageHeader
+          eyebrow="Team Rankings · 2026 TBL Season"
+          title="Team Standings"
+          subtitle={formattedUpdate ? `Updated ${formattedUpdate}` : undefined}
+          right={
             <Link href="/playoffs" className="teams-playoffs-link">
               Playoff Picture →
             </Link>
-          </div>
-        </div>
-        {seoText && <p className="page-intro">{seoText}</p>}
+          }
+        />
 
-        <div className="card">
+      <div style={{ padding: '20px 32px 40px' }}>
+        {seoText && (
+          <p
+            style={{
+              fontFamily: 'var(--tbl-font-body)',
+              fontSize: 14,
+              lineHeight: 1.7,
+              color: 'var(--tbl-ink-soft)',
+              maxWidth: 720,
+              margin: '0 0 18px',
+            }}
+          >
+            {seoText}
+          </p>
+        )}
 
+        <div style={{ border: '1.5px solid var(--tbl-ink)', background: 'var(--tbl-paper)' }}>
           {/* Stat key */}
-          <div style={{ padding: '8px 20px', display: 'flex', gap: 16, flexWrap: 'wrap', borderBottom: '1px solid var(--border)', background: 'var(--bg-table-alt)' }}>
+          <div
+            style={{
+              padding: '8px 20px',
+              display: 'flex',
+              gap: 16,
+              flexWrap: 'wrap',
+              borderBottom: '1px solid var(--tbl-ink)',
+              background: 'rgba(20,17,11,0.025)',
+            }}
+          >
             {[
               { k: 'PF', v: 'Points For' },
               { k: 'PA', v: 'Points Against' },
@@ -451,132 +625,47 @@ export function TeamsClient({
               { k: 'CB', v: 'Comeback Wins (once below 25%)' },
               { k: 'BL', v: 'Blown Leads' },
               { k: 'GB', v: 'Games from playoff cutoff (+ahead / behind)' },
-            ].map((s) => (
-              <span key={s.k} style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)' }}>
-                <strong style={{ color: 'var(--text)' }}>{s.k}</strong> {s.v}
+            ].map((s2) => (
+              <span
+                key={s2.k}
+                style={{
+                  fontFamily: 'var(--tbl-font-mono)',
+                  fontSize: 11,
+                  color: 'var(--tbl-ink-soft)',
+                }}
+              >
+                <strong style={{ color: 'var(--tbl-ink)' }}>{s2.k}</strong> {s2.v}
               </span>
             ))}
           </div>
 
-          <div className="table-wrap">
-            <table data-mobile-full>
-              <thead>
-                <tr>
-                  <th className="col-team-rank" style={{ width: 32 }}>#</th>
-                  <th className="col-team">Team</th>
-                  {(['record', 'pf', 'pa', 'diff', 'cb', 'bl'] as SortKey[]).map((col) => (
-                    <th
-                      key={col}
-                      className={`num-cell${col === 'record' ? ' col-result' : col === 'diff' ? ' col-diff' : (col === 'pf' || col === 'pa') ? ' col-hide-mobile' : ''}`}
-                      onClick={() => handleSort(col)}
-                      style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
-                    >
-                      {col === 'record' ? 'Record' : col.toUpperCase()}
-                      <SortIcon col={col} sortKey={sortKey} sortDir={sortDir} />
-                    </th>
-                  ))}
-                  <th className="num-cell col-hide-mobile" style={{ whiteSpace: 'nowrap' }}>GB</th>
-                  <th
-                    onClick={() => handleSort('streak')}
-                    style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
-                  >
-                    Streak<SortIcon col="streak" sortKey={sortKey} sortDir={sortDir} />
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {(() => {
-                  const PLAYOFF_SPOTS = 8;
-                  // Games back always relative to natural standings (record-based), regardless of current sort
-                  const byWins = recordSorted;
-                  const cutoffTeam = byWins[PLAYOFF_SPOTS - 1]; // 8th place in record order
-                  // Positive = games ahead of cutoff (in playoffs), negative = games behind
-                  const calcGB = (t: typeof teams[0]) => {
-                    if (!cutoffTeam) return 0;
-                    // (team wins - cutoff wins + cutoff losses - team losses) / 2
-                    return ((t.wins - cutoffTeam.wins) + (cutoffTeam.losses - t.losses)) / 2;
-                  };
-                  // Track which rank each team is in natural standings for the playoff line
-                  const naturalRank = new Map(byWins.map((t, i) => [t.slug, i]));
-
-                  return sorted.map((t, i) => {
-                    const matches = teamMatches[t.team] || [];
-                    const streak = t.streak || calcTeamStreak(matches);
-                    const rank = naturalRank.get(t.slug) ?? i;
-                    const inPlayoffs = rank < PLAYOFF_SPOTS;
-                    const isLastPlayoffSpot = sortKey === 'record' && i === PLAYOFF_SPOTS - 1;
-                    const gb = calcGB(t);
-
-                    return (
-                      <React.Fragment key={t.slug}>
-                        <tr style={{ borderTop: isLastPlayoffSpot ? undefined : undefined }}>
-                          <td className="rank-cell col-team-rank">{i + 1}</td>
-                          <td className="col-team">
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                              {getTeamColor(t.slug) && (
-                                <span style={{ display: 'inline-block', width: 3, height: 22, borderRadius: 2, background: getTeamColor(t.slug), flexShrink: 0 }} />
-                              )}
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={getTeamLogoPath(t.slug)}
-                                alt={t.team}
-                                style={{ width: 24, height: 24, objectFit: 'contain', flexShrink: 0 }}
-                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                              />
-                              <Link href={`/teams/${t.slug}`} className="fighter-name-btn">
-                                <ClinchMark mark={clinchFor(t.slug)} />
-                                {t.team}
-                                {sortKey === 'record' && h2hWinners.has(t.slug) && (
-                                  <span
-                                    title={`Wins tiebreaker over ${h2hWinners.get(t.slug)!.join(', ')} via head-to-head record`}
-                                    style={{ color: 'var(--accent)', marginLeft: 2, fontSize: 11 }}
-                                  >
-                                    *
-                                  </span>
-                                )}
-                              </Link>
-                            </div>
-                          </td>
-                          <td className="num-cell mono col-result">{t.record}</td>
-                          <td className="num-cell mono col-hide-mobile">{t.pf.toFixed(0)}</td>
-                          <td className="num-cell mono col-hide-mobile">{t.pa.toFixed(0)}</td>
-                          <td className="num-cell mono col-diff" style={{ color: t.diff >= 0 ? 'var(--result-w)' : 'var(--result-l)', fontWeight: 600 }}>
-                            {t.diff >= 0 ? '+' : ''}{t.diff.toFixed(0)}
-                          </td>
-                          <td className="num-cell mono col-hide-mobile" style={{ color: (comebacks[t.slug]?.comebackWins ?? 0) > 0 ? 'var(--result-w)' : 'var(--text-muted)' }}>
-                            {comebacks[t.slug]?.comebackWins ?? 0}
-                          </td>
-                          <td className="num-cell mono col-hide-mobile" style={{ color: (comebacks[t.slug]?.blownLeads ?? 0) > 0 ? 'var(--result-l)' : 'var(--text-muted)' }}>
-                            {comebacks[t.slug]?.blownLeads ?? 0}
-                          </td>
-                          <td className="num-cell mono col-hide-mobile" style={{
-                            color: gb > 0 ? 'var(--result-w)' : gb < 0 ? 'var(--result-l)' : 'var(--text-muted)',
-                            fontWeight: gb !== 0 ? 600 : 400,
-                          }}>
-                            {gb === 0
-                              ? '0'
-                              : gb > 0
-                                ? `+${gb % 1 === 0 ? gb : gb.toFixed(1)}`
-                                : `${gb % 1 === 0 ? Math.abs(gb) : Math.abs(gb).toFixed(1)}`}
-                          </td>
-                          <td>{streak && <StreakBadge streak={streak} />}</td>
-                        </tr>
-                        {/* Playoff cutoff line — only show when sorted by record */}
-                        {showCutoff && sortKey === 'record' && i === PLAYOFF_SPOTS - 1 && (
-                          <tr className="playoff-cutoff-row">
-                            <td colSpan={10}>
-                              <div className="playoff-cutoff-line">
-                                <span className="playoff-cutoff-label">── Playoff Cutoff ──</span>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    );
-                  });
-                })()}
-              </tbody>
-            </table>
+          <div style={{ padding: '0 12px 8px' }}>
+            <DataTable
+              rows={sorted}
+              columns={columns}
+              rowKey={(t) => t.slug}
+              rank
+              preSorted
+              defaultSort={{ key: sortKey, dir: sortDir }}
+              onSortChange={(k, d) => {
+                setSortKey(k as SortKey);
+                setSortDir(d);
+              }}
+              renderAfterRow={(t, i, colSpan) =>
+                // Only meaningful in record order; in any other sort the 8th row
+                // is not the 8th seed.
+                showCutoff && sortKey === 'record' && i === PLAYOFF_SPOTS - 1 ? (
+                  <tr className="playoff-cutoff-row">
+                    <td colSpan={colSpan}>
+                      <div className="playoff-cutoff-line">
+                        <span className="playoff-cutoff-label">── Playoff Cutoff ──</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : null
+              }
+              emptyMessage="No standings yet."
+            />
           </div>
         </div>
 
@@ -602,6 +691,7 @@ export function TeamsClient({
             })}
           </div>
         )}
+      </div>
       </div>
 
       {/* Modal */}

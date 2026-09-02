@@ -1,7 +1,7 @@
 'use client';
 // src/app/fighters/FightersClient.tsx
 
-import React, { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import type { FighterStat, FightHistory, FightersByPhase, ScheduleEntry } from '@/types';
 import { calcFighterStreak, toSlug } from '@/lib/data';
@@ -10,8 +10,15 @@ import {
   getFighterWeightClassesOrdered,
   getPrimaryWeightClass,
 } from '@/lib/fighters';
-import { getTeamColorByName, getTeamLogoPathByName, getCityName } from '@/lib/teams';
-import { PageHeader } from '@/components/chrome/PageHeader';
+import { getTeamLogoPathByName, getCityName } from '@/lib/teams';
+import {
+  DataTable,
+  FilterBar,
+  PageHeader,
+  SectionRule,
+  Select,
+  type Column,
+} from '@/components/ui';
 import { aggregateFightersByPhase, hasPlayoffData, type Phase } from '@/lib/phaseStats';
 import { computeFinishing } from '@/lib/warStats';
 
@@ -48,145 +55,8 @@ function StreakBadge({ streak }: { streak: string }) {
   );
 }
 
-function FighterModal({
-  fighter,
-  history,
-  streak,
-  onClose,
-}: {
-  fighter: FighterStat;
-  history: FightHistory[];
-  streak: string;
-  onClose: () => void;
-}) {
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-        <div className="modal-header">
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div className="modal-title">{fighter.name}</div>
-              {fighter.instagram && (
-                <a
-                  href={fighter.instagram}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={`${fighter.name} on Instagram`}
-                  title="Instagram"
-                  style={{ color: 'var(--text-muted)', lineHeight: 0, flexShrink: 0 }}
-                  className="ig-link"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
-                    <circle cx="12" cy="12" r="4"/>
-                    <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
-                  </svg>
-                </a>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
-              <span className="badge">{fighter.team}</span>
-              <span className="badge">
-                {getFighterWeightClassesOrdered(fighter, history).join(', ') || fighter.weightClass}
-              </span>
-              <span className="badge">{fighter.gender}</span>
-              {streak && <StreakBadge streak={streak} />}
-            </div>
-          </div>
-          <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
-        </div>
-        <div className="modal-body">
-          <div className="stat-grid" style={{ padding: 0, marginBottom: 20 }}>
-            {[
-              { label: 'Record', value: fighter.record },
-              { label: 'Win%', value: `${(fighter.winPct * 100).toFixed(0)}%` },
-              { label: 'Rounds', value: fighter.rounds },
-              { label: 'Net Pts', value: `${fighter.netPts >= 0 ? '+' : ''}${fighter.netPts.toFixed(0)}` },
-              { label: 'NPPR', value: fighter.nppr.toFixed(2) },
-              { label: 'KO/TKO', value: fighter.koTko },
-            ].map((s) => (
-              <div className="stat-box" key={s.label}>
-                <span className="label">{s.label}</span>
-                <span className="value">{s.value}</span>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>
-            Fight History
-          </div>
-
-          {history.length === 0 ? (
-            <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>No fight data found.</p>
-          ) : (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Opponent</th>
-                    <th>Team</th>
-                    <th>Weight</th>
-                    <th>Round</th>
-                    <th>Phase</th>
-                    <th>Result</th>
-                    <th className="num-cell">Net Pts</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {history.map((h, i) => (
-                    <tr key={i}>
-                      <td className="mono" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{h.date}</td>
-                      <td style={{ fontWeight: 500 }}>
-                        <Link
-                          href={`/fighters/${toSlug(h.opponent)}`}
-                          style={{ color: 'inherit', textDecoration: 'none' }}
-                          onClick={onClose}
-                        >
-                          {h.opponent}
-                        </Link>
-                      </td>
-                      <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{h.opponentTeam}</td>
-                      <td style={{ fontSize: 12 }}>{h.weightClass}</td>
-                      <td className="mono" style={{ fontSize: 12 }}>{h.round}</td>
-                      <td style={{ fontSize: 12 }}>{h.roundPhase}</td>
-                      <td style={{ whiteSpace: 'nowrap' }}>
-                        <span className={`result-${h.result.toLowerCase()}`}>{h.result}</span>
-                        {h.resultMethod && (
-                          <span style={{ marginLeft: 4, fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>
-                            {h.resultMethod}
-                          </span>
-                        )}
-                      </td>
-                      <td className="num-cell mono" style={{ color: h.netPts >= 0 ? 'var(--result-w)' : 'var(--result-l)' }}>
-                        {h.netPts >= 0 ? '+' : ''}{h.netPts.toFixed(0)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          <div style={{ marginTop: 16, textAlign: 'right' }}>
-            <Link
-              href={`/fighters/${fighter.slug}`}
-              style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 12, color: 'var(--accent)' }}
-              onClick={onClose}
-            >
-              View full profile →
-            </Link>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function FightersClient({ fighters, fightersByPhase, fighterHistory, schedule, seoText, lastUpdated }: Props) {
   const formattedUpdate = lastUpdated || null;
-  const [sortKey, setSortKey] = useState<SortKey>('netPts');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [search, setSearch] = useState('');
   const [weightFilter, setWeightFilter] = useState('');
   const [teamFilter, setTeamFilter] = useState('');
@@ -194,7 +64,6 @@ export function FightersClient({ fighters, fightersByPhase, fighterHistory, sche
   const [weekFilter, setWeekFilter] = useState('');
   const [minRoundsFilter, setMinRoundsFilter] = useState('');
   const [phase, setPhase] = useState<Phase>('regular');
-  const [modalFighter, setModalFighter] = useState<FighterStat | null>(null);
 
   // The View toggle only appears once playoff games exist, so nothing changes
   // through the regular season.
@@ -291,18 +160,6 @@ export function FightersClient({ fighters, fightersByPhase, fighterHistory, sche
     [fighters]
   );
 
-  const handleSort = useCallback(
-    (key: SortKey) => {
-      if (sortKey === key) {
-        setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'));
-      } else {
-        setSortKey(key);
-        setSortDir('desc');
-      }
-    },
-    [sortKey]
-  );
-
   // When a week is selected, replace per-fighter stats (record / net pts /
   // nppr / win% / rounds) with just that week's performance derived from
   // their fight history. WAR is season-level and can't be recomputed here,
@@ -365,320 +222,261 @@ export function FightersClient({ fighters, fightersByPhase, fighterHistory, sche
     });
   }, [displayedFighters, search, weightFilter, teamFilter, genderFilter, weekFilter, minRoundsFilter, primaryClassFor, fighterHistory, matchIndexToWeek, FEMALE_CLASSES]);
 
-  const sorted = useMemo(() => {
-    return [...filtered].sort((a, b) => {
-      let va: number | string = 0;
-      let vb: number | string = 0;
-      switch (sortKey) {
-        case 'nppr': va = a.nppr; vb = b.nppr; break;
-        case 'netPts': va = a.netPts; vb = b.netPts; break;
-        case 'winPct': va = a.winPct; vb = b.winPct; break;
-        case 'rounds': va = a.rounds; vb = b.rounds; break;
-        case 'record': va = a.wins; vb = b.wins; break;
-        case 'koTko': va = a.koTko; vb = b.koTko; break;
-        case 'koPct': va = a.koPct; vb = b.koPct; break;
-        case 'name': va = a.name; vb = b.name; break;
-      }
-      if (typeof va === 'string') {
-        return sortDir === 'asc' ? va.localeCompare(vb as string) : (vb as string).localeCompare(va);
-      }
-      return sortDir === 'asc' ? (va as number) - (vb as number) : (vb as number) - (va as number);
-    });
-  }, [filtered, sortKey, sortDir]);
-
-  const SortTh = ({ col, label, title, className }: { col: SortKey; label: string; title?: string; className?: string; }) => (
-    <th
-      className={`sortable ${sortKey === col ? 'sorted' : ''} ${className || ''}`}
-      onClick={() => handleSort(col)}
-      title={title}
-    >
-      {label}
-      <span className="sort-icon">{sortKey === col ? (sortDir === 'desc' ? ' ↓' : ' ↑') : ' ↕'}</span>
-    </th>
-  );
+  const columns: Column<FighterStat>[] = [
+    {
+      key: 'name',
+      label: 'Fighter',
+      align: 'left',
+      sortable: true,
+      value: (f) => f.name,
+      render: (f) => (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+          {getTeamLogoPathByName(f.team) && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={getTeamLogoPathByName(f.team) as string}
+              alt=""
+              style={{ width: 18, height: 18, objectFit: 'contain', flexShrink: 0 }}
+            />
+          )}
+          <Link
+            href={`/fighters/${f.slug}`}
+            className="tbl-display"
+            style={{ fontSize: 15, fontWeight: 700, color: 'var(--tbl-ink)', textDecoration: 'none' }}
+          >
+            {f.name}
+          </Link>
+        </span>
+      ),
+    },
+    {
+      key: 'team',
+      label: 'Team',
+      align: 'left',
+      hideOnMobile: true,
+      render: (f) => (
+        <span style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          {getCityName(f.team) || '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'weightClass',
+      label: 'Weight',
+      align: 'left',
+      hideOnMobile: true,
+      render: (f) => <span style={{ color: 'var(--tbl-ink-soft)' }}>{f.weightClass || '—'}</span>,
+    },
+    {
+      key: 'record',
+      label: 'Record',
+      sortable: true,
+      value: (f) => f.wins,
+      render: (f) => f.record,
+    },
+    {
+      key: 'winPct',
+      label: 'Win%',
+      sortable: true,
+      hideOnMobile: true,
+      value: (f) => f.winPct,
+      render: (f) => `${(f.winPct * 100).toFixed(0)}%`,
+    },
+    {
+      key: 'rounds',
+      label: 'Rds',
+      sortable: true,
+      hideOnMobile: true,
+      value: (f) => f.rounds,
+      render: (f) => f.rounds,
+    },
+    {
+      key: 'netPts',
+      label: 'Net Pts',
+      sortable: true,
+      value: (f) => f.netPts,
+      render: (f) => (
+        <span
+          style={{
+            color: f.netPts >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)',
+            fontWeight: 700,
+          }}
+        >
+          {f.netPts >= 0 ? '+' : ''}
+          {f.netPts.toFixed(0)}
+        </span>
+      ),
+    },
+    {
+      key: 'nppr',
+      label: 'NP/R',
+      title: 'Net points per round',
+      sortable: true,
+      hideOnMobile: true,
+      value: (f) => f.nppr,
+      render: (f) => (
+        <span style={{ color: f.nppr >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)' }}>
+          {f.nppr >= 0 ? '+' : ''}
+          {f.nppr.toFixed(2)}
+        </span>
+      ),
+    },
+    {
+      key: 'koTko',
+      label: 'KO/TKO',
+      sortable: true,
+      hideOnMobile: true,
+      value: (f) => f.koTko,
+      render: (f) => f.koTko,
+    },
+    {
+      key: 'koPct',
+      label: 'KO%',
+      title: 'Share of wins that came by stoppage',
+      sortable: true,
+      hideOnMobile: true,
+      value: (f) => f.koPct,
+      render: (f) => (f.wins > 0 ? `${(f.koPct * 100).toFixed(0)}%` : '—'),
+    },
+    {
+      key: 'streak',
+      label: 'Streak',
+      align: 'left',
+      hideOnMobile: true,
+      render: (f) => {
+        const st = calcFighterStreak(fighterHistory[f.slug] || []);
+        return st ? <StreakBadge streak={st} /> : null;
+      },
+    },
+  ];
 
   return (
-    <div className="page fighters-page">
-      {/* Mobile-only Gazette-style header */}
-      <div className="fighters-mobile-header">
-        <PageHeader
-          eyebrow="The Roster"
-          title="Fighters"
-          subtitle={`${fighters.length} Fighters · Sorted by Net Points`}
-        />
-        <div className="fighters-mobile-filters">
-          <input
-            type="search"
-            className="fighters-mobile-search"
-            placeholder="Search fighter…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            aria-label="Search fighters by name"
-          />
-          {playoffsLive && (
-            <select
-              className="fighters-mobile-select"
-              value={phase}
-              onChange={(e) => setPhase(e.target.value as Phase)}
-              aria-label="Filter by season phase"
-            >
-              {(['regular', 'playoffs', 'all'] as Phase[]).map((p) => (
-                <option key={p} value={p}>{PHASE_LABELS[p]}</option>
-              ))}
-            </select>
-          )}
-          <select
-            className="fighters-mobile-select"
-            value={weightFilter}
-            onChange={(e) => setWeightFilter(e.target.value)}
-            aria-label="Filter by weight class"
-          >
-            <option value="">All weights</option>
-            {weightClasses.map((w) => (
-              <option key={w} value={w}>
-                {w}
-              </option>
-            ))}
-          </select>
-          <select
-            className="fighters-mobile-select"
-            value={minRoundsFilter}
-            onChange={(e) => setMinRoundsFilter(e.target.value)}
-            aria-label="Filter by minimum rounds"
-          >
-            <option value="">Any rounds</option>
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
-              <option key={n} value={n}>
-                ≥ {n} rounds
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+    <>
+      <PageHeader
+        eyebrow="Individual Rankings · 2026 TBL Season"
+        title="Fighter Stats"
+        subtitle={formattedUpdate ? `Updated ${formattedUpdate}` : undefined}
+      />
 
-      {/* Mobile list view — render the full filtered roster, no slice. */}
-      <div className="fighters-mobile-list">
-        {sorted.map((f, i) => {
-          const logo = getTeamLogoPathByName(f.team);
-          return (
-            <Link
-              key={f.slug}
-              href={`/fighters/${f.slug}`}
-              className="fighters-mobile-row"
-            >
-              <div className="fighters-mobile-row__rank">{i + 1}</div>
-              {logo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={logo} alt="" className="fighters-mobile-row__logo" />
-              ) : (
-                <span className="fighters-mobile-row__logo" />
-              )}
-              <div className="fighters-mobile-row__body">
-                <div className="fighters-mobile-row__name">{f.name}</div>
-                <div className="fighters-mobile-row__meta">
-                  {orderedClassesFor(f).join(', ') || f.weightClass} · {f.record} · {(f.winPct * 100).toFixed(0)}% Win · {f.koTko} KO
-                </div>
-              </div>
-              <div className="fighters-mobile-row__value">
-                <span
-                  className="fighters-mobile-row__num"
-                  style={{ color: f.netPts >= 0 ? 'var(--tbl-accent)' : 'var(--tbl-red)' }}
-                >
-                  {f.netPts >= 0 ? '+' : ''}
-                  {f.netPts.toFixed(0)}
-                </span>
-                <span className="fighters-mobile-row__unit">Net</span>
-              </div>
-            </Link>
-          );
-        })}
-        {sorted.length === 0 && (
-          <div className="fighters-mobile-empty">No fighters match your filters.</div>
+      <div style={{ padding: '20px 32px 40px' }}>
+        {seoText && (
+          <p
+            style={{
+              fontFamily: 'var(--tbl-font-body)',
+              fontSize: 14,
+              lineHeight: 1.7,
+              color: 'var(--tbl-ink-soft)',
+              maxWidth: 720,
+              margin: '0 0 18px',
+            }}
+          >
+            {seoText}
+          </p>
         )}
-      </div>
 
-      <div className="container fighters-desktop-only">
-        <div className="page-header">
-          <h1>Fighter Stats</h1>
-          <div className="subtitle">
-            Individual Rankings · 2026 TBL Season
-            {formattedUpdate && (
-              <span style={{ marginLeft: 10, fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>
-                · Updated {formattedUpdate}
-              </span>
-            )}
-          </div>
-        </div>
-        {seoText && <p className="page-intro">{seoText}</p>}
-
-        <div className="card">
-          <div className="card-header">
-            <div className="filters">
-              <input
-                type="search"
-                className="filter-search"
-                placeholder="Search fighters…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                aria-label="Search fighters by name"
-              />
-              {playoffsLive && (
-                <select
-                  className="filter-select"
-                  value={phase}
-                  onChange={(e) => setPhase(e.target.value as Phase)}
-                  aria-label="Filter by season phase"
-                >
-                  {(['regular', 'playoffs', 'all'] as Phase[]).map((p) => (
-                    <option key={p} value={p}>{PHASE_LABELS[p]}</option>
-                  ))}
-                </select>
-              )}
-              <select className="filter-select" value={weightFilter} onChange={(e) => setWeightFilter(e.target.value)}>
-                <option value="">All weights</option>
-                {weightClasses.map((w) => <option key={w} value={w}>{w}</option>)}
-              </select>
-              <select className="filter-select" value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)}>
-                <option value="">All teams</option>
-                {teams.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-              <select className="filter-select" value={genderFilter} onChange={(e) => setGenderFilter(e.target.value)}>
-                <option value="">All genders</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-              </select>
-              <select className="filter-select" value={weekFilter} onChange={(e) => setWeekFilter(e.target.value)}>
-                <option value="">All weeks</option>
-                {weeks.map((w) => <option key={w} value={w}>Week {w}</option>)}
-              </select>
-              <select
-                className="filter-select"
-                value={minRoundsFilter}
-                onChange={(e) => setMinRoundsFilter(e.target.value)}
-                aria-label="Filter by minimum rounds"
-              >
-                <option value="">Any rounds</option>
-                {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
-                  <option key={n} value={n}>
-                    ≥ {n} rounds
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div style={{ padding: '8px 20px', display: 'flex', gap: 16, flexWrap: 'wrap', borderBottom: '1px solid var(--border)', background: 'var(--bg-table-alt)' }}>
-            {[
-              { k: 'Net Pts', v: 'Total net points scored' },
-              { k: 'NPPR', v: 'Net Points Per Round' },
-              { k: 'Win%', v: 'Win percentage (excludes DQs)' },
-              { k: 'KO/TKO', v: 'Wins by KO or TKO' },
-              { k: 'KO%', v: 'KO/TKO wins ÷ total wins' },
-            ].map((s) => (
-              <span key={s.k} style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, color: 'var(--text-muted)' }}>
-                <strong style={{ color: 'var(--text)' }}>{s.k}</strong> {s.v}
-              </span>
-            ))}
-          </div>
-
-          <div className="table-wrap">
-            <table data-mobile-full>
-              <thead>
-                <tr>
-                  <th className="col-rank" style={{ width: 32 }}>#</th>
-                  <SortTh col="name" label="Fighter" className="always-show" />
-                  <th className="col-hide-mobile">Team</th>
-                  <th className="col-hide-mobile">Weight</th>
-                  <th className="col-hide-mobile">Gender</th>
-                  <SortTh col="record" label="Record" title="W-L" className="col-record" />
-                  <SortTh col="winPct" label="Win%" title="Win Percentage (excludes DQs)" className="col-hide-mobile" />
-                  <SortTh col="rounds" label="Rounds" title="Total Rounds Fought" className="col-hide-mobile" />
-                  <SortTh col="netPts" label="Net Pts" title="Total Net Points" className="col-war" />
-                  <SortTh col="nppr" label="NPPR" title="Net Points Per Round" className="col-hide-mobile" />
-                  <SortTh col="koTko" label="KO/TKO" title="Wins by KO or TKO" className="col-hide-mobile" />
-                  <SortTh col="koPct" label="KO%" title="KO/TKO wins ÷ total wins" className="col-hide-mobile" />
-                  <th>Streak</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sorted.map((f, i) => {
-                  const history = fighterHistory[f.slug] || [];
-                  const streak = calcFighterStreak(history);
-                  return (
-                    <tr key={f.slug}>
-                      <td className="rank-cell col-rank">{i + 1}</td>
-                      <td className="always-show">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          {getTeamColorByName(f.team) && (
-                            <span style={{
-                              display: 'inline-block',
-                              width: 3,
-                              height: 22,
-                              borderRadius: 2,
-                              background: getTeamColorByName(f.team),
-                              flexShrink: 0,
-                            }} />
-                          )}
-                          <div>
-                            <Link href={`/fighters/${f.slug}`} className="fighter-name-btn">
-                              {f.name}
-                            </Link>
-                            {/* Team shown as subtitle on mobile when Team column is hidden */}
-                            <div className="fighter-team-sub">{f.team}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="col-hide-mobile" style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          {getTeamLogoPathByName(f.team) && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={getTeamLogoPathByName(f.team)}
-                              alt={f.team}
-                              style={{ width: 18, height: 18, objectFit: 'contain', flexShrink: 0 }}
-                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                            />
-                          )}
-                          {f.team}
-                        </div>
-                      </td>
-                      <td className="col-hide-mobile" style={{ fontSize: 12 }}>{orderedClassesFor(f).join(', ') || f.weightClass}</td>
-                      <td className="col-hide-mobile" style={{ fontSize: 12 }}>{f.gender}</td>
-                      <td className="num-cell mono col-record">{f.record}</td>
-                      <td className="num-cell mono col-hide-mobile">{(f.winPct * 100).toFixed(0)}%</td>
-                      <td className="num-cell mono col-hide-mobile">{f.rounds}</td>
-                      <td className="num-cell mono col-war" style={{ color: f.netPts >= 0 ? 'var(--result-w)' : 'var(--result-l)' }}>
-                        {f.netPts >= 0 ? '+' : ''}{f.netPts.toFixed(0)}
-                      </td>
-                      <td className="num-cell mono col-hide-mobile">{f.nppr.toFixed(2)}</td>
-                      <td className="num-cell mono col-hide-mobile">{f.koTko}</td>
-                      <td className="num-cell mono col-hide-mobile">{f.wins > 0 ? `${(f.koPct * 100).toFixed(0)}%` : '—'}</td>
-                      <td>{streak && <StreakBadge streak={streak} />}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {sorted.length === 0 && (
-            <div className="loading">No fighters match your filters</div>
-          )}
-        </div>
-
-        <div style={{ marginTop: 12, fontSize: 12, color: 'var(--text-muted)' }}>
-          {sorted.length} of {fighters.length} fighters · Click a name to view fight history
-        </div>
-      </div>
-
-      {modalFighter && (
-        <FighterModal
-          fighter={modalFighter}
-          history={fighterHistory[modalFighter.slug] || []}
-          streak={calcFighterStreak(fighterHistory[modalFighter.slug] || [])}
-          onClose={() => setModalFighter(null)}
+        <SectionRule
+          left={`Fighters · ${filtered.length} of ${fighters.length}`}
+          right="Click any column to sort"
         />
-      )}
-    </div>
+
+        <FilterBar>
+          <label className="gz-filter">
+            <span className="gz-filter__label">Search</span>
+            <input
+              type="search"
+              className="gz-filter__select"
+              placeholder="Fighter name…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search fighters by name"
+            />
+          </label>
+
+          {playoffsLive && (
+            <Select
+              label="When"
+              value={phase}
+              onChange={(v) => setPhase(v as Phase)}
+              ariaLabel="Filter by season phase"
+              options={(['regular', 'playoffs', 'all'] as Phase[]).map((x) => ({
+                value: x,
+                label: PHASE_LABELS[x],
+              }))}
+            />
+          )}
+
+          <Select
+            label="Weight"
+            value={weightFilter}
+            onChange={setWeightFilter}
+            options={[
+              { value: '', label: 'All weights' },
+              ...weightClasses.map((w) => ({ value: w, label: w })),
+            ]}
+          />
+          <Select
+            label="Team"
+            value={teamFilter}
+            onChange={setTeamFilter}
+            options={[
+              { value: '', label: 'All teams' },
+              ...teams.map((t) => ({ value: t, label: t })),
+            ]}
+          />
+          <Select
+            label="Gender"
+            value={genderFilter}
+            onChange={setGenderFilter}
+            options={[
+              { value: '', label: 'All genders' },
+              { value: 'Male', label: 'Male' },
+              { value: 'Female', label: 'Female' },
+            ]}
+          />
+          <Select
+            label="Week"
+            value={weekFilter}
+            onChange={setWeekFilter}
+            options={[
+              { value: '', label: 'All weeks' },
+              ...weeks.map((w) => ({ value: String(w), label: `Week ${w}` })),
+            ]}
+          />
+          <Select
+            label="Rounds"
+            value={minRoundsFilter}
+            onChange={setMinRoundsFilter}
+            ariaLabel="Filter by minimum rounds"
+            options={[
+              { value: '', label: 'Any rounds' },
+              ...[1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({ value: String(n), label: `≥ ${n} rounds` })),
+            ]}
+          />
+        </FilterBar>
+
+        {weekFilter && (
+          <p
+            style={{
+              fontFamily: 'var(--tbl-font-mono)',
+              fontSize: 10,
+              letterSpacing: '0.1em',
+              color: 'var(--tbl-ink-soft)',
+              margin: '0 0 10px',
+            }}
+          >
+            Showing week {weekFilter} only. WAR is a season-level figure and is not recomputed here.
+          </p>
+        )}
+
+        <DataTable
+          rows={filtered}
+          columns={columns}
+          rowKey={(f) => f.slug}
+          rank
+          defaultSort={{ key: 'netPts', dir: 'desc' }}
+          emptyMessage="No fighters match your filters."
+        />
+      </div>
+    </>
   );
 }
