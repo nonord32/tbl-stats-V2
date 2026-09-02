@@ -1082,6 +1082,15 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
   gap: 24px;
   flex-wrap: wrap;
 }
+/* Gazette pages carry their own SectionRule, so their masthead drops the band
+   border and the bottom padding. Replaces two hand-rolled fixed-54px headers. */
+.tbl-page-header--plain {
+  border-bottom: none;
+  padding-bottom: 0;
+  display: block;
+}
+.tbl-page-header--plain > div:last-child { margin-top: 14px; }
+
 .tbl-eyebrow {
   font-family: var(--tbl-font-mono);
   font-size: 11px;
@@ -1275,6 +1284,11 @@ main { padding-top: 0 !important; }
 /* Cap page content to the Gazette canvas width on wide screens — chrome bands
    (TopStrip / TopNav / Footer) remain full-width for the newspaper band feel. */
 main { max-width: 1360px; margin: 0 auto; width: 100%; }
+.gz-seg {
+  display: inline-flex;
+  border: 1.5px solid var(--tbl-ink);
+  background: var(--tbl-paper);
+}
 .gz-seg__btn {
   padding: 7px 14px;
   font-family: var(--tbl-font-mono);
@@ -1304,6 +1318,8 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
   letter-spacing: 0.18em;
 }
 .gz-filter__label { font-weight: 700; }
+.gz-filter--toggle { cursor: pointer; }
+.gz-filter--toggle input[type='checkbox'] { accent-color: var(--tbl-accent); margin: 0; }
 .gz-filter__select {
   font-family: var(--tbl-font-mono);
   font-size: 12px;
@@ -4280,4 +4296,12 @@ body:has(.eo-root) {
   .eo-record { font-size: clamp(72px, 30vw, 120px); }
   .eo-game { grid-template-columns: 30px 1fr auto 24px; gap: 8px; }
   .eo-again { width: 100%; }
+}
+
+/* ─── UI primitives ───────────────────────────────────────────────────────── */
+/* Columns a DataTable drops on narrow screens. Replaces the legacy
+   .col-hide-mobile, which was tangled up with the old .table styles. */
+.ui-col-hide-mobile { display: table-cell; }
+@media (max-width: 720px) {
+  .ui-col-hide-mobile { display: none; }
 }

@@ -11,7 +11,14 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { compareWeightClass } from '@/lib/weightClasses';
-import { SectionRule } from '@/components/chrome/SectionRule';
+import {
+  DataTable,
+  FilterBar,
+  SectionRule,
+  Select,
+  Toggle,
+  type Column,
+} from '@/components/ui';
 import type { AdvancedMeta, FighterRow, Phase, PhaseStats, StatSet } from './types';
 
 const ALL = '__all__';
@@ -44,12 +51,7 @@ const PHASE_ORDER: Phase[] = ['regular', 'playoffs', 'all'];
 // A playoff run is only a few rounds, so the qualifier scales with the scope.
 const MIN_BY_PHASE: Record<Phase, number> = { regular: 10, playoffs: 3, all: 10 };
 
-type SortKey =
-  | 'name' | 'rounds' | 'wpa' | 'wpaPerRound' | 'roundWins' | 'matches'
-  | 'avgLi' | 'clutch' | 'nppr' | 'anppr' | 'delta' | 'bootSd' | 'sos'
-  | 'war' | 'netPts';
-
-const DEFAULT_SORT: Record<StatSet, SortKey> = {
+const DEFAULT_SORT: Record<StatSet, string> = {
   wpa: 'wpa',
   leverage: 'clutch',
   ratings: 'anppr',
@@ -59,6 +61,9 @@ const DEFAULT_SORT: Record<StatSet, SortKey> = {
 
 const signed = (v: number, dp = 3) => `${v >= 0 ? '+' : ''}${v.toFixed(dp)}`;
 const tone = (v: number) => (v >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)');
+const Num = ({ v, color, bold }: { v: React.ReactNode; color?: string; bold?: boolean }) => (
+  <span style={{ color, fontWeight: bold ? 700 : undefined }}>{v}</span>
+);
 
 export function FightersView({
   rows,
@@ -76,8 +81,6 @@ export function FightersView({
   const [division, setDivision] = useState<string>(ALL);
   const [gender, setGender] = useState<string>(ALL);
   const [showAll, setShowAll] = useState(false);
-  const [sortKey, setSortKey] = useState<SortKey>(DEFAULT_SORT[initialStat]);
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   const phaseAware = PHASE_AWARE[stat];
   const playoffsLive = useMemo(() => rows.some((r) => r.playoffs.rounds > 0), [rows]);
@@ -85,7 +88,10 @@ export function FightersView({
   const scope: Phase = phaseAware ? (playoffsLive ? phase : 'all') : 'all';
   const minRounds = phaseAware ? MIN_BY_PHASE[scope] : meta.minRounds;
 
-  const genders = useMemo(() => [...new Set(rows.map((r) => r.gender).filter(Boolean))].sort(), [rows]);
+  const genders = useMemo(
+    () => [...new Set(rows.map((r) => r.gender).filter(Boolean))].sort(),
+    [rows],
+  );
 
   const genderScoped = useMemo(
     () => (gender === ALL ? rows : rows.filter((r) => r.gender === gender)),
@@ -116,346 +122,310 @@ export function FightersView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [genderScoped, division, showAll, minRounds, stat, scope, phaseAware]);
 
-  const handleSort = (key: SortKey) => {
-    if (key === sortKey) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    else {
-      setSortKey(key);
-      setSortDir(key === 'name' ? 'asc' : 'desc');
-    }
+  const p = (r: FighterRow): PhaseStats => r[scope];
+
+  const identity: Column<FighterRow>[] = [
+    {
+      key: 'name',
+      label: 'Fighter',
+      align: 'left',
+      sortable: true,
+      value: (r) => r.name,
+      render: (r) => (
+        <Link
+          href={`/fighters/${r.slug}`}
+          className="tbl-display"
+          style={{ fontSize: 15, fontWeight: 700, color: 'var(--tbl-ink)', textDecoration: 'none' }}
+        >
+          {r.name}
+        </Link>
+      ),
+    },
+    {
+      key: 'team',
+      label: 'Team',
+      align: 'left',
+      hideOnMobile: true,
+      render: (r) => (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          {r.teamLogo && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={r.teamLogo} alt="" width={18} height={18} style={{ objectFit: 'contain' }} />
+          )}
+          <span style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            {r.teamCity || '—'}
+          </span>
+        </span>
+      ),
+    },
+    {
+      key: 'rounds',
+      label: 'Rds',
+      title: 'Rounds fought',
+      sortable: true,
+      value: roundsOf,
+      render: (r) => roundsOf(r),
+    },
+  ];
+
+  const BY_STAT: Record<StatSet, Column<FighterRow>[]> = {
+    wpa: [
+      {
+        key: 'wpa',
+        label: 'WPA',
+        title: 'How much their rounds moved the team’s chance of winning',
+        sortable: true,
+        value: (r) => p(r).wpa,
+        render: (r) => <Num v={signed(p(r).wpa)} color={tone(p(r).wpa)} bold />,
+      },
+      {
+        key: 'wpaPerRound',
+        label: 'Per Rd',
+        sortable: true,
+        hideOnMobile: true,
+        value: (r) => p(r).wpaPerRound,
+        render: (r) => <Num v={signed(p(r).wpaPerRound)} color="var(--tbl-ink-soft)" />,
+      },
+      {
+        key: 'roundWins',
+        label: 'Won',
+        sortable: true,
+        hideOnMobile: true,
+        value: (r) => p(r).roundWins,
+        render: (r) => p(r).roundWins,
+      },
+      {
+        key: 'matches',
+        label: 'Matches',
+        sortable: true,
+        hideOnMobile: true,
+        value: (r) => p(r).matches,
+        render: (r) => p(r).matches,
+      },
+    ],
+    leverage: [
+      {
+        key: 'avgLi',
+        label: 'At Stake',
+        title: 'How big their rounds were — usage, not performance',
+        sortable: true,
+        value: (r) => p(r).avgLi,
+        render: (r) =>
+          p(r).liRounds > 0 ? (
+            <Num v={p(r).avgLi.toFixed(2)} bold />
+          ) : (
+            <Num v="—" color="var(--tbl-ink-soft)" />
+          ),
+      },
+      {
+        key: 'clutch',
+        label: 'Clutch',
+        title: 'Whether their results came in the rounds that mattered',
+        sortable: true,
+        value: (r) => p(r).clutch,
+        render: (r) =>
+          p(r).liRounds > 0 ? (
+            <Num v={signed(p(r).clutch)} color={tone(p(r).clutch)} />
+          ) : (
+            <Num v="—" color="var(--tbl-ink-soft)" />
+          ),
+      },
+      {
+        key: 'wpa',
+        label: 'WPA',
+        sortable: true,
+        hideOnMobile: true,
+        value: (r) => p(r).wpa,
+        render: (r) => <Num v={signed(p(r).wpa)} color={tone(p(r).wpa)} />,
+      },
+    ],
+    ratings: [
+      {
+        key: 'nppr',
+        label: 'NPPR',
+        title: 'Net points per round, ignoring who they fought',
+        sortable: true,
+        hideOnMobile: true,
+        value: (r) => r.nppr,
+        render: (r) => <Num v={signed(r.nppr)} color={tone(r.nppr)} />,
+      },
+      {
+        key: 'anppr',
+        label: 'aNPPR',
+        title: 'Net points per round, accounting for who they fought',
+        sortable: true,
+        value: (r) => r.anppr,
+        render: (r) => <Num v={signed(r.anppr)} color={tone(r.anppr)} bold />,
+      },
+      {
+        key: 'delta',
+        label: 'Δ',
+        title: 'How far their schedule moved them from the raw number',
+        sortable: true,
+        hideOnMobile: true,
+        value: (r) => r.delta,
+        render: (r) => <Num v={signed(r.delta)} color="var(--tbl-ink-soft)" />,
+      },
+      {
+        key: 'range',
+        label: '90% Range',
+        hideOnMobile: true,
+        render: (r) => (
+          <span style={{ color: 'var(--tbl-ink-soft)', whiteSpace: 'nowrap' }}>
+            {signed(r.lo, 2)} – {signed(r.hi, 2)}
+          </span>
+        ),
+      },
+      {
+        key: 'bootSd',
+        label: 'Wobble',
+        title: 'How much the rating moves when we rebuild the season',
+        sortable: true,
+        value: (r) => r.bootSd,
+        render: (r) => (
+          <span
+            style={{ color: r.uncertain ? 'var(--tbl-accent)' : 'var(--tbl-ink-mute)' }}
+            title={
+              r.uncertain ? `Moves more than ${meta.flagBootSd.toFixed(2)} — treat as soft` : undefined
+            }
+          >
+            {r.bootSd.toFixed(2)}
+            {r.uncertain ? ' ⚠' : ''}
+          </span>
+        ),
+      },
+    ],
+    schedule: [
+      {
+        key: 'nppr',
+        label: 'NPPR',
+        sortable: true,
+        hideOnMobile: true,
+        value: (r) => r.nppr,
+        render: (r) => <Num v={signed(r.nppr)} color={tone(r.nppr)} />,
+      },
+      {
+        key: 'sos',
+        label: 'SOS',
+        title: 'How good their opponents were, not counting rounds against this fighter',
+        sortable: true,
+        value: (r) => r.sos ?? 0,
+        render: (r) =>
+          r.sos === null ? (
+            <Num v="—" color="var(--tbl-ink-soft)" />
+          ) : (
+            <Num v={signed(r.sos)} color={tone(r.sos)} bold />
+          ),
+      },
+    ],
+    war: [
+      {
+        key: 'netPts',
+        label: 'Net Pts',
+        sortable: true,
+        hideOnMobile: true,
+        value: (r) => r.netPts,
+        render: (r) => <Num v={signed(r.netPts, 0)} color={tone(r.netPts)} />,
+      },
+      {
+        key: 'nppr',
+        label: 'NP/R',
+        sortable: true,
+        hideOnMobile: true,
+        value: (r) => r.nppr,
+        render: (r) => <Num v={signed(r.nppr, 2)} color={tone(r.nppr)} />,
+      },
+      {
+        key: 'war',
+        label: 'WAR',
+        title: 'Wins added over an easily replaced fighter',
+        sortable: true,
+        value: (r) => r.war,
+        render: (r) => <Num v={r.war.toFixed(2)} color="var(--tbl-accent)" bold />,
+      },
+    ],
   };
 
-  const pickStat = (s: StatSet) => {
-    setStat(s);
-    setSortKey(DEFAULT_SORT[s]);
-    setSortDir('desc');
-  };
-
-  const sorted = useMemo(() => {
-    const value = (r: FighterRow): number => {
-      const p: PhaseStats = r[scope];
-      switch (sortKey) {
-        case 'rounds': return roundsOf(r);
-        case 'wpa': return p.wpa;
-        case 'wpaPerRound': return p.wpaPerRound;
-        case 'roundWins': return p.roundWins;
-        case 'matches': return p.matches;
-        case 'avgLi': return p.avgLi;
-        case 'clutch': return p.clutch;
-        case 'nppr': return r.nppr;
-        case 'anppr': return r.anppr;
-        case 'delta': return r.delta;
-        case 'bootSd': return r.bootSd;
-        case 'sos': return r.sos ?? 0;
-        case 'war': return r.war;
-        case 'netPts': return r.netPts;
-        default: return 0;
-      }
-    };
-    const out = [...filtered];
-    out.sort((a, b) => {
-      if (sortKey === 'name') {
-        return sortDir === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
-      }
-      const d = value(a) - value(b);
-      return sortDir === 'desc' ? -d : d;
-    });
-    return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtered, sortKey, sortDir, scope, phaseAware]);
-
-  const th = (key: SortKey, label: string, title?: string) => (
-    <th
-      onClick={() => handleSort(key)}
-      title={title}
-      style={{
-        textAlign: 'right',
-        padding: '7px 8px',
-        fontSize: 10,
-        letterSpacing: '0.14em',
-        textTransform: 'uppercase',
-        color: sortKey === key ? 'var(--tbl-accent)' : 'var(--tbl-ink-soft)',
-        fontWeight: 700,
-        cursor: 'pointer',
-        userSelect: 'none',
-        whiteSpace: 'nowrap',
-      }}
-    >
-      {label}
-      <span style={{ opacity: 0.9 }}>{sortKey === key ? (sortDir === 'desc' ? ' ↓' : ' ↑') : ' ↕'}</span>
-    </th>
-  );
-
-  const num = (v: React.ReactNode, color?: string, bold = false) => (
-    <td style={{ textAlign: 'right', padding: '9px 8px', color, fontWeight: bold ? 700 : undefined }}>
-      {v}
-    </td>
-  );
-
+  const columns = [...identity, ...BY_STAT[stat]];
   const scopeLabel = phaseAware ? PHASE_LABELS[scope] : 'Full Season';
   const divisionLabel = division === ALL ? 'Pound for Pound' : division;
 
   return (
     <div style={{ padding: '20px 32px 40px' }}>
       <SectionRule
-        left={`${STAT_LABELS[stat]} · ${divisionLabel} · ${scopeLabel} · ${sorted.length} Fighters`}
+        left={`${STAT_LABELS[stat]} · ${divisionLabel} · ${scopeLabel} · ${filtered.length} Fighters`}
         right={lastUpdated ? `Updated ${lastUpdated}` : undefined}
       />
 
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: 12,
-          flexWrap: 'wrap',
-          margin: '0 0 12px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-          <label className="gz-filter" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <span className="gz-filter__label">Rank by</span>
-            <select
-              className="gz-filter__select"
-              value={stat}
-              onChange={(e) => pickStat(e.target.value as StatSet)}
-              aria-label="Which stat to rank by"
-            >
-              {STAT_ORDER.map((s) => (
-                <option key={s} value={s}>{STAT_LABELS[s]}</option>
-              ))}
-            </select>
-          </label>
-
-          {/* Only shown when the active stat actually splits by phase. */}
-          {phaseAware && playoffsLive && (
-            <label className="gz-filter" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <span className="gz-filter__label">When</span>
-              <select
-                className="gz-filter__select"
-                value={phase}
-                onChange={(e) => setPhase(e.target.value as Phase)}
-                aria-label="Filter by season phase"
-              >
-                {PHASE_ORDER.map((p) => (
-                  <option key={p} value={p}>{PHASE_LABELS[p]}</option>
-                ))}
-              </select>
-            </label>
-          )}
-
-          <label className="gz-filter" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <span className="gz-filter__label">Division</span>
-            <select
-              className="gz-filter__select"
-              value={division}
-              onChange={(e) => setDivision(e.target.value)}
-              aria-label="Filter by weight class"
-            >
-              <option value={ALL}>Pound for Pound</option>
-              {divisionCounts.map(([wc, n]) => (
-                <option key={wc} value={wc}>{wc} ({n})</option>
-              ))}
-            </select>
-          </label>
-
-          {genders.length > 1 && (
-            <label className="gz-filter" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <span className="gz-filter__label">Gender</span>
-              <select
-                className="gz-filter__select"
-                value={gender}
-                onChange={(e) => setGender(e.target.value)}
-                aria-label="Filter by gender"
-              >
-                <option value={ALL}>All</option>
-                {genders.map((g) => <option key={g} value={g}>{g}</option>)}
-              </select>
-            </label>
-          )}
-
-          <label
-            className="gz-filter"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
-          >
-            <input
-              type="checkbox"
-              checked={showAll}
-              onChange={(e) => setShowAll(e.target.checked)}
-              style={{ accentColor: 'var(--tbl-accent)' }}
-            />
-            <span className="gz-filter__label">
-              Show everyone (default: {minRounds}+ rounds)
-            </span>
-          </label>
-        </div>
-
-        <span
-          style={{
-            fontFamily: 'var(--tbl-font-mono)',
-            fontSize: 10,
-            letterSpacing: '0.1em',
-            color: 'var(--tbl-ink-soft)',
-          }}
-        >
-          {stat === 'ratings'
+      <FilterBar
+        hint={
+          stat === 'ratings'
             ? `Gaps under ${meta.meaningfulDiff.toFixed(2)} do not mean anything`
             : stat === 'schedule'
             ? 'Click Schedule twice for the easiest schedules'
             : !phaseAware
             ? 'Whole season — this stat has no phase split'
-            : 'Click any column to sort'}
-        </span>
-      </div>
+            : 'Click any column to sort'
+        }
+      >
+        <Select
+          label="Rank by"
+          value={stat}
+          onChange={(v) => setStat(v as StatSet)}
+          ariaLabel="Which stat to rank by"
+          options={STAT_ORDER.map((s) => ({ value: s, label: STAT_LABELS[s] }))}
+        />
 
-      <div style={{ overflowX: 'auto' }}>
-        <table
-          style={{
-            width: '100%',
-            borderCollapse: 'collapse',
-            fontFamily: 'var(--tbl-font-mono)',
-            fontSize: 12,
-          }}
-        >
-          <thead>
-            <tr style={{ borderBottom: '2px solid var(--tbl-ink)' }}>
-              <th style={{ width: 34, textAlign: 'right', padding: '7px 4px', fontSize: 10, color: 'var(--tbl-ink-soft)' }}>#</th>
-              {th('name', 'Fighter')}
-              <th style={{ textAlign: 'left', padding: '7px 8px', fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--tbl-ink-soft)', fontWeight: 700 }}>
-                Team
-              </th>
-              {th('rounds', 'Rds', 'Rounds fought')}
+        {/* Only shown when the active stat actually splits by phase. */}
+        {phaseAware && playoffsLive && (
+          <Select
+            label="When"
+            value={phase}
+            onChange={(v) => setPhase(v as Phase)}
+            ariaLabel="Filter by season phase"
+            options={PHASE_ORDER.map((x) => ({ value: x, label: PHASE_LABELS[x] }))}
+          />
+        )}
 
-              {stat === 'wpa' && (
-                <>
-                  {th('wpa', 'WPA', 'How much their rounds moved the team’s chance of winning')}
-                  {th('wpaPerRound', 'Per Rd')}
-                  {th('roundWins', 'Won')}
-                  {th('matches', 'Matches')}
-                </>
-              )}
-              {stat === 'leverage' && (
-                <>
-                  {th('avgLi', 'At Stake', 'How big their rounds were — usage, not performance')}
-                  {th('clutch', 'Clutch', 'Whether their results came in the rounds that mattered')}
-                  {th('wpa', 'WPA')}
-                </>
-              )}
-              {stat === 'ratings' && (
-                <>
-                  {th('nppr', 'NPPR', 'Net points per round, ignoring who they fought')}
-                  {th('anppr', 'aNPPR', 'Net points per round, accounting for who they fought')}
-                  {th('delta', 'Δ', 'How far their schedule moved them')}
-                  <th style={{ textAlign: 'right', padding: '7px 8px', fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--tbl-ink-soft)', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                    90% Range
-                  </th>
-                  {th('bootSd', 'Wobble', 'How much the rating moves when we rebuild the season')}
-                </>
-              )}
-              {stat === 'schedule' && (
-                <>
-                  {th('nppr', 'NPPR')}
-                  {th('sos', 'SOS', 'How good their opponents were, not counting rounds against this fighter')}
-                </>
-              )}
-              {stat === 'war' && (
-                <>
-                  {th('netPts', 'Net Pts')}
-                  {th('nppr', 'NP/R')}
-                  {th('war', 'WAR', 'Wins added over an easily replaced fighter')}
-                </>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((r, i) => {
-              const p = r[scope];
-              return (
-                <tr key={r.slug} style={{ borderBottom: '1px dotted rgba(20,17,11,0.3)' }}>
-                  <td style={{ textAlign: 'right', padding: '9px 4px', color: 'var(--tbl-ink-mute)', fontSize: 11 }}>
-                    {i + 1}
-                  </td>
-                  <td style={{ padding: '9px 8px' }}>
-                    <Link
-                      href={`/fighters/${r.slug}`}
-                      className="tbl-display"
-                      style={{ fontSize: 15, fontWeight: 700, color: 'var(--tbl-ink)', textDecoration: 'none' }}
-                    >
-                      {r.name}
-                    </Link>
-                  </td>
-                  <td style={{ padding: '9px 8px' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                      {r.teamLogo && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={r.teamLogo} alt="" width={18} height={18} style={{ objectFit: 'contain' }} />
-                      )}
-                      <span style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                        {r.teamCity || '—'}
-                      </span>
-                    </span>
-                  </td>
-                  {num(roundsOf(r))}
+        <Select
+          label="Division"
+          value={division}
+          onChange={setDivision}
+          ariaLabel="Filter by weight class"
+          options={[
+            { value: ALL, label: 'Pound for Pound' },
+            ...divisionCounts.map(([wc, n]) => ({ value: wc, label: `${wc} (${n})` })),
+          ]}
+        />
 
-                  {stat === 'wpa' && (
-                    <>
-                      {num(signed(p.wpa), tone(p.wpa), true)}
-                      {num(signed(p.wpaPerRound), 'var(--tbl-ink-soft)')}
-                      {num(p.roundWins)}
-                      {num(p.matches)}
-                    </>
-                  )}
-                  {stat === 'leverage' && (
-                    <>
-                      {num(p.liRounds > 0 ? p.avgLi.toFixed(2) : '—', p.liRounds > 0 ? undefined : 'var(--tbl-ink-soft)', true)}
-                      {num(p.liRounds > 0 ? signed(p.clutch) : '—', p.liRounds > 0 ? tone(p.clutch) : 'var(--tbl-ink-soft)')}
-                      {num(signed(p.wpa), tone(p.wpa))}
-                    </>
-                  )}
-                  {stat === 'ratings' && (
-                    <>
-                      {num(signed(r.nppr), tone(r.nppr))}
-                      {num(signed(r.anppr), tone(r.anppr), true)}
-                      {num(signed(r.delta), 'var(--tbl-ink-soft)')}
-                      <td style={{ textAlign: 'right', padding: '9px 8px', color: 'var(--tbl-ink-soft)', whiteSpace: 'nowrap' }}>
-                        {signed(r.lo, 2)} – {signed(r.hi, 2)}
-                      </td>
-                      <td
-                        style={{
-                          textAlign: 'right',
-                          padding: '9px 8px',
-                          color: r.uncertain ? 'var(--tbl-accent)' : 'var(--tbl-ink-mute)',
-                        }}
-                        title={r.uncertain ? `Moves more than ${meta.flagBootSd.toFixed(2)} — treat as soft` : undefined}
-                      >
-                        {r.bootSd.toFixed(2)}{r.uncertain ? ' ⚠' : ''}
-                      </td>
-                    </>
-                  )}
-                  {stat === 'schedule' && (
-                    <>
-                      {num(signed(r.nppr), tone(r.nppr))}
-                      {num(r.sos === null ? '—' : signed(r.sos), r.sos === null ? 'var(--tbl-ink-soft)' : tone(r.sos), true)}
-                    </>
-                  )}
-                  {stat === 'war' && (
-                    <>
-                      {num(signed(r.netPts, 0), tone(r.netPts))}
-                      {num(signed(r.nppr, 2), tone(r.nppr))}
-                      {num(r.war.toFixed(2), 'var(--tbl-accent)', true)}
-                    </>
-                  )}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+        {genders.length > 1 && (
+          <Select
+            label="Gender"
+            value={gender}
+            onChange={setGender}
+            ariaLabel="Filter by gender"
+            options={[{ value: ALL, label: 'All' }, ...genders.map((g) => ({ value: g, label: g }))]}
+          />
+        )}
 
-      {sorted.length === 0 && (
-        <p style={{ fontFamily: 'var(--tbl-font-mono)', fontSize: 12, color: 'var(--tbl-ink-soft)', padding: '18px 0' }}>
-          Nobody matches this filter. Try a wider division, or tick “show everyone”.
-        </p>
-      )}
+        <Toggle
+          checked={showAll}
+          onChange={setShowAll}
+          label={`Show everyone (default: ${minRounds}+ rounds)`}
+        />
+      </FilterBar>
+
+      <DataTable
+        // Remount on a stat change so the table's own sort resets to that
+        // stat's headline column rather than keeping a key that just vanished.
+        key={stat}
+        rows={filtered}
+        columns={columns}
+        rowKey={(r) => r.slug}
+        rank
+        defaultSort={{ key: DEFAULT_SORT[stat], dir: 'desc' }}
+        emptyMessage="Nobody matches this filter. Try a wider division, or tick “show everyone”."
+      />
     </div>
   );
 }
