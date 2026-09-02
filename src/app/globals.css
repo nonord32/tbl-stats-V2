@@ -1264,16 +1264,17 @@ main { padding-top: 0 !important; }
   box-shadow: none;
 }
 
-/* Gazette home-page responsive tweaks */
+/* Gazette home-page responsive tweaks. The top six stays six at every width —
+   the grid reflows instead of the list being truncated on phones. */
+@media (max-width: 1100px) {
+  .gz-topsix-grid { grid-template-columns: repeat(3, 1fr) !important; }
+}
 @media (max-width: 900px) {
-  .gz-fight-card { grid-template-columns: 1fr !important; }
-  .gz-fight-card > div:nth-child(2) { border-left: none !important; border-top: 3px solid var(--tbl-ink); }
-  .gz-topsix-grid { grid-template-columns: repeat(2, 1fr) !important; }
-  .gz-standings-cols { grid-template-columns: 1fr !important; gap: 24px !important; }
+  .gz-focus-band { grid-template-columns: 1fr !important; gap: 24px !important; }
   .gz-results-grid { grid-template-columns: 1fr !important; }
 }
-@media (max-width: 520px) {
-  .gz-topsix-grid { grid-template-columns: 1fr !important; }
+@media (max-width: 640px) {
+  .gz-topsix-grid { grid-template-columns: repeat(2, 1fr) !important; }
 }
 
 /* Cap page content to the Gazette canvas width on wide screens — chrome bands
@@ -1594,6 +1595,74 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
    big team names (BOSTON, MIAMI ASSASSINS…) don't overflow narrow phones.
    =========================================================================== */
 
+/* The hero has two modes: a poster when a fight is scheduled, a single strip
+   when nothing is upcoming (the champion crowning, or the latest result). */
+.gz-hero-poster {
+  background: var(--tbl-ink);
+  color: var(--tbl-bg);
+  padding: 32px 36px;
+  position: relative;
+  overflow: hidden;
+  min-height: 320px;
+  border-bottom: 3px double var(--tbl-ink);
+}
+.gz-hero-strip {
+  background: var(--tbl-ink);
+  color: var(--tbl-bg);
+  padding: 14px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  border-bottom: 3px double var(--tbl-ink);
+}
+.gz-hero-vs {
+  display: inline-block;
+  transform: rotate(-2deg);
+  margin: 0 12px;
+  font-size: 60px;
+  color: var(--tbl-accent-bright);
+  font-style: italic;
+  font-weight: 900;
+}
+.gz-hero-logos {
+  position: absolute;
+  bottom: 28px;
+  right: 28px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.gz-hero-x {
+  color: var(--tbl-accent-bright);
+  font-family: var(--tbl-font-serif);
+  font-style: italic;
+  font-size: 32px;
+  font-weight: 900;
+}
+
+/* Top-six cards: the rank numeral scales with the grid so two columns on a
+   phone stay readable rather than being dominated by the number. */
+.gz-topsix-card {
+  padding: 14px;
+  position: relative;
+  min-height: 210px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-decoration: none;
+}
+.gz-topsix-rank {
+  font-size: 64px;
+  line-height: 0.85;
+  letter-spacing: -0.03em;
+}
+@media (max-width: 640px) {
+  .gz-topsix-card { min-height: 172px; padding: 12px; }
+  .gz-topsix-rank { font-size: 44px; }
+}
+
 /* Desktop shows the full city name (e.g. "Los Angeles"); phones swap to the
    compact abbreviation (e.g. "LA"). Both spans are rendered so the swap is
    pure CSS. */
@@ -1609,8 +1678,9 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
 
 @media (max-width: 640px) {
   /* Hero poster team abbreviations shrink so the abbr fits on one line. */
-  .gz-fight-card > div:first-child { padding: 22px 20px !important; min-height: 0 !important; }
-  .gz-fight-card > div:nth-child(2) { padding: 22px 20px !important; }
+  .gz-hero-poster { padding: 22px 20px !important; min-height: 0 !important; }
+  .gz-hero-strip { padding: 14px 20px !important; }
+  .gz-focus-band { padding: 22px 20px 24px !important; }
   .gz-hero-team { font-size: 56px !important; line-height: 0.9 !important; }
   .gz-hero-team-full { display: none; }
   .gz-hero-team-abbr { display: inline; }
@@ -1647,119 +1717,14 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Home — mobile-compact layout (hides desktop hero + top six + standings
-   double-column and shows compact match banner + top 4 fighters + top 6
-   standings as card rows instead).
+   Bracket Challenge: full left-to-right bracket on desktop, stacked
+   round-by-round picker on phones.
    =========================================================================== */
-.home-mobile-only { display: none; }
-@media (max-width: 720px) {
-  .home-mobile-only { display: block; }
-  .home-desktop-only { display: none; }
-  .home-awards-section { padding: 0 16px 28px !important; }
-}
-
-/* Bracket Challenge: full left-to-right bracket on desktop, stacked
-   round-by-round picker on phones. */
 .bc-mobile-only { display: none; }
 @media (max-width: 720px) {
   .bc-desktop-only { display: none; }
   .bc-mobile-only { display: block; }
-}
-
-.home-mobile-banner { transition: opacity 0.12s; }
-.home-mobile-banner:hover { opacity: 0.95; text-decoration: none; color: var(--tbl-bg); }
-
-.home-mobile-section {
-  padding: 18px 16px 10px;
-  border-top: 1.5px solid var(--tbl-ink);
-}
-.home-mobile-section__head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  font-family: var(--tbl-font-mono);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--tbl-accent);
-  border-bottom: 1.5px solid var(--tbl-ink);
-  padding-bottom: 8px;
-  margin-bottom: 4px;
-}
-.home-mobile-section__head a {
-  color: var(--tbl-ink-soft);
-  text-decoration: none;
-}
-.home-mobile-list { display: flex; flex-direction: column; }
-.home-mobile-list__row {
-  display: grid;
-  grid-template-columns: 24px 28px 1fr auto;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 2px;
-  border-bottom: 1px dotted rgba(20, 17, 11, 0.3);
-  color: var(--tbl-ink);
-  text-decoration: none;
-}
-.home-mobile-list__row:last-child { border-bottom: none; }
-.home-mobile-list__rank {
-  font-family: var(--tbl-font-mono);
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--tbl-ink-soft);
-  text-align: center;
-}
-.home-mobile-list__logo {
-  width: 26px;
-  height: 26px;
-  object-fit: contain;
-  display: block;
-}
-.home-mobile-list__body { min-width: 0; }
-.home-mobile-list__name {
-  font-family: var(--tbl-font-serif);
-  font-weight: 800;
-  font-size: 15px;
-  line-height: 1.1;
-  color: var(--tbl-ink);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.home-mobile-list__meta {
-  font-family: var(--tbl-font-mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--tbl-ink-soft);
-  margin-top: 2px;
-}
-.home-mobile-list__value {
-  font-family: var(--tbl-font-serif);
-  font-weight: 900;
-  font-size: 17px;
-  color: var(--tbl-accent);
-  text-align: right;
-  min-width: 48px;
-}
-.home-mobile-list__record {
-  font-family: var(--tbl-font-mono);
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--tbl-ink);
-  text-align: right;
-  min-width: 36px;
-}
-.home-mobile-list__diff {
-  font-family: var(--tbl-font-mono);
-  font-size: 12px;
-  font-weight: 700;
-  text-align: right;
-  min-width: 42px;
-}
-.home-mobile-list__row.is-team {
-  grid-template-columns: 24px 28px 1fr auto auto;
+  .home-awards-section { padding: 0 16px 28px !important; }
 }
 @media (max-width: 720px) {
   .fighters-page { padding: 0 !important; }
