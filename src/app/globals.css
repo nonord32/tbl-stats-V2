@@ -1356,11 +1356,98 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
   .gz-profile-strip .tbl-display { font-size: 24px !important; }
 }
 
-/* Fighter stat sheet: on narrow screens stack the row label above its cells and
-   let the identity block (form strip + record) drop below the name. */
+/* ═══════════════════════════════════════════════════════════════════════════
+   Fighter stat sheet — four headline numbers over a two-column grouped list.
+   Nothing here spans a track list: the explainer is a sibling of the grids,
+   not an item inside one, which is what previously held auto-fit tracks open
+   and ran the Schedule values into the next label.
+   =========================================================================== */
+.gz-sheet-heads {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-bottom: 1px solid rgba(20,17,11,0.18);
+}
+.gz-sheet-head {
+  padding: 15px 16px 14px;
+  border-left: 1px solid rgba(20,17,11,0.18);
+  min-width: 0;
+}
+.gz-sheet-head:first-child { border-left: none; }
+.gz-sheet-head__rank {
+  font-family: var(--tbl-font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--tbl-ink-mute);
+  letter-spacing: 0.1em;
+  margin-left: 7px;
+  vertical-align: 5px;
+}
+
+.gz-sheet-groups { display: grid; grid-template-columns: 1fr 1fr; }
+.gz-sheet-col { padding: 4px 0 6px; min-width: 0; }
+.gz-sheet-col + .gz-sheet-col { border-left: 1px solid rgba(20,17,11,0.18); }
+.gz-sheet-grp { padding: 12px 16px 4px; }
+.gz-sheet-grp__head {
+  border-bottom: 1.5px solid var(--tbl-ink);
+  padding-bottom: 5px;
+  font-family: var(--tbl-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.gz-sheet-grp__note {
+  color: var(--tbl-ink-mute);
+  font-weight: 400;
+  letter-spacing: 0.12em;
+}
+.gz-sheet-grp__row { padding: 7px 0; border-bottom: 1px dotted rgba(20,17,11,0.3); }
+.gz-sheet-grp__row:last-child { border-bottom: none; }
+
+.gz-sheet-exp { border-top: 1px solid rgba(20,17,11,0.18); }
+.gz-sheet-exp__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-family: var(--tbl-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--tbl-accent);
+  font-weight: 700;
+  list-style: none;
+}
+.gz-sheet-exp__head::-webkit-details-marker { display: none; }
+.gz-sheet-exp__head::before { content: "+"; font-size: 14px; line-height: 1; width: 11px; }
+.gz-sheet-exp[open] .gz-sheet-exp__head::before { content: "\2212"; }
+.gz-sheet-exp__body {
+  padding: 0 16px 15px;
+  font-family: var(--tbl-font-mono);
+  font-size: 11px;
+  line-height: 1.75;
+  color: var(--tbl-ink-soft);
+  max-width: 88ch;
+}
+.gz-sheet-exp__body p { margin: 0 0 11px; }
+.gz-sheet-exp__body p:last-child { margin-bottom: 0; }
+.gz-sheet-exp__body b { color: var(--tbl-ink); font-weight: 600; }
+.gz-sheet-exp__body a { color: var(--tbl-accent); text-decoration: none; font-weight: 600; }
+
+/* Phone: tiles go two-up, the two columns stack. Every stat is kept. */
+@media (max-width: 820px) {
+  .gz-sheet-heads { grid-template-columns: 1fr 1fr; }
+  .gz-sheet-head { border-top: 1px solid rgba(20,17,11,0.18); }
+  .gz-sheet-head:nth-child(1),
+  .gz-sheet-head:nth-child(2) { border-top: none; }
+  .gz-sheet-head:nth-child(odd) { border-left: none; }
+  .gz-sheet-groups { grid-template-columns: 1fr; }
+  .gz-sheet-col + .gz-sheet-col { border-left: none; border-top: 1px solid rgba(20,17,11,0.18); }
+}
+
+/* Let the identity block (form strip + record) drop below the name. */
 @media (max-width: 720px) {
-  .gz-sheet-row { grid-template-columns: 1fr !important; }
-  .gz-sheet-cells { border-top: 1px solid rgba(20,17,11,0.18); }
   .gz-fighter-id { grid-template-columns: 1fr !important; align-items: flex-start !important; }
   .gz-fighter-form { justify-content: flex-start; }
 }

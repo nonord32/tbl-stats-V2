@@ -1,14 +1,16 @@
 'use client';
 // src/app/fighters/[slug]/FighterHero.tsx
 // Fighter profile: a compact identity hero (name + team meta on the left, form
-// strip + record on the right) over a dense stat sheet — one bordered table
-// whose rows are labelled down the left edge (Overview / Scoring / Finishing /
-// Advanced) with label-value pairs reading across. The name stays fixed; every
-// stat rescopes with the View toggle, which only appears once the fighter has
-// playoff bouts.
+// strip + record on the right) over the stat sheet — four headline numbers,
+// then the remaining stats as a grouped list, box-score groups on the left and
+// model-derived groups on the right, with the definitions collapsed behind one
+// line. The name stays fixed; every stat rescopes with the View toggle, which
+// only appears once the fighter has playoff bouts. The exception is the
+// Schedule group, which is always full-season and says so on its heading.
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { StatTile } from '@/components/ui';
 import type { FighterStat } from '@/types';
 import { getTeamLogoPathByName, getFullTeamName } from '@/lib/teams';
 
@@ -57,91 +59,42 @@ const labelStyle: React.CSSProperties = {
   whiteSpace: 'nowrap',
 };
 
-// One label-value pair. Label left, value right, sharing a baseline.
-function Cell({ cell }: { cell: StatCell }) {
+// One of the four headline numbers: label above, big value below, left aligned.
+function Head({ cell, rank }: { cell: StatCell; rank?: number }) {
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'baseline',
-        justifyContent: 'space-between',
-        gap: 10,
-        padding: '9px 14px',
-        borderLeft: `1px solid ${HAIRLINE}`,
-        minWidth: 0,
-      }}
-    >
-      <span style={labelStyle}>
-        {cell.l}
-        {cell.hint && (
-          <span style={{ color: 'var(--tbl-ink-mute)', letterSpacing: '0.08em' }}> {cell.hint}</span>
-        )}
-      </span>
-      <span style={{ display: 'flex', alignItems: 'baseline', gap: 6, whiteSpace: 'nowrap' }}>
-        {cell.pre && (
-          <span
-            style={{
-              fontFamily: 'var(--tbl-font-mono)',
-              fontSize: 10,
-              color: 'var(--tbl-ink-soft)',
-            }}
-          >
-            {cell.pre}
-          </span>
-        )}
-        <span
-          className="tbl-display"
-          style={{ fontSize: 21, lineHeight: 1, color: cell.color ?? 'var(--tbl-ink)' }}
-        >
-          {cell.v}
-        </span>
-      </span>
+    <div className="gz-sheet-head">
+      <StatTile
+        label={cell.l}
+        size="xl"
+        orientation="stacked"
+        align="left"
+        color={cell.color}
+        value={
+          <>
+            {cell.v}
+            {rank ? <span className="gz-sheet-head__rank">#{rank}</span> : null}
+          </>
+        }
+      />
     </div>
   );
 }
 
-// A labelled row of the stat sheet: title down the left edge, cells across.
-function Row({
-  title,
-  cells,
-  children,
-  last = false,
-}: {
-  title: string;
-  cells: StatCell[];
-  children?: React.ReactNode;
-  last?: boolean;
-}) {
+// A group of the stat list: a heading rule, then label-value rows beneath it.
+// The note rides on the heading rather than on every label — repeating "full
+// season" on three labels is what used to make them long enough to collide.
+function Group({ title, note, cells }: { title: string; note?: string; cells: StatCell[] }) {
   return (
-    <div
-      className="gz-sheet-row"
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '112px 1fr',
-        borderBottom: last ? 'none' : `1px solid ${HAIRLINE}`,
-      }}
-    >
-      <div
-        style={{
-          ...labelStyle,
-          fontWeight: 700,
-          display: 'flex',
-          alignItems: 'center',
-          padding: '9px 14px',
-          background: 'rgba(20,17,11,0.03)',
-        }}
-      >
+    <div className="gz-sheet-grp">
+      <div className="gz-sheet-grp__head">
         {title}
+        {note && <span className="gz-sheet-grp__note"> · {note}</span>}
       </div>
-      <div
-        className="gz-sheet-cells"
-        style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}
-      >
-        {cells.map((c) => (
-          <Cell key={c.l} cell={c} />
-        ))}
-        {children}
-      </div>
+      {cells.map((c) => (
+        <div key={c.l} className="gz-sheet-grp__row">
+          <StatTile label={c.l} value={c.v} pre={c.pre} hint={c.hint} color={c.color} />
+        </div>
+      ))}
     </div>
   );
 }
@@ -207,12 +160,19 @@ export function FighterHero({
   const instagram = active.instagram ?? season.instagram;
   const activeWpa = wpa ? wpa[phase] : null;
 
+  // The four headline numbers. All four rescope with the View toggle — which is
+  // why the opponent-adjusted ratings are deliberately not among them; a tile
+  // that ignored the toggle beside four that obey it reads as a bug.
+  const heads: StatCell[] = [
+    { l: 'Win %', v: `${(active.winPct * 100).toFixed(0)}%` },
+    { l: 'Net Points', v: signed(active.netPts), color: 'var(--tbl-accent)' },
+    { l: 'Net Pts / Round', v: active.nppr.toFixed(2) },
+    { l: 'WAR', v: active.war.toFixed(2) },
+  ];
+
   const overview: StatCell[] = [
-    { l: 'Win%', v: `${(active.winPct * 100).toFixed(0)}%` },
     { l: 'Rounds', v: String(active.rounds) },
-    { l: 'Net Pts', v: signed(active.netPts), color: 'var(--tbl-accent)' },
-    { l: 'NP/R', v: active.nppr.toFixed(2) },
-    { l: 'KO%', v: active.wins > 0 ? `${(active.koPct * 100).toFixed(0)}%` : '—' },
+    { l: 'KO %', v: active.wins > 0 ? `${(active.koPct * 100).toFixed(0)}%` : '—' },
   ];
   const scoring: StatCell[] = [
     { l: 'Points For', v: fmt(active.pointsFor) },
@@ -223,55 +183,46 @@ export function FighterHero({
   const finishing: StatCell[] = [
     { l: 'Knockdowns', v: String(active.knockdowns) },
     { l: 'Double KDs', v: String(active.doubleKnockdowns) },
-    { l: 'KO/TKO', v: String(active.koTko) },
-    { l: 'KO%', hint: 'KO/TKO ÷ W', v: active.wins > 0 ? `${(active.koPct * 100).toFixed(0)}%` : '—' },
+    { l: 'KO / TKO', v: String(active.koTko) },
   ];
-  // Ratings ignore the phase toggle, so flag that on the labels the moment the
-  // reader is looking at anything narrower than the whole season.
-  const seasonHint = phase === 'all' ? undefined : 'full season';
+  // Ratings ignore the phase toggle. That is marked once, on the group heading
+  // ("Schedule · full season"), rather than on each label.
   const adjusted: StatCell[] = [
     rating && rating.sos !== null
       ? {
-          l: 'SOS',
-          hint: seasonHint,
+          l: 'Strength of Schedule',
           v: signed3(rating.sos),
           color: rating.sos >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)',
         }
-      : { l: 'SOS', hint: seasonHint, v: '—', color: 'var(--tbl-ink-soft)' },
+      : { l: 'Strength of Schedule', v: '—', color: 'var(--tbl-ink-soft)' },
     rating
       ? {
-          l: 'aNPPR',
-          hint: seasonHint,
+          l: 'Adjusted NP/R',
           pre: `±${rating.bootSd.toFixed(2)}`,
           v: signed3(rating.anppr),
           color: rating.anppr >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)',
         }
-      : { l: 'aNPPR', hint: seasonHint, v: '—', color: 'var(--tbl-ink-soft)' },
+      : { l: 'Adjusted NP/R', v: '—', color: 'var(--tbl-ink-soft)' },
     // The gap is the point of the stat: it is what the schedule was worth.
     rating
-      ? {
-          l: 'Δ vs NPPR',
-          v: signed3(rating.delta),
-          color: 'var(--tbl-ink-soft)',
-        }
-      : { l: 'Δ vs NPPR', v: '—', color: 'var(--tbl-ink-soft)' },
+      ? { l: 'vs. raw NP/R', v: signed3(rating.delta), color: 'var(--tbl-ink-soft)' }
+      : { l: 'vs. raw NP/R', v: '—', color: 'var(--tbl-ink-soft)' },
   ];
 
   const advanced: StatCell[] = [
-    { l: warRank > 0 && phase === 'all' ? `WAR · #${warRank}` : 'WAR', v: active.war.toFixed(2) },
     activeWpa
       ? {
-          l: 'WPA',
+          l: 'Win Prob. Added',
           pre: `${signed3(activeWpa.perRound)}/r`,
           v: signed3(activeWpa.total),
           color: activeWpa.total >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)',
         }
-      : { l: 'WPA', v: '—', color: 'var(--tbl-ink-soft)' },
+      : { l: 'Win Prob. Added', v: '—', color: 'var(--tbl-ink-soft)' },
     // Average Leverage is a USAGE stat — how big the spots were, not how well
     // the fighter did in them. The hint keeps that explicit.
     activeWpa && activeWpa.liRounds > 0
-      ? { l: 'Avg LI', hint: 'usage', v: activeWpa.avgLi.toFixed(2) }
-      : { l: 'Avg LI', hint: 'usage', v: '—', color: 'var(--tbl-ink-soft)' },
+      ? { l: 'Avg Leverage', hint: 'usage', v: activeWpa.avgLi.toFixed(2) }
+      : { l: 'Avg Leverage', hint: 'usage', v: '—', color: 'var(--tbl-ink-soft)' },
     activeWpa && activeWpa.liRounds > 0
       ? {
           l: 'Clutch',
@@ -453,75 +404,69 @@ export function FighterHero({
         </div>
       </div>
 
-      {/* Stat sheet */}
+      {/* Stat sheet: four headline numbers, then the rest as a grouped list —
+          box-score stats on the left, model-derived stats on the right. The
+          explainer sits outside the grids rather than spanning one, which is
+          what used to hold the auto-fit tracks open and collide the cells. */}
       <div style={{ padding: '0 32px 24px' }}>
-        <div style={{ border: `1.5px solid var(--tbl-ink)` }}>
-          <Row title="Overview" cells={overview} />
-          <Row title="Scoring" cells={scoring} />
-          <Row title="Finishing" cells={finishing} />
-          <Row title="Schedule" cells={adjusted}>
-            <div
-              style={{
-                gridColumn: '1 / -1',
-                borderLeft: `1px solid ${HAIRLINE}`,
-                borderTop: `1px solid ${HAIRLINE}`,
-                padding: '8px 14px',
-                fontFamily: 'var(--tbl-font-mono)',
-                fontSize: 10,
-                lineHeight: 1.6,
-                color: 'var(--tbl-ink-soft)',
-              }}
-            >
-              SOS = how good their opponents were, not counting rounds against this fighter ·
-              aNPPR = net points per round once you account for who they fought.{' '}
-              {rating ? (
-                <>
-                  The rating lands between {signed3(rating.lo)} and {signed3(rating.hi)} when we
-                  rebuild the season
-                  {rating.uncertain ? ' — a wide range, so treat it as soft' : ''}. Gaps under 0.20
-                  do not mean anything.{' '}
-                </>
-              ) : null}
-              Both cover the whole season and do not change with the view toggle above.{' '}
-              <Link href="/stats#ratings" style={{ color: 'var(--tbl-accent)' }}>
-                How it works →
-              </Link>
-              {'  ·  '}
-              <Link href="/advanced?view=fighters&amp;stat=ratings" style={{ color: 'var(--tbl-accent)' }}>
-                Leaderboard →
-              </Link>
+        <div style={{ border: `1.5px solid var(--tbl-ink)`, background: 'var(--tbl-paper)' }}>
+          <div className="gz-sheet-heads">
+            {heads.map((c) => (
+              <Head
+                key={c.l}
+                cell={c}
+                rank={c.l === 'WAR' && warRank > 0 && phase === 'all' ? warRank : undefined}
+              />
+            ))}
+          </div>
+
+          <div className="gz-sheet-groups">
+            <div className="gz-sheet-col">
+              <Group title="Overview" cells={overview} />
+              <Group title="Scoring" cells={scoring} />
+              <Group title="Finishing" cells={finishing} />
             </div>
-          </Row>
-          <Row title="Advanced" cells={advanced} last>
-            <div
-              style={{
-                gridColumn: '1 / -1',
-                borderLeft: `1px solid ${HAIRLINE}`,
-                borderTop: `1px solid ${HAIRLINE}`,
-                padding: '8px 14px',
-                fontFamily: 'var(--tbl-font-mono)',
-                fontSize: 10,
-                lineHeight: 1.6,
-                color: 'var(--tbl-ink-soft)',
-              }}
-            >
-              WAR = wins this fighter added over an easily replaced one · WPA = how much their
-              rounds moved the team&apos;s chance of winning · Avg LI = how big the moments were
-              they were put in (not how they did) · Clutch = whether their wins came in the rounds
-              that mattered. Disqualifications do not count toward Avg LI or Clutch.{' '}
-              <Link href="/stats#war" style={{ color: 'var(--tbl-accent)' }}>
-                WAR →
-              </Link>
-              {'  ·  '}
-              <Link href="/stats#wpa" style={{ color: 'var(--tbl-accent)' }}>
-                WPA →
-              </Link>
-              {'  ·  '}
-              <Link href="/stats#leverage" style={{ color: 'var(--tbl-accent)' }}>
-                Leverage &amp; Clutch →
-              </Link>
+            <div className="gz-sheet-col">
+              <Group title="Schedule" note="full season" cells={adjusted} />
+              <Group title="Advanced" cells={advanced} />
             </div>
-          </Row>
+          </div>
+
+          <details className="gz-sheet-exp">
+            <summary className="gz-sheet-exp__head">What do these mean?</summary>
+            <div className="gz-sheet-exp__body">
+              <p>
+                <b>Strength of Schedule</b> is how good this fighter&apos;s opponents were, not
+                counting the rounds they fought against them. <b>Adjusted NP/R</b> is net points
+                per round once you account for who they fought
+                {rating ? (
+                  <>
+                    {' '}
+                    — theirs lands between {signed3(rating.lo)} and {signed3(rating.hi)} when we
+                    rebuild the season
+                    {rating.uncertain ? ', a wide range, so treat it as soft' : ''}. Gaps under
+                    0.20 do not mean anything
+                  </>
+                ) : null}
+                . Both cover the whole season and do not change with the view toggle above.{' '}
+                <Link href="/stats#ratings">How it works →</Link>
+                {'  ·  '}
+                <Link href="/advanced?view=fighters&stat=ratings">Leaderboard →</Link>
+              </p>
+              <p>
+                <b>WAR</b> is the wins this fighter added over an easily replaced one.{' '}
+                <b>Win Probability Added</b> is how much their rounds moved the team&apos;s chance
+                of winning. <b>Avg Leverage</b> is how big the moments were that they were put in —
+                not how they did in them. <b>Clutch</b> is whether their wins came in the rounds
+                that mattered. Disqualifications count toward neither Avg Leverage nor Clutch.{' '}
+                <Link href="/stats#war">WAR →</Link>
+                {'  ·  '}
+                <Link href="/stats#wpa">WPA →</Link>
+                {'  ·  '}
+                <Link href="/stats#leverage">Leverage &amp; Clutch →</Link>
+              </p>
+            </div>
+          </details>
         </div>
       </div>
     </>
