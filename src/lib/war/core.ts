@@ -5,8 +5,8 @@
 //   WAR = (NP/R − Replacement NP/R) × Rounds ÷ Points Per Win
 //
 //   • NP/R            = (Σ bout net points) / rounds fought
-//   • Replacement NP/R = 25th percentile of every in-scope fighter's NP/R
-//                        (Google-Sheets PERCENTILE: inclusive, interpolated)
+//   • Replacement NP/R = the rate at which a whole team of such fighters would
+//                        win 29.4% of their matches — see REPLACEMENT_NPPR
 //   • Points Per Win  = 1 / WIN_VALUE_PER_POINT, below
 //
 // The denominator used to be the average winning margin. That is not the price
@@ -35,6 +35,27 @@ export type StatScope = GamePhase | 'all';
 export const WIN_VALUE_PER_POINT = 0.06196;
 export const POINTS_PER_WIN = 1 / WIN_VALUE_PER_POINT; // ≈ 16.14 for 2026
 
+// Replacement level, anchored the way baseball anchors it: not as a quantile of
+// observed performance, but as a league-wide win rate. FanGraphs and
+// Baseball-Reference fix replacement at 1,000 WAR per 2,430 team-games — a team
+// of replacement players wins about .294 — and spread that across playing time.
+//
+// Translating that to TBL: solve the win-probability table for the match margin
+// a .294 team carries over 24 rounds. It brackets WP(-3,24) = 0.273672 and
+// WP(-2,24) = 0.343503, interpolating to a margin of -2.7089, so
+// -2.7089 / 24 = -0.1129 NP/R. scripts/war.test.mjs re-derives this from
+// wp-table-2026.json and fails if the two ever drift apart.
+//
+// This replaces a 25th percentile of every fighter's NP/R, which put the bar at
+// -2.004 for 2026 — a rate at which a whole team would lose every match by 48
+// points and win 0.0% of them. Fighters who appeared in one round and were
+// knocked out score -4.00, and enough of those cameos filled the bottom quartile
+// to drag the bar there. Because the cushion scales with rounds fought, that
+// turned WAR substantially into a durability stat: an average fighter over 30
+// rounds scored 3.73 WAR while contributing no net points at all.
+export const REPLACEMENT_TEAM_WIN_PCT = 0.294;
+export const REPLACEMENT_NPPR = -0.1129;
+
 // Google-Sheets PERCENTILE (a.k.a. Excel PERCENTILE.INC): inclusive, linearly
 // interpolated. `values` need not be sorted. Returns 0 for an empty input.
 export function percentileInclusive(values: number[], p: number): number {
@@ -61,9 +82,12 @@ export function npprOf(bouts: FightHistory[]): number {
 }
 
 export interface LeagueBaseline {
+  /** the bar WAR is measured from — a fixed anchor, not a quantile */
   replacementNppr: number;
   /** what WAR divides by: net points that buy one win */
   pointsPerWin: number;
+  /** the 25th percentile of observed NP/R — reported only, NOT the bar */
+  observedP25Nppr: number;
   /** mean |PF − PA| over decided matches — descriptive only, NOT the divisor */
   avgMargin: number;
 }
@@ -74,13 +98,15 @@ export function leagueBaseline(
   matches: MatchResult[],
   scope: StatScope,
 ): LeagueBaseline {
-  // Replacement level: 25th percentile of every in-scope fighter's NP/R.
+  // The 25th percentile of observed NP/R. Reported on /stats and in the admin
+  // export so the anchor can be compared against the league, but it is NOT the
+  // bar — one-round appearances swing NP/R by ±4 and dominate the low tail.
   const npprs: number[] = [];
   for (const bouts of Object.values(fighterHistory)) {
     const scoped = bouts.filter((b) => inScope(b.phase, scope));
     if (scoped.length > 0) npprs.push(npprOf(scoped));
   }
-  const replacementNppr = percentileInclusive(npprs, 0.25);
+  const observedP25Nppr = percentileInclusive(npprs, 0.25);
 
   // Average winning margin over decided in-scope matches. Reported on /stats
   // and in the admin export beside points-per-win, because the difference
@@ -94,7 +120,12 @@ export function leagueBaseline(
   const avgMargin =
     margins.length > 0 ? margins.reduce((s, x) => s + x, 0) / margins.length : 0;
 
-  return { replacementNppr, pointsPerWin: POINTS_PER_WIN, avgMargin };
+  return {
+    replacementNppr: REPLACEMENT_NPPR,
+    pointsPerWin: POINTS_PER_WIN,
+    observedP25Nppr,
+    avgMargin,
+  };
 }
 
 export function computeWar(nppr: number, rounds: number, baseline: LeagueBaseline): number {

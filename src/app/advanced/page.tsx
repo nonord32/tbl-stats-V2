@@ -96,7 +96,7 @@ export default async function AdvancedPage() {
       teamLogo: getTeamLogoPathByName(teamBySlug.get(f.slug) ?? '') ?? null,
       weightClass: rating?.weightClass ?? base?.weightClass ?? '',
       gender: rating?.gender ?? base?.gender ?? '',
-      // Phase-scoped — Win Impact, Stakes and Timing all split by phase.
+      // Phase-scoped — WPA, Stakes and Timing all split by phase.
       all: {
         matches: f.matches,
         rounds: f.rounds,

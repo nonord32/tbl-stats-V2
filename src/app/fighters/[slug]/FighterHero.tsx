@@ -221,12 +221,12 @@ export function FighterHero({
   const advanced: StatCell[] = [
     activeWpa
       ? {
-          l: 'Win Impact',
+          l: 'WPA',
           pre: `${signed3(activeWpa.perRound)}/r`,
           v: `${signed2(activeWpa.total)} wins`,
           color: activeWpa.total >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)',
         }
-      : { l: 'Win Impact', v: '—', color: 'var(--tbl-ink-soft)' },
+      : { l: 'WPA', v: '—', color: 'var(--tbl-ink-soft)' },
     // Stakes Faced is a USAGE stat — how big the spots were, not how well the
     // fighter did in them. The hint keeps that explicit.
     activeWpa && activeWpa.liRounds > 0
@@ -464,10 +464,10 @@ export function FighterHero({
               </p>
               <p>
                 <b>WAR</b> is the wins this fighter added over an easily replaced one.{' '}
-                <b>Win Impact</b> is how much their rounds actually moved the team&apos;s chance of
+                <b>Win Probability Added</b> is how much their rounds actually moved the team&apos;s chance of
                 winning. <b>Stakes Faced</b> is how big the moments were that they were put in —
                 not how they did in them; 1.00× is an ordinary round.{' '}
-                <b>Timing</b> is the part of their Win Impact that came from <i>when</i> those
+                <b>Timing</b> is the part of their WPA that came from <i>when</i> those
                 results landed.
                 {activeWpa && activeWpa.liRounds > 0 ? (
                   <>
@@ -481,7 +481,7 @@ export function FighterHero({
                 Disqualifications count toward neither Stakes Faced nor Timing.{' '}
                 <Link href="/stats#war">WAR →</Link>
                 {'  ·  '}
-                <Link href="/stats#wpa">Win Impact →</Link>
+                <Link href="/stats#wpa">WPA →</Link>
                 {'  ·  '}
                 <Link href="/stats#leverage">Stakes &amp; Timing →</Link>
               </p>

@@ -13,6 +13,8 @@ import { fileURLToPath } from 'node:url';
 import {
   WIN_VALUE_PER_POINT,
   POINTS_PER_WIN,
+  REPLACEMENT_NPPR,
+  REPLACEMENT_TEAM_WIN_PCT,
   percentileInclusive,
   npprOf,
   leagueBaseline,
@@ -23,6 +25,21 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const wpaModel = JSON.parse(
   fs.readFileSync(path.join(ROOT, 'src/lib/wpa/wpa-model-2026.json'), 'utf8'),
 );
+const wpTable = JSON.parse(
+  fs.readFileSync(path.join(ROOT, 'src/lib/wpa/wp-table-2026.json'), 'utf8'),
+);
+const SCHEDULED_ROUNDS = wpaModel.scheduledRounds.default;
+const wp = (d, r) => wpTable.rows[r][d - wpTable.dMin];
+
+// The margin a team carrying win probability `target` holds at the opening
+// bell, by linear interpolation between the two bracketing integer margins.
+function marginForWinPct(target, rounds) {
+  let lo = null;
+  for (let d = -40; d <= 0; d++) if (wp(d, rounds) <= target) lo = d;
+  const hi = lo + 1;
+  const frac = (target - wp(lo, rounds)) / (wp(hi, rounds) - wp(lo, rounds));
+  return lo + frac;
+}
 
 // ── The guard that matters most ─────────────────────────────────────────────
 // WAR and WPA are both denominated in wins. They stay on one scale only because
@@ -41,6 +58,33 @@ test('points per win is tied to the WPA model constant', () => {
   assert.ok(Math.abs(POINTS_PER_WIN - 1 / modelValue) < 1e-12);
   // Sanity: a win costs far more than the average winning margin (~5.6 points).
   assert.ok(POINTS_PER_WIN > 12 && POINTS_PER_WIN < 20, `got ${POINTS_PER_WIN}`);
+});
+
+// ── The replacement anchor ──────────────────────────────────────────────────
+// Replacement level is not a quantile of observed play. It is fixed where a
+// whole team of such fighters would win REPLACEMENT_TEAM_WIN_PCT of their
+// matches — baseball's convention, translated through our own win-probability
+// table. If that table is ever re-fit, this fails rather than leaving the bar
+// silently stale.
+test('the replacement bar is derived from the win-probability table', () => {
+  const margin = marginForWinPct(REPLACEMENT_TEAM_WIN_PCT, SCHEDULED_ROUNDS);
+  const derived = margin / SCHEDULED_ROUNDS;
+  assert.ok(
+    Math.abs(derived - REPLACEMENT_NPPR) < 5e-5,
+    `REPLACEMENT_NPPR is ${REPLACEMENT_NPPR} but the table derives ${derived.toFixed(6)} ` +
+      `for a ${REPLACEMENT_TEAM_WIN_PCT} team. Update src/lib/war/core.ts.`,
+  );
+});
+
+test('a replacement team is bad, not mathematically eliminated', () => {
+  const d = Math.round(REPLACEMENT_NPPR * SCHEDULED_ROUNDS);
+  const winPct = wp(d, SCHEDULED_ROUNDS);
+  assert.ok(winPct > 0.2 && winPct < 0.4, `replacement team wins ${winPct}`);
+  // The old 25th-percentile bar put replacement at -2.004 NP/R, a rate at which
+  // a team loses every match by 48 points and never wins one.
+  const oldBar = Math.round(-2.004 * SCHEDULED_ROUNDS);
+  assert.ok(wp(oldBar, SCHEDULED_ROUNDS) < 1e-6, 'the old bar should be a 0% team');
+  assert.ok(REPLACEMENT_NPPR > -2.004);
 });
 
 // ── percentileInclusive: Google Sheets PERCENTILE / Excel PERCENTILE.INC ─────
@@ -64,11 +108,16 @@ test('npprOf averages net points over rounds', () => {
 });
 
 // ── computeWar ──────────────────────────────────────────────────────────────
-const baseline = { replacementNppr: -0.16, pointsPerWin: POINTS_PER_WIN, avgMargin: 5.6 };
+const baseline = {
+  replacementNppr: REPLACEMENT_NPPR,
+  pointsPerWin: POINTS_PER_WIN,
+  observedP25Nppr: -2.004,
+  avgMargin: 11.98,
+};
 
 test('computeWar converts production above replacement into wins', () => {
   // A fighter exactly at replacement level adds nothing, however many rounds.
-  assert.equal(computeWar(-0.16, 40, baseline), 0);
+  assert.equal(computeWar(REPLACEMENT_NPPR, 40, baseline), 0);
   // Below replacement is negative; above is positive.
   assert.ok(computeWar(-0.5, 10, baseline) < 0);
   assert.ok(computeWar(1.0, 10, baseline) > 0);
@@ -78,13 +127,22 @@ test('computeWar converts production above replacement into wins', () => {
   assert.ok(Math.abs(b - 2 * a) < 1e-12);
 });
 
-test('computeWar puts Stacia-shaped production near her Win Impact', () => {
+test('computeWar puts Stacia-shaped production just above her WPA', () => {
   // 19 net points over 13 rounds. Her published WPA is +1.155, and the
   // definitions say WAR should sit a little ABOVE that — by the replacement
-  // cushion — rather than 3x it, which is what the old denominator produced.
+  // cushion. It read 3.76 under the old denominator and 2.79 once the
+  // denominator was fixed but the bar was still the 25th percentile.
   const war = computeWar(19 / 13, 13, baseline);
   assert.ok(war > 1.155, `expected WAR above WPA 1.155, got ${war}`);
-  assert.ok(war < 1.6, `expected WAR within a few tenths of WPA, got ${war}`);
+  assert.ok(war < 1.35, `expected WAR just above WPA, got ${war}`);
+});
+
+test('the cushion no longer makes WAR a durability stat', () => {
+  // A fighter at exactly 0.00 NP/R contributes no net points. However many
+  // rounds they fight, they should score near zero — under the old bar this
+  // was 3.73 WAR over 30 rounds, beating genuinely productive fighters.
+  const war = computeWar(0, 30, baseline);
+  assert.ok(war < 0.3, `an average 30-round fighter should be near zero, got ${war}`);
 });
 
 test('computeWar is guarded against a zero denominator', () => {
@@ -105,11 +163,15 @@ const matches = [
   { phase: 'playoffs', result: 'W', score1: 20, score2: 4 }, // margin 16
 ];
 
-test('leagueBaseline reports both constants and scopes correctly', () => {
+test('leagueBaseline reports the constants and scopes correctly', () => {
   const all = leagueBaseline(history, matches, 'all');
+  // The bar is an anchor, so it does not move with the sample.
+  assert.equal(all.replacementNppr, REPLACEMENT_NPPR);
   // NP/R values across all bouts: a 2, b 0, c -2, d -4 -> sorted -4,-2,0,2
-  // 25th percentile: rank 0.75 -> -4 + 0.75*2 = -2.5
-  assert.equal(all.replacementNppr, -2.5);
+  // 25th percentile: rank 0.75 -> -4 + 0.75*2 = -2.5. Reported, not used —
+  // and this fixture is exactly the small-sample distortion that motivated
+  // anchoring the bar instead of taking a quantile.
+  assert.equal(all.observedP25Nppr, -2.5);
   assert.equal(all.avgMargin, (4 + 8 + 16) / 3);
   assert.equal(all.pointsPerWin, POINTS_PER_WIN);
 
@@ -125,6 +187,7 @@ test('leagueBaseline reports both constants and scopes correctly', () => {
 test('leagueBaseline degrades safely with no decided matches', () => {
   const b = leagueBaseline(history, [{ phase: 'regular', result: 'D', score1: 1, score2: 1 }], 'all');
   assert.equal(b.avgMargin, 0);
+  assert.equal(b.replacementNppr, REPLACEMENT_NPPR);
   // A zero avgMargin no longer zeroes WAR — that was the old failure mode.
   assert.ok(computeWar(1.0, 10, b) > 0);
 });

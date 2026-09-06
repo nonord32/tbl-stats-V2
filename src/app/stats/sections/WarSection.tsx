@@ -57,9 +57,10 @@ export async function WarSection() {
               points scored minus points conceded, divided by rounds fought.
             </li>
             <li style={{ marginBottom: 8 }}>
-              <strong>The replacement bar.</strong> Line every fighter up by scoring rate and
-              take the one a quarter of the way from the bottom. That is the bar. Score above it
-              and you add value; below it and you cost your team.
+              <strong>The replacement bar.</strong> The scoring rate of a fighter a team could
+              find without trying. We fix it where a whole team of them would win 29.4% of their
+              matches — see below. Score above the bar and you add value; below it and you cost
+              your team.
             </li>
             <li>
               <strong>Points per win.</strong> How many net points it takes to buy one extra win.
@@ -104,23 +105,57 @@ export async function WarSection() {
             <Link href="/stats#wpa" style={{ color: 'var(--tbl-accent)' }}>
               Win Probability Added
             </Link>{' '}
-            is built on, so a fighter’s WAR and their Win Impact are finally denominated in the
+            is built on, so a fighter’s WAR and their WPA are finally denominated in the
             same wins — and should land within a few tenths of each other, the gap being the
             replacement cushion.
           </p>
           <p style={proseSmall}>
             <strong>This changed during the 2026 season.</strong> WAR previously divided by the
-            average match margin, which made every figure roughly three times larger than it
-            should have been. If you have an older WAR number written down, it is not comparable
-            to the one on this site now.
+            average match margin of {baseline.avgMargin.toFixed(1)} points, which made every
+            figure about a quarter larger than it should have been. If you have an older WAR
+            number written down, it is not comparable to the one on this site now.
+          </p>
+        </Block>
+
+        <Block title="Where the Replacement Bar Comes From">
+          <p style={prose}>
+            The tempting way to set it is to line every fighter up by scoring rate and take the
+            one a quarter of the way from the bottom. We used to do exactly that, and it put the
+            bar at {baseline.observedP25Nppr.toFixed(2)} net points per round.
+          </p>
+          <p style={prose}>
+            That number is impossible. Feed it to the win-probability model: a whole team of
+            fighters scoring at that rate loses every match by roughly{' '}
+            {Math.abs(Math.round(baseline.observedP25Nppr * 24))} points and wins none of them.
+            Replacement level is meant to describe a fighter a team can find easily, not one who
+            cannot win a single match. The bar landed there because a fighter who appeared in a
+            single round and was knocked out scores −4.00, and enough of those one-off
+            appearances filled the bottom quarter to drag it down.
+          </p>
+          <p style={prose}>
+            It also broke the rankings. The credit for being above the bar grows with every round
+            you fight, so with the bar that low, an ordinary fighter who scored no net points at
+            all could out-earn a genuinely productive one simply by fighting more rounds.
+          </p>
+          <p style={prose}>
+            So we set it the way baseball does. Baseball does not take a percentile either: it
+            fixes replacement as a league-wide total — 1,000 WAR across 2,430 team-games, which
+            works out to a team of replacement players winning about 29.4% of the time — and
+            spreads it across playing time. We ask our win-probability model the same question:
+            what scoring rate would leave a team winning 29.4% of its matches? The answer is a
+            margin of about 2.7 points over 24 rounds, or{' '}
+            <span style={{ fontFamily: 'var(--tbl-font-mono)' }}>
+              {baseline.replacementNppr.toFixed(4)}
+            </span>{' '}
+            net points per round. That is the bar.
           </p>
         </Block>
 
         <Block title="This Season's Constants">
           <p style={prose}>
-            The same two numbers are used everywhere on the site. The yardstick does not change
-            between the regular season and the playoffs — only a fighter&apos;s own scoring rate
-            and round count do:
+            The bar and the divisor are used everywhere on the site and do not change between the
+            regular season and the playoffs — only a fighter&apos;s own scoring rate and round
+            count do. The other two are shown for comparison and are not used in the formula:
           </p>
           <div
             style={{
@@ -133,6 +168,7 @@ export async function WarSection() {
             {[
               { l: 'The replacement bar (NP/R)', v: baseline.replacementNppr.toFixed(3) },
               { l: 'Points per win (the divisor)', v: baseline.pointsPerWin.toFixed(2) },
+              { l: '25th pct NP/R (not the bar)', v: baseline.observedP25Nppr.toFixed(2) },
               { l: 'Average match margin (not the divisor)', v: baseline.avgMargin.toFixed(2) },
             ].map((c) => (
               <div key={c.l} style={{ padding: '12px 14px', textAlign: 'center' }}>

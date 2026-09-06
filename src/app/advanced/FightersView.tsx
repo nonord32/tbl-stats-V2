@@ -3,7 +3,7 @@
 // The merged fighter leaderboard: what used to be /wpa and /ratings.
 //
 // A stat picker swaps which columns show. Two of the five stat sets are
-// phase-aware (Win Impact, Stakes & Timing); the other three are whole-season only
+// phase-aware (WPA, Stakes & Timing); the other three are whole-season only
 // — the ridge fit behind Adjusted NPPR and Schedule has no phase split by
 // design, and WAR is a season-level figure. So the phase control DISAPPEARS on
 // those rather than sitting there implying a filter the numbers ignore.
@@ -24,7 +24,7 @@ import type { AdvancedMeta, FighterRow, Phase, PhaseStats, StatSet } from './typ
 const ALL = '__all__';
 
 const STAT_LABELS: Record<StatSet, string> = {
-  wpa: 'Win Impact',
+  wpa: 'Win Probability Added',
   leverage: 'Stakes & Timing',
   ratings: 'Adjusted NPPR',
   schedule: 'Schedule',
@@ -172,7 +172,7 @@ export function FightersView({
     wpa: [
       {
         key: 'wpa',
-        label: 'Win Impact',
+        label: 'WPA',
         title: 'How much their rounds moved the team’s chance of winning, in wins',
         sortable: true,
         value: (r) => p(r).wpa,
@@ -220,7 +220,7 @@ export function FightersView({
       {
         key: 'clutch',
         label: 'Timing',
-        title: 'The part of their Win Impact that came from when those results landed, in wins',
+        title: 'The part of their WPA that came from when those results landed, in wins',
         sortable: true,
         value: (r) => p(r).clutch,
         render: (r) =>
@@ -232,7 +232,7 @@ export function FightersView({
       },
       {
         key: 'wpa',
-        label: 'Win Impact',
+        label: 'WPA',
         sortable: true,
         hideOnMobile: true,
         value: (r) => p(r).wpa,

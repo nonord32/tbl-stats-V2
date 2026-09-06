@@ -26,7 +26,7 @@ export const revalidate = 300;
 export const metadata: Metadata = {
   title: 'How the Stats Work — Every TBL Stat Explained',
   description:
-    'Plain-English definitions of every stat on TBL Stats, then how each one actually works: Win Impact, Stakes and Timing, Comebacks, Adjusted NPPR, Strength of Schedule and WAR.',
+    'Plain-English definitions of every stat on TBL Stats, then how each one actually works: Win Probability Added, Stakes and Timing, Comebacks, Adjusted NPPR, Strength of Schedule and WAR.',
   openGraph: {
     url: 'https://tblstats.com/stats',
     title: 'How the Stats Work | TBL Stats',

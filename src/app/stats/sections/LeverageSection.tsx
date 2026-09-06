@@ -216,9 +216,9 @@ export async function LeverageSection() {
         <Block title="What Timing Measures">
           <p style={prose}>
             Did a fighter&apos;s results come in the moments that mattered? Timing — Clutch, in the
-            technical literature — is the part of a fighter&apos;s Win Impact that came from{' '}
+            technical literature — is the part of a fighter&apos;s WPA that came from{' '}
             <em>when</em> their results landed rather than what those results were. It is measured
-            in wins, the same unit as Win Impact itself, and it is simply the gap between the two
+            in wins, the same unit as WPA itself, and it is simply the gap between the two
             numbers below.
           </p>
           <p style={prose}>
@@ -228,13 +228,13 @@ export async function LeverageSection() {
           </p>
           <p style={prose}>
             Take <strong>Money Powell</strong>: 19 rounds, 12 of them won — but Stakes Faced of
-            0.41×, the lowest of any qualified fighter. His Win Impact is just +0.04 wins. The
+            0.41×, the lowest of any qualified fighter. His WPA is just +0.04 wins. The
             same results in ordinary rounds would have been worth +0.59. Timing:{' '}
             <strong>−0.55 wins</strong>. He won plenty of rounds, but almost none of them
             mattered.
           </p>
           <p style={prose}>
-            Now take <strong>Erika Sanchez</strong>. Her Win Impact of +1.54 wins is well clear of
+            Now take <strong>Erika Sanchez</strong>. Her WPA of +1.54 wins is well clear of
             the +1.09 the same results would have been worth in ordinary rounds — Timing of{' '}
             <strong>+0.45 wins</strong>. Same league, opposite story.
           </p>

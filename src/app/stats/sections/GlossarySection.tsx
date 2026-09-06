@@ -104,7 +104,7 @@ export const TERMS: { section: string; terms: Term[] }[] = [
         name: 'Timing (Clutch)',
         def: (
           <>
-            The part of a fighter&apos;s Win Impact that came from <em>when</em> their results
+            The part of a fighter&apos;s WPA that came from <em>when</em> their results
             landed. We compare what they actually did to what the same wins and losses would have
             been worth in ordinary rounds; the difference is Timing, in wins. Positive means their
             wins landed in the big moments. Disqualifications do not count.{' '}
@@ -115,7 +115,7 @@ export const TERMS: { section: string; terms: Term[] }[] = [
         ),
       },
       {
-        name: 'Win Impact (WPA)',
+        name: 'WPA (Win Probability Added)',
         def: (
           <>
             How much a round moved the team&apos;s chance of winning, credited to the fighter who
