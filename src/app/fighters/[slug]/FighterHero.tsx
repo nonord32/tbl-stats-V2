@@ -39,6 +39,11 @@ function signed(n: number): string {
 function signed3(n: number): string {
   return `${n >= 0 ? '+' : ''}${n.toFixed(3)}`;
 }
+// Wins are published to 2dp — a third decimal implies a precision these numbers
+// do not have, and reads as noise next to the word "wins".
+function signed2(n: number): string {
+  return `${n >= 0 ? '+' : ''}${n.toFixed(2)}`;
+}
 
 interface StatCell {
   l: string;
@@ -105,6 +110,8 @@ export interface WpaScope {
   avgLi: number;
   liRounds: number;
   clutch: number;
+  /** context-neutral WPA — what the same results were worth at average stakes */
+  cnWpa: number;
 }
 export interface WpaScopes {
   all: WpaScope;
@@ -209,27 +216,29 @@ export function FighterHero({
       : { l: 'vs. raw NP/R', v: '—', color: 'var(--tbl-ink-soft)' },
   ];
 
+  // All three are published in wins. WPA and Clutch already were, in everything
+  // but name; showing the unit is most of what makes them readable.
   const advanced: StatCell[] = [
     activeWpa
       ? {
-          l: 'Win Prob. Added',
+          l: 'Win Impact',
           pre: `${signed3(activeWpa.perRound)}/r`,
-          v: signed3(activeWpa.total),
+          v: `${signed2(activeWpa.total)} wins`,
           color: activeWpa.total >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)',
         }
-      : { l: 'Win Prob. Added', v: '—', color: 'var(--tbl-ink-soft)' },
-    // Average Leverage is a USAGE stat — how big the spots were, not how well
-    // the fighter did in them. The hint keeps that explicit.
+      : { l: 'Win Impact', v: '—', color: 'var(--tbl-ink-soft)' },
+    // Stakes Faced is a USAGE stat — how big the spots were, not how well the
+    // fighter did in them. The hint keeps that explicit.
     activeWpa && activeWpa.liRounds > 0
-      ? { l: 'Avg Leverage', hint: 'usage', v: activeWpa.avgLi.toFixed(2) }
-      : { l: 'Avg Leverage', hint: 'usage', v: '—', color: 'var(--tbl-ink-soft)' },
+      ? { l: 'Stakes Faced', hint: 'usage', v: `${activeWpa.avgLi.toFixed(2)}×` }
+      : { l: 'Stakes Faced', hint: 'usage', v: '—', color: 'var(--tbl-ink-soft)' },
     activeWpa && activeWpa.liRounds > 0
       ? {
-          l: 'Clutch',
-          v: signed3(activeWpa.clutch),
+          l: 'Timing',
+          v: `${signed2(activeWpa.clutch)} wins`,
           color: activeWpa.clutch >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)',
         }
-      : { l: 'Clutch', v: '—', color: 'var(--tbl-ink-soft)' },
+      : { l: 'Timing', v: '—', color: 'var(--tbl-ink-soft)' },
   ];
 
   return (
@@ -455,15 +464,26 @@ export function FighterHero({
               </p>
               <p>
                 <b>WAR</b> is the wins this fighter added over an easily replaced one.{' '}
-                <b>Win Probability Added</b> is how much their rounds moved the team&apos;s chance
-                of winning. <b>Avg Leverage</b> is how big the moments were that they were put in —
-                not how they did in them. <b>Clutch</b> is whether their wins came in the rounds
-                that mattered. Disqualifications count toward neither Avg Leverage nor Clutch.{' '}
+                <b>Win Impact</b> is how much their rounds actually moved the team&apos;s chance of
+                winning. <b>Stakes Faced</b> is how big the moments were that they were put in —
+                not how they did in them; 1.00× is an ordinary round.{' '}
+                <b>Timing</b> is the part of their Win Impact that came from <i>when</i> those
+                results landed.
+                {activeWpa && activeWpa.liRounds > 0 ? (
+                  <>
+                    {' '}
+                    Here: their rounds moved {fullTeamName}&apos;s chances by{' '}
+                    <b>{signed2(activeWpa.total)} wins</b>; the same wins and losses at average
+                    stakes would have been worth <b>{signed2(activeWpa.cnWpa)}</b>; timing added{' '}
+                    <b>{signed2(activeWpa.clutch)}</b>.
+                  </>
+                ) : null}{' '}
+                Disqualifications count toward neither Stakes Faced nor Timing.{' '}
                 <Link href="/stats#war">WAR →</Link>
                 {'  ·  '}
-                <Link href="/stats#wpa">WPA →</Link>
+                <Link href="/stats#wpa">Win Impact →</Link>
                 {'  ·  '}
-                <Link href="/stats#leverage">Leverage &amp; Clutch →</Link>
+                <Link href="/stats#leverage">Stakes &amp; Timing →</Link>
               </p>
             </div>
           </details>

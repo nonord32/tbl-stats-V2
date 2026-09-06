@@ -95,6 +95,7 @@ export default async function FighterPage({
         avgLi: fighterWpa.avgLi,
         liRounds: fighterWpa.liRounds,
         clutch: fighterWpa.clutch,
+        cnWpa: fighterWpa.cnWpa,
       },
       regular: {
         total: fighterWpa.wpaRegular,
@@ -102,6 +103,7 @@ export default async function FighterPage({
         avgLi: rate(fighterWpa.liSumRegular, fighterWpa.liRoundsRegular),
         liRounds: fighterWpa.liRoundsRegular,
         clutch: fighterWpa.clutchRegular,
+        cnWpa: fighterWpa.cnWpaRegular,
       },
       playoffs: {
         total: fighterWpa.wpaPlayoffs,
@@ -109,6 +111,7 @@ export default async function FighterPage({
         avgLi: rate(fighterWpa.liSumPlayoffs, fighterWpa.liRoundsPlayoffs),
         liRounds: fighterWpa.liRoundsPlayoffs,
         clutch: fighterWpa.clutchPlayoffs,
+        cnWpa: fighterWpa.cnWpaPlayoffs,
       },
     };
   })();

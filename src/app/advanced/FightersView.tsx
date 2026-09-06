@@ -3,7 +3,7 @@
 // The merged fighter leaderboard: what used to be /wpa and /ratings.
 //
 // A stat picker swaps which columns show. Two of the five stat sets are
-// phase-aware (WPA, Leverage & Clutch); the other three are whole-season only
+// phase-aware (Win Impact, Stakes & Timing); the other three are whole-season only
 // — the ridge fit behind Adjusted NPPR and Schedule has no phase split by
 // design, and WAR is a season-level figure. So the phase control DISAPPEARS on
 // those rather than sitting there implying a filter the numbers ignore.
@@ -24,8 +24,8 @@ import type { AdvancedMeta, FighterRow, Phase, PhaseStats, StatSet } from './typ
 const ALL = '__all__';
 
 const STAT_LABELS: Record<StatSet, string> = {
-  wpa: 'Win Probability',
-  leverage: 'Leverage & Clutch',
+  wpa: 'Win Impact',
+  leverage: 'Stakes & Timing',
   ratings: 'Adjusted NPPR',
   schedule: 'Schedule',
   war: 'Wins Above Replacement',
@@ -172,8 +172,8 @@ export function FightersView({
     wpa: [
       {
         key: 'wpa',
-        label: 'WPA',
-        title: 'How much their rounds moved the team’s chance of winning',
+        label: 'Win Impact',
+        title: 'How much their rounds moved the team’s chance of winning, in wins',
         sortable: true,
         value: (r) => p(r).wpa,
         render: (r) => <Num v={signed(p(r).wpa)} color={tone(p(r).wpa)} bold />,
@@ -206,21 +206,21 @@ export function FightersView({
     leverage: [
       {
         key: 'avgLi',
-        label: 'At Stake',
-        title: 'How big their rounds were — usage, not performance',
+        label: 'Stakes',
+        title: 'How big their rounds were — 1.00× is an ordinary round. Usage, not performance.',
         sortable: true,
         value: (r) => p(r).avgLi,
         render: (r) =>
           p(r).liRounds > 0 ? (
-            <Num v={p(r).avgLi.toFixed(2)} bold />
+            <Num v={`${p(r).avgLi.toFixed(2)}×`} bold />
           ) : (
             <Num v="—" color="var(--tbl-ink-soft)" />
           ),
       },
       {
         key: 'clutch',
-        label: 'Clutch',
-        title: 'Whether their results came in the rounds that mattered',
+        label: 'Timing',
+        title: 'The part of their Win Impact that came from when those results landed, in wins',
         sortable: true,
         value: (r) => p(r).clutch,
         render: (r) =>
@@ -232,7 +232,7 @@ export function FightersView({
       },
       {
         key: 'wpa',
-        label: 'WPA',
+        label: 'Win Impact',
         sortable: true,
         hideOnMobile: true,
         value: (r) => p(r).wpa,

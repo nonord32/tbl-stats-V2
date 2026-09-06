@@ -4,22 +4,9 @@
 // the per-bout Data tab (fight history + match results). No stat is read from
 // the "Fighter Stats" sheet tabs.
 //
-// WAR (Wins Above Replacement), per the league definition:
-//   Replacement level = 25th percentile PPR overall
-//   Performance above replacement is scaled by rounds fought
-//   Wins are derived by converting net points via league-wide match margins
-//
-//   WAR = (PPR − Replacement PPR) × Rounds ÷ Average Margin Per Match
-//
-// where, all derived in code:
-//   • PPR              = NPPR = (Σ bout net points) / rounds fought
-//   • Replacement PPR  = 25th percentile of every in-scope fighter's PPR
-//                        (Google-Sheets PERCENTILE: inclusive, interpolated)
-//   • Avg Margin/Match = mean |team PF − PA| over non-draw matches in scope
-//
-// Baselines are computed per scope: the season view ('all') spans all
-// bouts/matches (reproducing the sheet's WAR); Regular and Playoffs each use
-// their own phase's replacement PPR and average margin.
+// The WAR arithmetic and its two league constants live in ./war/core.ts, which
+// has no runtime imports so scripts/war.test.mjs can load it. They are
+// re-exported here so existing call sites keep working unchanged.
 
 import type {
   FighterStat,
@@ -29,25 +16,18 @@ import type {
   GamePhase,
 } from '@/types';
 import { getPrimaryWeightClass } from './fighters';
+import { computeWar, inScope, leagueBaseline, type StatScope } from './war/core';
 
-export type StatScope = GamePhase | 'all';
+export {
+  POINTS_PER_WIN,
+  WIN_VALUE_PER_POINT,
+  percentileInclusive,
+  leagueBaseline,
+  computeWar,
+  type LeagueBaseline,
+  type StatScope,
+} from './war/core';
 
-// Google-Sheets PERCENTILE (a.k.a. Excel PERCENTILE.INC): inclusive, linearly
-// interpolated. `values` need not be sorted. Returns 0 for an empty input.
-export function percentileInclusive(values: number[], p: number): number {
-  if (values.length === 0) return 0;
-  const sorted = [...values].sort((a, b) => a - b);
-  if (sorted.length === 1) return sorted[0];
-  const rank = p * (sorted.length - 1);
-  const lo = Math.floor(rank);
-  const frac = rank - lo;
-  if (lo + 1 >= sorted.length) return sorted[sorted.length - 1];
-  return sorted[lo] + frac * (sorted[lo + 1] - sorted[lo]);
-}
-
-function inScope(phase: GamePhase, scope: StatScope): boolean {
-  return scope === 'all' || phase === scope;
-}
 
 // ── Outcome method → finishing bucket + "extra points" over the decision baseline ──
 // The TBL round-scoring scale awards 1 point for a decision win and more for a
@@ -137,55 +117,6 @@ export function computeFinishing(bouts: FightHistory[]): FinishingStats {
   };
 }
 
-// Net points per round (NPPR / PPR) for one fighter's in-scope bouts.
-function npprOf(bouts: FightHistory[]): number {
-  const rounds = bouts.length;
-  if (rounds === 0) return 0;
-  const netPts = bouts.reduce((s, b) => s + b.netPts, 0);
-  return netPts / rounds;
-}
-
-export interface LeagueBaseline {
-  replacementNppr: number;
-  avgMargin: number;
-}
-
-// The two league-wide constants WAR is measured against, for a given scope.
-export function leagueBaseline(
-  fighterHistory: Record<string, FightHistory[]>,
-  matches: MatchResult[],
-  scope: StatScope,
-): LeagueBaseline {
-  // Replacement level: 25th percentile of every in-scope fighter's PPR.
-  const npprs: number[] = [];
-  for (const bouts of Object.values(fighterHistory)) {
-    const scoped = bouts.filter((b) => inScope(b.phase, scope));
-    if (scoped.length > 0) npprs.push(npprOf(scoped));
-  }
-  const replacementNppr = percentileInclusive(npprs, 0.25);
-
-  // Points per win: average winning margin across decided in-scope matches.
-  const margins: number[] = [];
-  for (const m of matches) {
-    if (!inScope(m.phase, scope)) continue;
-    if (m.result === 'D') continue; // draws aren't a "win"
-    margins.push(Math.abs(m.score1 - m.score2));
-  }
-  const avgMargin =
-    margins.length > 0 ? margins.reduce((s, x) => s + x, 0) / margins.length : 0;
-
-  return { replacementNppr, avgMargin };
-}
-
-export function computeWar(
-  nppr: number,
-  rounds: number,
-  baseline: LeagueBaseline,
-): number {
-  if (baseline.avgMargin <= 0) return 0;
-  return ((nppr - baseline.replacementNppr) * rounds) / baseline.avgMargin;
-}
-
 // Build the FighterStat roster for a scope, entirely from the Data tab. Only
 // fighters with at least one in-scope bout are returned. Identity (name, team,
 // gender) comes from `fighterIdentity`; the primary weight class is derived from
@@ -197,9 +128,10 @@ export function buildFighters(
   scope: StatScope,
 ): FighterStat[] {
   // WAR is measured against ONE league-wide baseline — the whole-season 25th-
-  // percentile PPR and the whole-season average match margin — for every scope.
-  // We do NOT recompute the baseline per phase: only the fighter's own NPPR and
-  // rounds change between regular season and playoffs, never the yardstick.
+  // percentile PPR, and a points-per-win that is a frozen model constant — for
+  // every scope. We do NOT recompute the baseline per phase: only the fighter's
+  // own NPPR and rounds change between regular season and playoffs, never the
+  // yardstick.
   const baseline = leagueBaseline(fighterHistory, matches, 'all');
   const out: FighterStat[] = [];
 

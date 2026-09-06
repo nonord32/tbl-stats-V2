@@ -87,7 +87,7 @@ export const TERMS: { section: string; terms: Term[] }[] = [
         ),
       },
       {
-        name: 'LI (Leverage Index)',
+        name: 'Stakes Faced (Leverage Index)',
         def: (
           <>
             How much was riding on a round before it started. It belongs to the moment, not the
@@ -101,12 +101,13 @@ export const TERMS: { section: string; terms: Term[] }[] = [
         ),
       },
       {
-        name: 'Clutch',
+        name: 'Timing (Clutch)',
         def: (
           <>
-            Whether a fighter&apos;s results came in the rounds that mattered. We compare what
-            they actually did to what the same results would have been worth in ordinary rounds.
-            Positive means their wins landed in the big moments. Disqualifications do not count.{' '}
+            The part of a fighter&apos;s Win Impact that came from <em>when</em> their results
+            landed. We compare what they actually did to what the same wins and losses would have
+            been worth in ordinary rounds; the difference is Timing, in wins. Positive means their
+            wins landed in the big moments. Disqualifications do not count.{' '}
             <Link href="/advanced?view=rounds" style={{ color: 'var(--tbl-accent)' }}>
               Biggest moments →
             </Link>
@@ -114,7 +115,7 @@ export const TERMS: { section: string; terms: Term[] }[] = [
         ),
       },
       {
-        name: 'WPA (Win Probability Added)',
+        name: 'Win Impact (WPA)',
         def: (
           <>
             How much a round moved the team&apos;s chance of winning, credited to the fighter who

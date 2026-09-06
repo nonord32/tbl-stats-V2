@@ -1293,7 +1293,7 @@ function AdvancedStats() {
       code: 'ABC',
       title: 'How the Stats Work',
       blurb:
-        'Win Probability, Leverage, Clutch, Comebacks, Adjusted NPPR, Schedule and WAR — what each one means, in plain English.',
+        'Win Impact, Stakes, Timing, Comebacks, Adjusted NPPR, Schedule and WAR — what each one means, in plain English.',
       links: [{ label: 'Every stat explained →', href: '/stats' }],
     },
   ];

@@ -62,17 +62,57 @@ export async function WarSection() {
               and you add value; below it and you cost your team.
             </li>
             <li>
-              <strong>Points per win.</strong> The average margin a match is won by. This is what
-              turns a pile of points into a number of wins.
+              <strong>Points per win.</strong> How many net points it takes to buy one extra win.
+              This is what turns a pile of points into a number of wins.
             </li>
           </ul>
           <p style={prose}>
             Put it together: take how far above the bar a fighter scores, multiply by how many
             rounds they fought, then convert that into wins. In formula form:{' '}
             <span style={{ fontFamily: 'var(--tbl-font-mono)', fontSize: 13 }}>
-              WAR = (NP/R − Replacement NP/R) × Rounds ÷ Avg Margin Per Match
+              WAR = (NP/R − Replacement NP/R) × Rounds ÷ Points Per Win
             </span>
             .
+          </p>
+        </Block>
+
+        <Block title="Why Points Per Win Isn’t the Average Margin">
+          <p style={prose}>
+            The obvious answer to “how many points is a win worth?” is the average margin a match
+            is won by — about {baseline.avgMargin.toFixed(1)} points this season. That answer is
+            wrong, for two reasons.
+          </p>
+          <p style={prose}>
+            <strong>Flipping a match takes twice the gap.</strong> If your team lost by 3, adding
+            3 points gets you a draw, not a win. You need about 6 to come out the other side.
+          </p>
+          <p style={prose}>
+            <strong>Most points don’t decide anything.</strong> Up by 15, an extra point is worth
+            nothing. Down by 15, the same. Points only turn into wins in matches that are close,
+            and a fighter’s season points land in blowouts as well as nail-biters — so the average
+            point is worth far less than a point in a tight match.
+          </p>
+          <p style={prose}>
+            So we use the answer our own win-probability model already gives. It puts the value of
+            a one-point round at average stakes at{' '}
+            <span style={{ fontFamily: 'var(--tbl-font-mono)' }}>0.062</span> of a win, which makes
+            a win worth{' '}
+            <span style={{ fontFamily: 'var(--tbl-font-mono)' }}>
+              {baseline.pointsPerWin.toFixed(1)}
+            </span>{' '}
+            net points. That is the same number{' '}
+            <Link href="/stats#wpa" style={{ color: 'var(--tbl-accent)' }}>
+              Win Probability Added
+            </Link>{' '}
+            is built on, so a fighter’s WAR and their Win Impact are finally denominated in the
+            same wins — and should land within a few tenths of each other, the gap being the
+            replacement cushion.
+          </p>
+          <p style={proseSmall}>
+            <strong>This changed during the 2026 season.</strong> WAR previously divided by the
+            average match margin, which made every figure roughly three times larger than it
+            should have been. If you have an older WAR number written down, it is not comparable
+            to the one on this site now.
           </p>
         </Block>
 
@@ -92,7 +132,8 @@ export async function WarSection() {
           >
             {[
               { l: 'The replacement bar (NP/R)', v: baseline.replacementNppr.toFixed(3) },
-              { l: 'Points per win (avg match margin)', v: baseline.avgMargin.toFixed(2) },
+              { l: 'Points per win (the divisor)', v: baseline.pointsPerWin.toFixed(2) },
+              { l: 'Average match margin (not the divisor)', v: baseline.avgMargin.toFixed(2) },
             ].map((c) => (
               <div key={c.l} style={{ padding: '12px 14px', textAlign: 'center' }}>
                 <div

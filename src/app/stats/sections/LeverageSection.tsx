@@ -85,13 +85,13 @@ export async function LeverageSection() {
   ];
 
   return (
-    <StatSection id="leverage" title="Leverage &amp; Clutch" standfirst="How much was riding on a round before it started, and whether a fighter delivered in the ones that mattered.">
+    <StatSection id="leverage" title="Stakes &amp; Timing" standfirst="How much was riding on a round before it started, and whether a fighter delivered in the ones that mattered.">
 
       <div style={{ maxWidth: 720 }}>
-        <Block title="What Leverage Index Measures">
+        <Block title="What Stakes Faced Measures">
           <p style={prose}>
-            Not every round matters equally. Leverage Index is how much win probability is on
-            the table <em>before</em> a round starts — how big a swing the round is capable of
+            Not every round matters equally. Stakes Faced — Leverage Index, in the technical
+            literature — is how much win probability is on the table <em>before</em> a round starts — how big a swing the round is capable of
             producing, no matter who ends up winning it.
           </p>
           <p style={prose}>
@@ -213,35 +213,37 @@ export async function LeverageSection() {
           )}
         </Block>
 
-        <Block title="What Clutch Measures">
+        <Block title="What Timing Measures">
           <p style={prose}>
-            Did a fighter&apos;s results come in the moments that mattered? Clutch takes what
-            each round result would have been worth at <em>average</em> importance, and
-            subtracts it from what the fighter actually produced.
+            Did a fighter&apos;s results come in the moments that mattered? Timing — Clutch, in the
+            technical literature — is the part of a fighter&apos;s Win Impact that came from{' '}
+            <em>when</em> their results landed rather than what those results were. It is measured
+            in wins, the same unit as Win Impact itself, and it is simply the gap between the two
+            numbers below.
           </p>
           <p style={prose}>
-            Positive Clutch means a fighter&apos;s wins landed in bigger spots than their
+            Positive Timing means a fighter&apos;s wins landed in bigger spots than their
             losses. Negative means they piled up round wins in garbage time and lost the ones
             that counted.
           </p>
           <p style={prose}>
-            Take <strong>Money Powell</strong>: 19 rounds, 12 of them won — but an average
-            leverage of 0.41, the lowest of any qualified fighter. His WPA is just +0.04. The
-            same results at average leverage would have been worth +0.59. That&apos;s a Clutch
-            of <strong>−0.55</strong>: he won plenty of rounds, but almost none of them
+            Take <strong>Money Powell</strong>: 19 rounds, 12 of them won — but Stakes Faced of
+            0.41×, the lowest of any qualified fighter. His Win Impact is just +0.04 wins. The
+            same results in ordinary rounds would have been worth +0.59. Timing:{' '}
+            <strong>−0.55 wins</strong>. He won plenty of rounds, but almost none of them
             mattered.
           </p>
           <p style={prose}>
-            Now take <strong>Erika Sanchez</strong>. Her +1.54 WPA is well clear of the +1.09 the
-            same results would have been worth in ordinary rounds — a Clutch of{' '}
-            <strong>+0.45</strong>. Same league, opposite story.
+            Now take <strong>Erika Sanchez</strong>. Her Win Impact of +1.54 wins is well clear of
+            the +1.09 the same results would have been worth in ordinary rounds — Timing of{' '}
+            <strong>+0.45 wins</strong>. Same league, opposite story.
           </p>
           <p style={proseSmall}>
             Both are on the{' '}
             <Link href="/advanced?view=fighters" style={{ color: 'var(--tbl-accent)' }}>
               advanced leaderboard
             </Link>
-            , sortable by Clutch and by average leverage.
+            , sortable by Timing and by Stakes Faced.
           </p>
         </Block>
 

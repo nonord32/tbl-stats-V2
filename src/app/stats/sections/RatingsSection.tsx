@@ -235,7 +235,7 @@ export async function RatingsSection() {
               <strong>They ignore when a round happened.</strong> A round won with the match on the
               line counts the same as one won in a blowout. That is what{' '}
               <Link href="/stats#leverage" style={{ color: 'var(--tbl-accent)' }}>
-                Leverage and Clutch
+                Stakes and Timing
               </Link>{' '}
               are for.
             </li>

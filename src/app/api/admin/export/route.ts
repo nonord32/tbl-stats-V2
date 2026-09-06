@@ -30,12 +30,15 @@ function warConstantsRows(data: ParsedSheetData): Cell[][] {
   const b = leagueBaseline(data.fighterHistory, uniqueMatches, 'all');
   const decidedMatches = uniqueMatches.filter((m) => m.result !== 'D').length;
   return [
-    ['FORMULA', 'WAR = (NPPR - Replacement PPR) * Rounds / Avg Margin Per Match'],
+    ['FORMULA', 'WAR = (NPPR - Replacement PPR) * Rounds / Points Per Win'],
     ['NOTE', 'One whole-season baseline is used for regular, playoff, and season WAR. Only each fighter’s NPPR and Rounds change by scope; rate stats (WAR/NPPR/Win%) do not sum across scopes.'],
     [],
     ['Replacement PPR (25th percentile NPPR, all fighters)', b.replacementNppr.toFixed(4)],
+    ['Points Per Win (the WAR divisor)', b.pointsPerWin.toFixed(4)],
     ['Average Margin Per Match (mean |PF-PA| over decided matches)', b.avgMargin.toFixed(4)],
     ['Decided matches used for the margin', decidedMatches],
+    [],
+    ['NOTE', 'Points Per Win is 1 / the WPA model\u2019s win value for a one-point round margin, so WAR and WPA are denominated in the same wins. It is NOT the average match margin: flipping a 3-point loss into a win takes about 6 points, not 3, and most points land in matches whose result they cannot change. The average margin is reported above as a descriptive figure only.'],
   ];
 }
 
