@@ -72,7 +72,7 @@ export function HallOfChampions({ awards, fighterSlugs, limit = 5 }: Props) {
               <th>Team</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody data-fx="stagger">
             {latestPerAward.map(({ award, entry: a }) => {
               const isTeamAward = TEAM_AWARDS.has(award);
               const slug = toSlug(a.winner);

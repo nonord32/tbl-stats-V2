@@ -112,9 +112,9 @@ function FightCardHero({
       style={{
         display: 'grid',
         gridTemplateColumns: '1.15fr 1fr',
-        borderBottom: '3px double var(--tbl-ink)',
       }}
-      className="gz-fight-card"
+      className="gz-fight-card fx-rule"
+      data-fx="rule"
     >
       {/* Poster side */}
       <div
@@ -344,6 +344,7 @@ function FightCardHero({
                 <div
                   className="tbl-display gz-hero-net"
                   style={{ fontSize: 80, lineHeight: 0.9, color: 'var(--tbl-accent)' }}
+                  data-countup
                 >
                   {focus.netPts >= 0 ? '+' : ''}
                   {focus.netPts.toFixed(0)}
@@ -403,6 +404,7 @@ function FightCardHero({
                   <div
                     className="tbl-display"
                     style={{ fontSize: 24, lineHeight: 1, color: 'var(--tbl-ink)', marginTop: 4 }}
+                    data-countup={s.l === 'REC' ? undefined : true}
                   >
                     {s.v}
                   </div>
@@ -499,7 +501,7 @@ function FightCardHero({
 function TopSix({ fighters }: { fighters: FighterStat[] }) {
   if (fighters.length === 0) return null;
   return (
-    <div style={{ padding: '32px 32px 24px', borderBottom: '3px double var(--tbl-ink)' }}>
+    <div style={{ padding: '32px 32px 24px' }} className="fx-rule" data-fx="rule">
       <div
         style={{
           display: 'flex',
@@ -509,6 +511,7 @@ function TopSix({ fighters }: { fighters: FighterStat[] }) {
           gap: 16,
           flexWrap: 'wrap',
         }}
+        data-fx="reveal"
       >
         <div>
           <div className="tbl-eyebrow">Pound for Pound</div>
@@ -533,6 +536,7 @@ function TopSix({ fighters }: { fighters: FighterStat[] }) {
 
       <div
         className="gz-topsix-grid"
+        data-fx="stagger"
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(6, 1fr)',
@@ -547,6 +551,7 @@ function TopSix({ fighters }: { fighters: FighterStat[] }) {
             <Link
               key={f.slug}
               href={`/fighters/${f.slug}`}
+              className="fx-lift"
               style={{
                 padding: 14,
                 borderRight: '1px solid rgba(20,17,11,0.15)',
@@ -640,6 +645,7 @@ function TopSix({ fighters }: { fighters: FighterStat[] }) {
                         lineHeight: 1,
                         color: isTop ? 'var(--tbl-accent-bright)' : 'var(--tbl-accent)',
                       }}
+                      data-countup
                     >
                       {f.netPts >= 0 ? '+' : ''}{f.netPts.toFixed(0)}
                     </div>
@@ -681,8 +687,8 @@ function TopSix({ fighters }: { fighters: FighterStat[] }) {
 function StandingsTwoCol({ teams }: { teams: TeamStanding[] }) {
   if (teams.length === 0) return null;
   return (
-    <div style={{ padding: '30px 32px 28px', borderBottom: '3px double var(--tbl-ink)' }}>
-      <div className="tbl-section-rule">
+    <div style={{ padding: '30px 32px 28px' }} className="fx-rule" data-fx="rule">
+      <div className="tbl-section-rule" data-fx="reveal">
         <span>The Standings · {teams.length} Clubs</span>
         <Link
           href="/teams"
@@ -726,7 +732,7 @@ function StandingsTwoCol({ teams }: { teams: TeamStanding[] }) {
                 ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody data-fx="stagger">
               {teams.slice(col * 6, col * 6 + 6).map((t, i) => {
                 const rank = col * 6 + i + 1;
                 const isTop = rank === 1;
@@ -835,7 +841,7 @@ function WeekendResults({ results }: { results: ResultCard[] }) {
           flexWrap: 'wrap',
         }}
       >
-        <div>
+        <div data-fx="reveal">
           <div className="tbl-eyebrow">Recent Results</div>
           <div className="tbl-display" style={{ fontSize: 34, lineHeight: 1, marginTop: 4 }}>
             From the Weekend
@@ -858,6 +864,7 @@ function WeekendResults({ results }: { results: ResultCard[] }) {
 
       <div
         className="gz-results-grid"
+        data-fx="stagger"
         style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}
       >
         {results.slice(0, 6).map((r, i) => {
@@ -868,7 +875,7 @@ function WeekendResults({ results }: { results: ResultCard[] }) {
             <Link
               key={`${i}-${r.team1}-${r.team2}`}
               href={`/matches/${r.matchIndex}`}
-              className="gz-result-card"
+              className="gz-result-card fx-lift"
               style={{
                 background: 'var(--tbl-paper)',
                 border: '1.5px solid var(--tbl-ink)',
@@ -939,7 +946,7 @@ function WeekendResults({ results }: { results: ResultCard[] }) {
                   whiteSpace: 'nowrap',
                 }}
               >
-                <span style={{ color: team1Won ? 'var(--tbl-accent)' : 'var(--tbl-ink)' }}>
+                <span style={{ color: team1Won ? 'var(--tbl-accent)' : 'var(--tbl-ink)' }} data-countup>
                   {r.s1.toFixed(1)}
                 </span>
                 <span
@@ -953,7 +960,7 @@ function WeekendResults({ results }: { results: ResultCard[] }) {
                 >
                   —
                 </span>
-                <span style={{ color: team2Won ? 'var(--tbl-accent)' : 'var(--tbl-ink)' }}>
+                <span style={{ color: team2Won ? 'var(--tbl-accent)' : 'var(--tbl-ink)' }} data-countup>
                   {r.s2.toFixed(1)}
                 </span>
               </div>
@@ -1196,11 +1203,11 @@ function MobileTopFighters({ fighters }: { fighters: FighterStat[] }) {
   const top6 = fighters.slice(0, 6);
   return (
     <div className="home-mobile-only home-mobile-section">
-      <div className="home-mobile-section__head">
+      <div className="home-mobile-section__head" data-fx="reveal">
         <span>Top Six · Net Pts</span>
         <Link href="/fighters">See all →</Link>
       </div>
-      <div className="home-mobile-list">
+      <div className="home-mobile-list" data-fx="stagger">
         {top6.map((f, i) => {
           const logo = getTeamLogoPathByName(f.team);
           return (
@@ -1218,7 +1225,7 @@ function MobileTopFighters({ fighters }: { fighters: FighterStat[] }) {
                   {f.weightClass} · {f.record}
                 </div>
               </div>
-              <div className="home-mobile-list__value">
+              <div className="home-mobile-list__value" data-countup>
                 {f.netPts >= 0 ? '+' : ''}
                 {f.netPts.toFixed(0)}
               </div>
@@ -1235,11 +1242,11 @@ function MobileStandings({ teams }: { teams: TeamStanding[] }) {
   // Every club, matching the desktop table — this used to stop at six.
   return (
     <div className="home-mobile-only home-mobile-section">
-      <div className="home-mobile-section__head">
+      <div className="home-mobile-section__head" data-fx="reveal">
         <span>Standings · {teams.length} Clubs</span>
         <Link href="/teams">Teams →</Link>
       </div>
-      <div className="home-mobile-list">
+      <div className="home-mobile-list" data-fx="stagger">
         {teams.map((t, i) => {
           const logo = getTeamLogoPathByName(t.team);
           return (
@@ -1300,7 +1307,7 @@ function AdvancedStats() {
 
   return (
     <div style={{ padding: '0 32px 44px' }}>
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: 16 }} data-fx="reveal">
         <div className="tbl-eyebrow">Beyond the Box Score</div>
         <div className="tbl-display" style={{ fontSize: 34, lineHeight: 1, marginTop: 4 }}>
           Advanced Stats
@@ -1312,10 +1319,12 @@ function AdvancedStats() {
           gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
           gap: 14,
         }}
+        data-fx="stagger"
       >
         {cards.map((c) => (
           <div
             key={c.code}
+            className="fx-lift"
             style={{
               background: 'var(--tbl-paper)',
               border: '1.5px solid var(--tbl-ink)',
@@ -1617,7 +1626,7 @@ export default async function HomePage() {
       <WeekendResults results={completed} />
       {awards.length > 0 && (
         <div className="home-awards-section" style={{ padding: '0 32px 40px' }}>
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 16 }} data-fx="reveal">
             <div className="tbl-eyebrow">Past MVPs & Trophies</div>
             <div
               className="tbl-display"

@@ -9,6 +9,9 @@ import { TopStrip } from './TopStrip';
 import { TopNav } from './TopNav';
 import { MobileTabBar } from './MobileTabBar';
 import { GazetteFooter } from './GazetteFooter';
+import { StickyMasthead } from './StickyMasthead';
+import { ScrollFx } from '@/components/fx/ScrollFx';
+import { fxEnabled } from '@/components/fx/rollout';
 
 function hideChromeFor(pathname: string | null): boolean {
   if (!pathname) return false;
@@ -23,9 +26,11 @@ export function SiteChrome({ children }: { children: ReactNode }) {
     <>
       {!hide && <TopStrip />}
       {!hide && <TopNav />}
+      {!hide && fxEnabled(pathname ?? '') && <StickyMasthead />}
       <main>{children}</main>
       {!hide && <GazetteFooter />}
       {!hide && <MobileTabBar />}
+      <ScrollFx />
     </>
   );
 }

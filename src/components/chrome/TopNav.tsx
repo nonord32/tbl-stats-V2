@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-const LINKS: { label: string; href: string }[] = [
+export const NAV_LINKS: { label: string; href: string }[] = [
   { label: 'Home', href: '/' },
   { label: 'Fighters', href: '/fighters' },
   { label: 'Standings', href: '/teams' },
@@ -15,7 +15,7 @@ const LINKS: { label: string; href: string }[] = [
 
 // Matches a nav link if the current path equals or starts with the link's href.
 // For "/" we require an exact match so every page doesn't light up Home.
-function isActive(pathname: string, href: string) {
+export function isActive(pathname: string, href: string) {
   if (href === '/') return pathname === '/';
   return pathname === href || pathname.startsWith(`${href}/`);
 }
@@ -33,7 +33,7 @@ export function TopNav() {
         </div>
       </Link>
       <nav className="tbl-top-nav__links" aria-label="Primary">
-        {LINKS.map((l) => (
+        {NAV_LINKS.map((l) => (
           <Link
             key={l.href}
             href={l.href}

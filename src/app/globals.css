@@ -4287,3 +4287,105 @@ body:has(.eo-root) {
 @media (max-width: 720px) {
   .ui-col-hide-mobile { display: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Scroll effects (see src/components/fx/ScrollFx.tsx). Hidden states only
+   apply to elements ScrollFx marks pending, so pages render fully without JS
+   and with reduced motion (ScrollFx does nothing then).
+   =========================================================================== */
+[data-fx-state] {
+  transition:
+    opacity 0.5s ease var(--fx-delay, 0ms),
+    transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) var(--fx-delay, 0ms);
+}
+[data-fx-state='pending'] { opacity: 0; transform: translateY(12px); }
+/* ScrollFx clears data-fx-state once the reveal ends, so .fx-lift's own
+   transition takes over again; until then the reveal's wins. */
+.fx-lift[data-fx-state] {
+  transition:
+    opacity 0.5s ease var(--fx-delay, 0ms),
+    transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) var(--fx-delay, 0ms);
+}
+
+[data-countup] { font-variant-numeric: tabular-nums; }
+
+/* Double rule drawn as a pseudo-element so it can ink in left to right.
+   Same look as `border-bottom: 3px double var(--tbl-ink)`. */
+.fx-rule { position: relative; }
+.fx-rule::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  border-top: 1px solid var(--tbl-ink);
+  border-bottom: 1px solid var(--tbl-ink);
+  transform-origin: left center;
+  transition: transform 0.8s cubic-bezier(0.6, 0, 0.2, 1);
+  pointer-events: none;
+}
+.fx-rule[data-fx-state] { opacity: 1; transform: none; } /* the block itself stays put */
+.fx-rule[data-fx-state='pending']::after { transform: scaleX(0); }
+
+/* Hover lift: a hard offset ink shadow, like a printed stamp. */
+.fx-lift {
+  position: relative;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.fx-lift:hover,
+.fx-lift:focus-visible {
+  transform: translate(-2px, -2px);
+  box-shadow: 4px 4px 0 var(--tbl-ink);
+  z-index: 1;
+  text-decoration: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fx-lift { transition: none; }
+  .fx-lift:hover, .fx-lift:focus-visible { transform: none; }
+}
+
+/* Sticky masthead (StickyMasthead.tsx): slides in once TopNav scrolls away. */
+.tbl-sticky-mast {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 8px 32px;
+  background: var(--tbl-bg);
+  border-bottom: 3px double var(--tbl-ink);
+  transform: translateY(-110%);
+  transition: transform 0.25s ease;
+}
+.tbl-sticky-mast.is-shown { transform: none; }
+.tbl-sticky-mast__brand { display: flex; align-items: center; gap: 10px; color: var(--tbl-ink); }
+.tbl-sticky-mast__brand:hover { text-decoration: none; color: var(--tbl-ink); }
+.tbl-sticky-mast__logo { height: 28px; width: auto; }
+.tbl-sticky-mast__wordmark {
+  font-family: var(--tbl-font-serif);
+  font-weight: 900;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+}
+.tbl-sticky-mast__links { display: flex; gap: 2px; }
+.tbl-sticky-mast__link {
+  padding: 6px 12px;
+  font-family: var(--tbl-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--tbl-ink);
+}
+.tbl-sticky-mast__link:hover { background: rgba(20, 17, 11, 0.06); text-decoration: none; color: var(--tbl-ink); }
+.tbl-sticky-mast__link.is-active { background: var(--tbl-ink); color: var(--tbl-bg); font-weight: 700; }
+@media (max-width: 1023px) {
+  .tbl-sticky-mast { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tbl-sticky-mast { transition: none; }
+}
