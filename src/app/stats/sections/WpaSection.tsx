@@ -326,11 +326,11 @@ export function WpaSection() {
             <table style={{ borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <th style={{ ...monoTh, position: 'sticky', top: 0, background: 'var(--tbl-bg)', textAlign: 'left' }}>
+                  <th style={{ ...monoTh, position: 'sticky', top: 'var(--sticky-top, 0px)', background: 'var(--tbl-bg)', textAlign: 'left' }}>
                     d \ r
                   </th>
                   {gridRs.map((r) => (
-                    <th key={r} style={{ ...monoTh, position: 'sticky', top: 0, background: 'var(--tbl-bg)' }}>
+                    <th key={r} style={{ ...monoTh, position: 'sticky', top: 'var(--sticky-top, 0px)', background: 'var(--tbl-bg)' }}>
                       {r}
                     </th>
                   ))}

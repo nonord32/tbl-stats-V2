@@ -4325,24 +4325,49 @@ body:has(.eo-root) {
   transition: transform 0.8s cubic-bezier(0.6, 0, 0.2, 1);
   pointer-events: none;
 }
-.fx-rule[data-fx-state] { opacity: 1; transform: none; } /* the block itself stays put */
-.fx-rule[data-fx-state='pending']::after { transform: scaleX(0); }
+/* Pages that draw the rule with an inline border: hide that border and draw
+   the same rule over it. */
+[data-fx-autorule] { position: relative; border-bottom-color: transparent !important; }
+[data-fx-autorule]::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -3px;
+  height: 3px;
+  border-top: 1px solid var(--tbl-ink);
+  border-bottom: 1px solid var(--tbl-ink);
+  transform-origin: left center;
+  transition: transform 0.8s cubic-bezier(0.6, 0, 0.2, 1);
+  pointer-events: none;
+}
+.fx-rule[data-fx-state],
+[data-fx-autorule][data-fx-state] { opacity: 1; transform: none; } /* the block itself stays put */
+.fx-rule[data-fx-state='pending']::after,
+[data-fx-autorule][data-fx-state='pending']::after { transform: scaleX(0); }
 
 /* Hover lift: a hard offset ink shadow, like a printed stamp. */
-.fx-lift {
+.fx-lift,
+a > .gz-game-card,
+a.highlight-card {
   position: relative;
   transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 .fx-lift:hover,
-.fx-lift:focus-visible {
+.fx-lift:focus-visible,
+a:hover > .gz-game-card,
+a:focus-visible > .gz-game-card,
+a.highlight-card:hover,
+a.highlight-card:focus-visible {
   transform: translate(-2px, -2px);
   box-shadow: 4px 4px 0 var(--tbl-ink);
   z-index: 1;
   text-decoration: none;
 }
 @media (prefers-reduced-motion: reduce) {
-  .fx-lift { transition: none; }
-  .fx-lift:hover, .fx-lift:focus-visible { transform: none; }
+  .fx-lift, a > .gz-game-card, a.highlight-card { transition: none; }
+  .fx-lift:hover, .fx-lift:focus-visible,
+  a:hover > .gz-game-card, a.highlight-card:hover { transform: none; }
 }
 
 /* Sticky masthead (StickyMasthead.tsx): slides in once TopNav scrolls away. */
@@ -4385,6 +4410,7 @@ body:has(.eo-root) {
 .tbl-sticky-mast__link.is-active { background: var(--tbl-ink); color: var(--tbl-bg); font-weight: 700; }
 @media (max-width: 1023px) {
   .tbl-sticky-mast { display: none; }
+  :root { --sticky-top: 0px !important; }
 }
 @media (prefers-reduced-motion: reduce) {
   .tbl-sticky-mast { transition: none; }

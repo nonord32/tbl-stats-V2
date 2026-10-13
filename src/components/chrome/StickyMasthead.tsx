@@ -14,11 +14,17 @@ export function StickyMasthead() {
   useEffect(() => {
     const nav = document.querySelector('.tbl-top-nav');
     if (!nav) return;
-    const update = () => setShown(nav.getBoundingClientRect().bottom < 0);
+    const update = () => {
+      const on = nav.getBoundingClientRect().bottom < 0;
+      setShown(on);
+      // Lets other sticky elements (e.g. table headers) sit below the bar.
+      document.documentElement.style.setProperty('--sticky-top', on ? '50px' : '0px');
+    };
     update();
     window.addEventListener('scroll', update, { passive: true });
     window.addEventListener('resize', update);
     return () => {
+      document.documentElement.style.removeProperty('--sticky-top');
       window.removeEventListener('scroll', update);
       window.removeEventListener('resize', update);
     };

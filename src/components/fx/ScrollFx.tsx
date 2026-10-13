@@ -6,6 +6,11 @@
 //   data-fx="rule"     a double rule (see .fx-rule) inks itself left to right
 //   data-countup       a number like "+42", "61%" or "3.25" counts up from 0
 //
+// Pages that aren't hand-tagged still get the effects: autoTag() marks the
+// shared Gazette structures (table rows, card lists, section rules, headings,
+// inline double rules, big Playfair numbers). Put data-fx-off on a subtree to
+// keep it still.
+//
 // Everything animates once per page load. Pages render normally on the server
 // and without JS; only blocks that start below the fold are ever hidden, and
 // nothing moves when the visitor prefers reduced motion. Count-ups only change
@@ -20,6 +25,62 @@ const STAGGER_MAX = 8; // later children share the last delay
 const COUNT_MS = 700;
 const REVEAL_MS = 900; // longest reveal transition (the rule draw) plus slack
 const NUMBER = /^([+\-−]?)(\d+(?:\.\d+)?)(%?)$/;
+
+// Cards that sit in lists and stagger in with their siblings.
+const AUTO_ITEMS = [
+  'tbody > tr',
+  '.gz-game-card',
+  '.results-card',
+  '.teams-mobile-row',
+  '.highlight-card',
+  '.po-card',
+  '.lb-card',
+].join(', ');
+const AUTO_REVEAL = '.tbl-section-rule, h2';
+const AUTO_RULE = '[style*="border-bottom:3px double"]';
+const AUTO_COUNT = '.tbl-display';
+
+// Opted out, or already inside something that moves (rules don't move).
+function skip(el: Element): boolean {
+  return (
+    !!el.closest('[data-fx-off]') ||
+    !!el.parentElement?.closest('[data-fx="reveal"], [data-fx="stagger"]')
+  );
+}
+
+// A year ("2026") or a padded rank ("01") shouldn't tick up like a stat.
+function countable(el: Element): boolean {
+  const t = (el.textContent ?? '').trim();
+  if (!NUMBER.test(t) || /^0\d/.test(t)) return false;
+  const n = Number(t);
+  return !(Number.isInteger(n) && n >= 1900 && n <= 2100);
+}
+
+// Tags untagged pages. Only touches elements below the fold, so nothing the
+// visitor can already see changes.
+function autoTag(main: HTMLElement) {
+  main.querySelectorAll<HTMLElement>(AUTO_ITEMS).forEach((el) => {
+    // A card wrapped in a link staggers as the link.
+    let item: HTMLElement = el;
+    while (item.parentElement?.tagName === 'A') item = item.parentElement;
+    const group = item.parentElement;
+    if (!group || group.dataset.fx || skip(group) || !belowFold(item)) return;
+    group.dataset.fx = 'stagger';
+  });
+  main.querySelectorAll<HTMLElement>(AUTO_RULE).forEach((el) => {
+    if (el.dataset.fx || skip(el) || !belowFold(el)) return;
+    el.dataset.fx = 'rule';
+    el.dataset.fxAutorule = '';
+  });
+  main.querySelectorAll<HTMLElement>(AUTO_REVEAL).forEach((el) => {
+    if (el.dataset.fx || skip(el) || el.closest('[data-fx="stagger"]')) return;
+    if (belowFold(el)) el.dataset.fx = 'reveal';
+  });
+  main.querySelectorAll<HTMLElement>(AUTO_COUNT).forEach((el) => {
+    if (el.hasAttribute('data-countup') || el.closest('[data-fx-off]')) return;
+    if (belowFold(el) && countable(el)) el.setAttribute('data-countup', '');
+  });
+}
 
 function belowFold(el: Element): boolean {
   return el.getBoundingClientRect().top > window.innerHeight;
@@ -106,6 +167,8 @@ export function ScrollFx() {
 
     // Wait a frame so a freshly navigated page has committed its markup.
     const raf = requestAnimationFrame(() => {
+      const main = document.querySelector('main');
+      if (main) autoTag(main);
       document.querySelectorAll<HTMLElement>('[data-fx="reveal"], [data-fx="rule"]').forEach((el) => {
         if (belowFold(el)) pend(el);
       });
