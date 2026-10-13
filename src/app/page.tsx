@@ -1,6 +1,8 @@
 // src/app/page.tsx
-// Gazette-direction home: FightCard hero → Top Six → Standings (2-col) → Weekend Results.
+// Home: dark hero with a framed screenshot → this week → top six → standings →
+// recent results → hall of champions → advanced stats. Styles live in ./home.css.
 import type { Metadata } from 'next';
+import './home.css';
 import Link from 'next/link';
 import { getAllData, extractUniqueMatches } from '@/lib/data';
 import { getBracketContext } from '@/lib/bracketData';
@@ -15,6 +17,7 @@ import {
 import { getGameStartUTC } from '@/lib/gameTime';
 import { getFullTeamName, getTeamLogoPathByName, getCityName } from '@/lib/teams';
 import { HallOfChampions } from '@/components/home/HallOfChampions';
+import { Reveal } from '@/components/home/Reveal';
 import type { FighterStat, ScheduleEntry, TeamStanding, MatchResult } from '@/types';
 
 export const metadata: Metadata = {
@@ -95,723 +98,7 @@ interface HeroResult {
   verb: string; // "def." for a win, "drew" for a draw
 }
 
-// ─── Hero: featured fight card + fighter in focus ────────────────────────────
-function FightCardHero({
-  featured,
-  focus,
-  alsoThisWeek,
-  heroResult,
-}: {
-  featured: ScheduleEntry | null;
-  focus: FighterStat | null;
-  alsoThisWeek: ScheduleEntry[];
-  heroResult: HeroResult | null;
-}) {
-  return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '1.15fr 1fr',
-        borderBottom: '3px double var(--tbl-ink)',
-      }}
-      className="gz-fight-card"
-    >
-      {/* Poster side */}
-      <div
-        style={{
-          background: 'var(--tbl-ink)',
-          color: 'var(--tbl-bg)',
-          padding: '32px 36px',
-          position: 'relative',
-          overflow: 'hidden',
-          minHeight: 340,
-        }}
-      >
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            inset: 0,
-            backgroundImage:
-              'radial-gradient(circle, rgba(255,60,0,0.35) 1.5px, transparent 1.5px)',
-            backgroundSize: '10px 10px',
-            opacity: 0.12,
-          }}
-        />
-        <div style={{ position: 'relative' }}>
-          <div
-            style={{
-              fontFamily: 'var(--tbl-font-mono)',
-              fontSize: 11,
-              letterSpacing: '0.28em',
-              color: 'var(--tbl-accent-bright)',
-              textTransform: 'uppercase',
-              fontWeight: 700,
-            }}
-          >
-            {featured
-              ? `Next Event · ${featured.date}${featured.time ? ' · ' + featured.time : ''}`
-              : heroResult
-              ? heroResult.eyebrow
-              : 'Team Boxing League · 2026 Season'}
-          </div>
-          {featured ? (
-            <>
-              <div
-                className="tbl-display gz-hero-team"
-                style={{ fontSize: 96, lineHeight: 0.9, marginTop: 16 }}
-              >
-                <span className="gz-hero-team-full">{getCityName(featured.team1)}</span>
-                <span className="gz-hero-team-abbr">{shortAbbr(featured.team1)}</span>
-                <span
-                  className="gz-hero-vs"
-                  style={{
-                    display: 'inline-block',
-                    transform: 'rotate(-2deg)',
-                    margin: '0 12px',
-                    fontSize: 60,
-                    color: 'var(--tbl-accent-bright)',
-                    fontStyle: 'italic',
-                    fontWeight: 900,
-                  }}
-                >
-                  vs
-                </span>
-              </div>
-              <div
-                className="tbl-display gz-hero-team"
-                style={{ fontSize: 96, lineHeight: 0.9, marginTop: -4 }}
-              >
-                <span className="gz-hero-team-full">{getCityName(featured.team2)}</span>
-                <span className="gz-hero-team-abbr">{shortAbbr(featured.team2)}</span>
-              </div>
-              {featured.venueName && (
-                <div
-                  style={{
-                    marginTop: 22,
-                    fontFamily: 'var(--tbl-font-mono)',
-                    fontSize: 11,
-                    letterSpacing: '0.18em',
-                    color: 'rgba(244,237,224,0.55)',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  {featured.venueName}
-                  {featured.venueCity && ` · ${featured.venueCity}`}
-                </div>
-              )}
-            </>
-          ) : heroResult ? (
-            <>
-              <div
-                className="tbl-display gz-hero-team"
-                style={{ fontSize: 72, lineHeight: 0.92, marginTop: 16 }}
-              >
-                {heroResult.winnerName}
-              </div>
-              <div
-                style={{
-                  marginTop: 16,
-                  fontFamily: 'var(--tbl-font-mono)',
-                  fontSize: 13,
-                  letterSpacing: '0.1em',
-                  textTransform: 'uppercase',
-                  color: 'rgba(244,237,224,0.72)',
-                }}
-              >
-                {heroResult.verb} {heroResult.loserName}{' '}
-                <span style={{ color: 'var(--tbl-accent-bright)', fontWeight: 700 }}>
-                  {heroResult.scoreLine}
-                </span>
-              </div>
-              <Link
-                href={heroResult.href}
-                style={{
-                  display: 'inline-block',
-                  marginTop: 22,
-                  fontFamily: 'var(--tbl-font-mono)',
-                  fontSize: 11,
-                  letterSpacing: '0.16em',
-                  textTransform: 'uppercase',
-                  color: 'var(--tbl-accent-bright)',
-                  textDecoration: 'none',
-                }}
-              >
-                {heroResult.isChampion ? 'View bracket →' : 'View result →'}
-              </Link>
-            </>
-          ) : (
-            <div className="tbl-display gz-hero-team" style={{ fontSize: 84, lineHeight: 0.9, marginTop: 16 }}>
-              TBL
-            </div>
-          )}
-        </div>
 
-        {(() => {
-          // Bottom-right logo pair: the featured matchup, or the result's
-          // winner × loser when there's no upcoming game.
-          const logoTeam1 = featured ? featured.team1 : heroResult?.winnerTeam;
-          const logoTeam2 = featured ? featured.team2 : heroResult?.loserTeam;
-          if (!logoTeam1 || !logoTeam2) return null;
-          return (
-            <div
-              className="gz-hero-logos"
-              style={{
-                position: 'absolute',
-                bottom: 28,
-                right: 28,
-                display: 'flex',
-                gap: 16,
-                alignItems: 'center',
-              }}
-            >
-              {getTeamLogoPathByName(logoTeam1) && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={getTeamLogoPathByName(logoTeam1)}
-                  alt=""
-                  style={{ width: 60, height: 60, objectFit: 'contain' }}
-                />
-              )}
-              <div
-                className="gz-hero-x"
-                style={{
-                  color: 'var(--tbl-accent-bright)',
-                  fontFamily: 'var(--tbl-font-serif)',
-                  fontStyle: 'italic',
-                  fontSize: 32,
-                  fontWeight: 900,
-                }}
-              >
-                ×
-              </div>
-              {getTeamLogoPathByName(logoTeam2) && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={getTeamLogoPathByName(logoTeam2)}
-                  alt=""
-                  style={{ width: 60, height: 60, objectFit: 'contain' }}
-                />
-              )}
-            </div>
-          );
-        })()}
-      </div>
-
-      {/* Fighter in focus */}
-      <div
-        style={{
-          padding: '32px 36px',
-          position: 'relative',
-          borderLeft: '3px solid var(--tbl-ink)',
-        }}
-      >
-        {focus ? (
-          <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-              <div>
-                <div className="tbl-eyebrow">Fighter in Focus</div>
-                <Link
-                  href={`/fighters/${focus.slug}`}
-                  className="tbl-display gz-hero-focus-name"
-                  style={{
-                    fontSize: 60,
-                    lineHeight: 0.95,
-                    marginTop: 12,
-                    color: 'var(--tbl-ink)',
-                    display: 'block',
-                    textDecoration: 'none',
-                  }}
-                >
-                  {firstName(focus.name)}
-                  <br />
-                  {lastName(focus.name)}
-                </Link>
-                <div
-                  style={{
-                    fontFamily: 'var(--tbl-font-mono)',
-                    fontSize: 12,
-                    letterSpacing: '0.18em',
-                    color: 'var(--tbl-ink-soft)',
-                    textTransform: 'uppercase',
-                    marginTop: 10,
-                  }}
-                >
-                  {getFullTeamName(teamSlug(focus.team))} · {focus.weightClass}
-                </div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div
-                  className="tbl-display gz-hero-net"
-                  style={{ fontSize: 80, lineHeight: 0.9, color: 'var(--tbl-accent)' }}
-                >
-                  {focus.netPts >= 0 ? '+' : ''}
-                  {focus.netPts.toFixed(0)}
-                </div>
-                <div
-                  style={{
-                    fontFamily: 'var(--tbl-font-mono)',
-                    fontSize: 10,
-                    letterSpacing: '0.3em',
-                    color: 'var(--tbl-ink-soft)',
-                    fontWeight: 700,
-                    marginTop: 4,
-                  }}
-                >
-                  NET PTS
-                </div>
-              </div>
-            </div>
-
-            {/* Stat strip */}
-            <div
-              style={{
-                marginTop: 18,
-                display: 'grid',
-                gridTemplateColumns: 'repeat(5, 1fr)',
-                borderTop: '2px solid var(--tbl-ink)',
-                borderBottom: '2px solid var(--tbl-ink)',
-              }}
-            >
-              {[
-                { l: 'REC', v: focus.record },
-                { l: 'WAR', v: focus.war.toFixed(2) },
-                { l: 'NPPR', v: focus.nppr.toFixed(2) },
-                { l: 'WIN%', v: `${(focus.winPct * 100).toFixed(0)}` },
-                { l: 'RNDS', v: String(focus.rounds) },
-              ].map((s, i) => (
-                <div
-                  key={s.l}
-                  style={{
-                    padding: '10px 6px',
-                    textAlign: 'center',
-                    borderRight: i < 4 ? '1px solid rgba(20,17,11,0.18)' : 'none',
-                  }}
-                >
-                  <div
-                    style={{
-                      fontFamily: 'var(--tbl-font-mono)',
-                      fontSize: 9,
-                      letterSpacing: '0.24em',
-                      color: 'var(--tbl-ink-soft)',
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    {s.l}
-                  </div>
-                  <div
-                    className="tbl-display"
-                    style={{ fontSize: 24, lineHeight: 1, color: 'var(--tbl-ink)', marginTop: 4 }}
-                  >
-                    {s.v}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Also this week */}
-            {alsoThisWeek.length > 0 && (
-              <div style={{ marginTop: 22 }}>
-                <div
-                  style={{
-                    fontFamily: 'var(--tbl-font-mono)',
-                    fontSize: 10,
-                    letterSpacing: '0.22em',
-                    color: 'var(--tbl-ink-soft)',
-                    textTransform: 'uppercase',
-                    fontWeight: 700,
-                    marginBottom: 10,
-                  }}
-                >
-                  Also This Week
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {alsoThisWeek.slice(0, 3).map((m, i, arr) => (
-                    <div
-                      key={`${m.date}-${m.team1}-${m.team2}`}
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '88px 1fr auto',
-                        alignItems: 'center',
-                        gap: 12,
-                        padding: '7px 0',
-                        borderBottom:
-                          i < arr.length - 1 ? '1px dotted rgba(20,17,11,0.3)' : 'none',
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontFamily: 'var(--tbl-font-mono)',
-                          fontSize: 10,
-                          letterSpacing: '0.14em',
-                          color: 'var(--tbl-ink-soft)',
-                          textTransform: 'uppercase',
-                        }}
-                      >
-                        {m.date}
-                      </div>
-                      <div
-                        className="tbl-display"
-                        style={{ fontSize: 15, fontWeight: 700, color: 'var(--tbl-ink)' }}
-                      >
-                        {m.team1}{' '}
-                        <span style={{ fontStyle: 'italic', fontWeight: 400, color: 'var(--tbl-ink-soft)' }}>
-                          vs
-                        </span>{' '}
-                        {m.team2}
-                      </div>
-                      <div
-                        style={{
-                          fontFamily: 'var(--tbl-font-mono)',
-                          fontSize: 10,
-                          color: 'var(--tbl-ink-soft)',
-                          letterSpacing: '0.08em',
-                        }}
-                      >
-                        {m.time}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </>
-        ) : (
-          <div
-            style={{
-              fontFamily: 'var(--tbl-font-mono)',
-              fontSize: 12,
-              color: 'var(--tbl-ink-soft)',
-              padding: '80px 0',
-              textAlign: 'center',
-            }}
-          >
-            Fighter data unavailable.
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Top Six fighters grid ───────────────────────────────────────────────────
-function TopSix({ fighters }: { fighters: FighterStat[] }) {
-  if (fighters.length === 0) return null;
-  return (
-    <div style={{ padding: '32px 32px 24px', borderBottom: '3px double var(--tbl-ink)' }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'baseline',
-          justifyContent: 'space-between',
-          marginBottom: 20,
-          gap: 16,
-          flexWrap: 'wrap',
-        }}
-      >
-        <div>
-          <div className="tbl-eyebrow">Pound for Pound</div>
-          <div className="tbl-display" style={{ fontSize: 38, lineHeight: 1, marginTop: 4 }}>
-            The Top Six
-          </div>
-        </div>
-        <Link
-          href="/fighters"
-          style={{
-            fontFamily: 'var(--tbl-font-mono)',
-            fontSize: 11,
-            letterSpacing: '0.18em',
-            color: 'var(--tbl-ink-soft)',
-            textTransform: 'uppercase',
-            textDecoration: 'none',
-          }}
-        >
-          Sorted by Net Points · View all →
-        </Link>
-      </div>
-
-      <div
-        className="gz-topsix-grid"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(6, 1fr)',
-          borderTop: '2px solid var(--tbl-ink)',
-          borderLeft: '1px solid rgba(20,17,11,0.15)',
-        }}
-      >
-        {fighters.slice(0, 6).map((f, i) => {
-          const slug = teamSlug(f.team);
-          const isTop = i === 0;
-          return (
-            <Link
-              key={f.slug}
-              href={`/fighters/${f.slug}`}
-              style={{
-                padding: 14,
-                borderRight: '1px solid rgba(20,17,11,0.15)',
-                borderBottom: '1px solid rgba(20,17,11,0.15)',
-                background: isTop ? 'var(--tbl-ink)' : 'var(--tbl-paper)',
-                color: isTop ? 'var(--tbl-bg)' : 'var(--tbl-ink)',
-                position: 'relative',
-                minHeight: 210,
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                textDecoration: 'none',
-              }}
-            >
-              <div>
-                <div
-                  className="tbl-display"
-                  style={{
-                    fontSize: 64,
-                    lineHeight: 0.85,
-                    color: isTop ? 'var(--tbl-accent-bright)' : 'rgba(20,17,11,0.18)',
-                    letterSpacing: '-0.03em',
-                  }}
-                >
-                  {String(i + 1).padStart(2, '0')}
-                </div>
-                {getTeamLogoPathByName(f.team) && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={getTeamLogoPathByName(f.team)}
-                    alt=""
-                    style={{
-                      position: 'absolute',
-                      top: 12,
-                      right: 12,
-                      width: 28,
-                      height: 28,
-                      objectFit: 'contain',
-                    }}
-                  />
-                )}
-              </div>
-              <div>
-                <div
-                  className="tbl-display"
-                  style={{
-                    fontSize: 18,
-                    lineHeight: 1.05,
-                    fontWeight: 800,
-                    color: isTop ? 'var(--tbl-bg)' : 'var(--tbl-ink)',
-                  }}
-                >
-                  {f.name}
-                </div>
-                <div
-                  style={{
-                    fontFamily: 'var(--tbl-font-mono)',
-                    fontSize: 10,
-                    letterSpacing: '0.16em',
-                    color: isTop ? 'rgba(244,237,224,0.6)' : 'var(--tbl-ink-soft)',
-                    marginTop: 4,
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  {getCityName(f.team)} · {f.weightClass}
-                </div>
-                <div
-                  style={{
-                    marginTop: 10,
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr',
-                    gap: 6,
-                  }}
-                >
-                  <div>
-                    <div
-                      style={{
-                        fontFamily: 'var(--tbl-font-mono)',
-                        fontSize: 9,
-                        letterSpacing: '0.18em',
-                        color: isTop ? 'rgba(244,237,224,0.5)' : 'var(--tbl-ink-mute)',
-                        textTransform: 'uppercase',
-                      }}
-                    >
-                      NET
-                    </div>
-                    <div
-                      className="tbl-display"
-                      style={{
-                        fontSize: 18,
-                        lineHeight: 1,
-                        color: isTop ? 'var(--tbl-accent-bright)' : 'var(--tbl-accent)',
-                      }}
-                    >
-                      {f.netPts >= 0 ? '+' : ''}{f.netPts.toFixed(0)}
-                    </div>
-                  </div>
-                  <div>
-                    <div
-                      style={{
-                        fontFamily: 'var(--tbl-font-mono)',
-                        fontSize: 9,
-                        letterSpacing: '0.18em',
-                        color: isTop ? 'rgba(244,237,224,0.5)' : 'var(--tbl-ink-mute)',
-                        textTransform: 'uppercase',
-                      }}
-                    >
-                      REC
-                    </div>
-                    <div
-                      className="tbl-display"
-                      style={{
-                        fontSize: 18,
-                        lineHeight: 1,
-                        color: isTop ? 'var(--tbl-bg)' : 'var(--tbl-ink)',
-                      }}
-                    >
-                      {f.record}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Link>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ─── Standings (two-column) ──────────────────────────────────────────────────
-function StandingsTwoCol({ teams }: { teams: TeamStanding[] }) {
-  if (teams.length === 0) return null;
-  return (
-    <div style={{ padding: '30px 32px 28px', borderBottom: '3px double var(--tbl-ink)' }}>
-      <div className="tbl-section-rule">
-        <span>The Standings · {teams.length} Clubs</span>
-        <Link
-          href="/teams"
-          style={{ color: 'var(--tbl-ink-soft)', textDecoration: 'none' }}
-        >
-          Full table →
-        </Link>
-      </div>
-
-      <div
-        className="gz-standings-cols"
-        style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 30, marginTop: 4 }}
-      >
-        {[0, 1].map((col) => (
-          <table
-            key={col}
-            style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              fontFamily: 'var(--tbl-font-mono)',
-              fontSize: 12,
-            }}
-          >
-            <thead>
-              <tr style={{ borderBottom: '1.5px solid var(--tbl-ink)' }}>
-                {['#', 'Club', 'W–L', 'PF', 'PA', 'Diff', 'Strk'].map((h, i) => (
-                  <th
-                    key={h}
-                    style={{
-                      textAlign: i < 2 ? 'left' : 'right',
-                      padding: '7px 4px',
-                      fontWeight: 700,
-                      letterSpacing: '0.12em',
-                      fontSize: 10,
-                      textTransform: 'uppercase',
-                      width: h === '#' ? 26 : undefined,
-                    }}
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {teams.slice(col * 6, col * 6 + 6).map((t, i) => {
-                const rank = col * 6 + i + 1;
-                const isTop = rank === 1;
-                const streakColor = t.streak.startsWith('W')
-                  ? 'var(--tbl-green)'
-                  : t.streak.startsWith('D')
-                  ? 'var(--tbl-ink-soft)'
-                  : 'var(--tbl-red)';
-                return (
-                  <tr
-                    key={t.slug}
-                    style={{ borderBottom: '1px dotted rgba(20,17,11,0.35)' }}
-                  >
-                    <td style={{ padding: '9px 4px', color: 'var(--tbl-ink-soft)', fontWeight: 700 }}>
-                      {rank}.
-                    </td>
-                    <td style={{ padding: '9px 4px' }}>
-                      <Link
-                        href={`/teams/${t.slug}`}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 10,
-                          textDecoration: 'none',
-                          color: 'var(--tbl-ink)',
-                        }}
-                      >
-                        {getTeamLogoPathByName(t.team) && (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={getTeamLogoPathByName(t.team)}
-                            alt=""
-                            style={{ width: 22, height: 22, objectFit: 'contain' }}
-                          />
-                        )}
-                        <span
-                          className="tbl-display"
-                          style={{ fontSize: 15, fontWeight: isTop ? 900 : 700 }}
-                        >
-                          {getFullTeamName(t.slug)}
-                        </span>
-                      </Link>
-                    </td>
-                    <td style={{ padding: '9px 4px', textAlign: 'right', fontWeight: 600 }}>
-                      {t.record}
-                    </td>
-                    <td style={{ padding: '9px 4px', textAlign: 'right', color: 'var(--tbl-ink-soft)' }}>
-                      {Math.round(t.pf)}
-                    </td>
-                    <td style={{ padding: '9px 4px', textAlign: 'right', color: 'var(--tbl-ink-soft)' }}>
-                      {Math.round(t.pa)}
-                    </td>
-                    <td
-                      style={{
-                        padding: '9px 4px',
-                        textAlign: 'right',
-                        fontWeight: 700,
-                        color: t.diff >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)',
-                      }}
-                    >
-                      {t.diff >= 0 ? '+' : ''}
-                      {Math.round(t.diff)}
-                    </td>
-                    <td
-                      style={{
-                        padding: '9px 4px',
-                        textAlign: 'right',
-                        fontWeight: 700,
-                        color: streakColor,
-                      }}
-                    >
-                      {t.streak}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ─── Weekend Results (recent completed matches) ─────────────────────────────
 interface ResultCard {
   matchIndex: number;
   date: string;
@@ -821,554 +108,447 @@ interface ResultCard {
   s2: number;
   phase?: string;
 }
-function WeekendResults({ results }: { results: ResultCard[] }) {
-  if (results.length === 0) return null;
-  return (
-    <div style={{ padding: '30px 32px 40px' }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'baseline',
-          justifyContent: 'space-between',
-          marginBottom: 20,
-          gap: 16,
-          flexWrap: 'wrap',
-        }}
-      >
-        <div>
-          <div className="tbl-eyebrow">Recent Results</div>
-          <div className="tbl-display" style={{ fontSize: 34, lineHeight: 1, marginTop: 4 }}>
-            From the Weekend
-          </div>
-        </div>
-        <Link
-          href="/results"
-          style={{
-            fontFamily: 'var(--tbl-font-mono)',
-            fontSize: 11,
-            letterSpacing: '0.18em',
-            color: 'var(--tbl-ink-soft)',
-            textTransform: 'uppercase',
-            textDecoration: 'none',
-          }}
-        >
-          View all results →
-        </Link>
-      </div>
 
-      <div
-        className="gz-results-grid"
-        style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}
-      >
-        {results.slice(0, 6).map((r, i) => {
-          const isDraw = Math.abs(r.s1 - r.s2) < 0.0001;
-          const team1Won = !isDraw && r.s1 > r.s2;
-          const team2Won = !isDraw && r.s2 > r.s1;
-          return (
-            <Link
-              key={`${i}-${r.team1}-${r.team2}`}
-              href={`/matches/${r.matchIndex}`}
-              className="gz-result-card"
-              style={{
-                background: 'var(--tbl-paper)',
-                border: '1.5px solid var(--tbl-ink)',
-                padding: '14px 16px',
-                display: 'grid',
-                gridTemplateColumns: '1fr auto 1fr',
-                alignItems: 'center',
-                gap: 14,
-                textDecoration: 'none',
-                color: 'inherit',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  justifyContent: 'flex-end',
-                }}
-              >
-                <div style={{ textAlign: 'right' }}>
-                  <div
-                    className="tbl-display"
-                    style={{
-                      fontSize: 17,
-                      lineHeight: 1.05,
-                      fontWeight: team1Won ? 900 : 700,
-                      color: team1Won || isDraw ? 'var(--tbl-ink)' : 'var(--tbl-ink-mute)',
-                    }}
-                  >
-                    <span className="gz-result-name-full">{getFullTeamName(teamSlug(r.team1))}</span>
-                    <span className="gz-result-name-abbr">{shortAbbr(r.team1)}</span>
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: 'var(--tbl-font-mono)',
-                      fontSize: 9,
-                      color: 'var(--tbl-ink-soft)',
-                      letterSpacing: '0.12em',
-                      marginTop: 2,
-                    }}
-                  >
-                    {r.date.replace(/\/\d{4}$/, '').replace(/^\d{4}-/, '')}
-                  </div>
-                </div>
-                {getTeamLogoPathByName(r.team1) && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={getTeamLogoPathByName(r.team1)}
-                    alt=""
-                    style={{
-                      width: 34,
-                      height: 34,
-                      objectFit: 'contain',
-                      opacity: team1Won || isDraw ? 1 : 0.55,
-                    }}
-                  />
-                )}
-              </div>
-              <div
-                className="tbl-display gz-result-score"
-                style={{
-                  fontSize: 30,
-                  lineHeight: 1,
-                  padding: '0 10px',
-                  borderLeft: '1px solid rgba(20,17,11,0.2)',
-                  borderRight: '1px solid rgba(20,17,11,0.2)',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <span style={{ color: team1Won ? 'var(--tbl-accent)' : 'var(--tbl-ink)' }}>
-                  {r.s1.toFixed(1)}
-                </span>
-                <span
-                  style={{
-                    color: 'var(--tbl-ink-mute)',
-                    margin: '0 6px',
-                    fontSize: 22,
-                    fontStyle: 'italic',
-                    fontWeight: 400,
-                  }}
-                >
-                  —
-                </span>
-                <span style={{ color: team2Won ? 'var(--tbl-accent)' : 'var(--tbl-ink)' }}>
-                  {r.s2.toFixed(1)}
-                </span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                {getTeamLogoPathByName(r.team2) && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={getTeamLogoPathByName(r.team2)}
-                    alt=""
-                    style={{
-                      width: 34,
-                      height: 34,
-                      objectFit: 'contain',
-                      opacity: team2Won || isDraw ? 1 : 0.55,
-                    }}
-                  />
-                )}
-                <div>
-                  <div
-                    className="tbl-display"
-                    style={{
-                      fontSize: 17,
-                      lineHeight: 1.05,
-                      fontWeight: team2Won ? 900 : 700,
-                      color: team2Won || isDraw ? 'var(--tbl-ink)' : 'var(--tbl-ink-mute)',
-                    }}
-                  >
-                    <span className="gz-result-name-full">{getFullTeamName(teamSlug(r.team2))}</span>
-                    <span className="gz-result-name-abbr">{shortAbbr(r.team2)}</span>
-                  </div>
-                  {r.phase && (
-                    <div
-                      style={{
-                        fontFamily: 'var(--tbl-font-mono)',
-                        fontSize: 9,
-                        color: 'var(--tbl-ink-soft)',
-                        letterSpacing: '0.12em',
-                        marginTop: 2,
-                      }}
-                    >
-                      {r.phase}
-                    </div>
-                  )}
-                </div>
-              </div>
+const signed = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(0)}`;
+
+// ─── Section heading: eyebrow, serif title, short grey intro ─────────────────
+function SectionHead({
+  eyebrow,
+  title,
+  intro,
+  more,
+}: {
+  eyebrow: string;
+  title: string;
+  intro?: string;
+  more?: { label: string; href: string };
+}) {
+  return (
+    <div className="hm-head">
+      <div>
+        <div className="hm-eyebrow">{eyebrow}</div>
+        <h2 className="hm-head__title">{title}</h2>
+        {intro && <p className="hm-head__intro">{intro}</p>}
+      </div>
+      {more && (
+        <Link href={more.href} className="hm-more">
+          {more.label} →
+        </Link>
+      )}
+    </div>
+  );
+}
+
+function Section({
+  tint,
+  first,
+  children,
+}: {
+  tint?: boolean;
+  first?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      className={`hm-section${tint ? ' hm-section--tint' : ''}${first ? ' hm-section--first' : ''}`}
+    >
+      <Reveal className="hm-wrap">{children}</Reveal>
+    </section>
+  );
+}
+
+// ─── Hero ────────────────────────────────────────────────────────────────────
+function Hero({
+  featured,
+  heroResult,
+}: {
+  featured: ScheduleEntry | null;
+  heroResult: HeroResult | null;
+}) {
+  // One live line under the intro: the next match, or the latest result.
+  const live = featured
+    ? {
+        tag: 'Next',
+        text: `${getCityName(featured.team1)} vs ${getCityName(featured.team2)} · ${featured.date}`,
+        href: featured.matchIndex ? `/matches/${featured.matchIndex}` : '/schedule',
+      }
+    : heroResult
+    ? {
+        tag: heroResult.isChampion ? 'Champion' : 'Final',
+        text: `${heroResult.winnerName} ${heroResult.verb} ${heroResult.loserName} ${heroResult.scoreLine}`,
+        href: heroResult.href,
+      }
+    : null;
+
+  return (
+    <div className="hm-hero">
+      <div className="hm-wrap">
+        <div className="hm-hero__copy">
+          <div className="hm-eyebrow">Team Boxing League · 2026 Season</div>
+          <h1 className="hm-hero__title">
+            Every round. Every fighter. <em>Every team.</em>
+          </h1>
+          <p className="hm-hero__intro">
+            Independent stats, standings and results for Team Boxing League.
+          </p>
+          {live && (
+            <Link href={live.href} className="hm-hero__live">
+              <span className="hm-hero__live-tag">{live.tag}</span>
+              {live.text}
             </Link>
-          );
-        })}
+          )}
+        </div>
+        <Link href="/stats" className="hm-device" aria-label="How the Stats Work page">
+          <div className="hm-device__bar" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/home/stats-page.webp"
+            alt="The How the Stats Work page on TBL Stats, defining WAR, Stakes Faced and Timing."
+            width={1600}
+            height={1000}
+            fetchPriority="high"
+          />
+        </Link>
       </div>
     </div>
   );
 }
 
-// ─── Mobile compact layout ──────────────────────────────────────────────────
-// Hidden on desktop via CSS (see globals.css ".home-mobile-only").
-function MobileMatchBanner({
+// ─── This week: featured match (or latest result) + fighter in focus ────────
+function ThisWeek({
   featured,
-  lastCompleted,
+  focus,
+  alsoThisWeek,
   heroResult,
   teamRecords,
 }: {
   featured: ScheduleEntry | null;
-  lastCompleted: ResultCard | null;
+  focus: FighterStat | null;
+  alsoThisWeek: ScheduleEntry[];
   heroResult: HeroResult | null;
   teamRecords: Map<string, string>;
 }) {
-  // Prefer an upcoming match. With none, fall back to heroResult — the same
-  // value the desktop poster uses, so the MegaBrawl champion crowning reads
-  // the same on a phone. Winner sits on the left in that case, which is why
-  // this prefers heroResult's winner/loser over the raw match order.
-  const team1 = featured ? featured.team1 : heroResult?.winnerTeam ?? lastCompleted?.team1;
-  const team2 = featured ? featured.team2 : heroResult?.loserTeam ?? lastCompleted?.team2;
+  const team1 = featured ? featured.team1 : heroResult?.winnerTeam;
+  const team2 = featured ? featured.team2 : heroResult?.loserTeam;
   if (!team1 || !team2) return null;
-
-  const logo1 = getTeamLogoPathByName(team1);
-  const logo2 = getTeamLogoPathByName(team2);
-  const abbr1 = shortAbbr(team1);
-  const abbr2 = shortAbbr(team2);
-  const rec1 = teamRecords.get(team1) ?? '';
-  const rec2 = teamRecords.get(team2) ?? '';
-
-  // heroResult's scoreLine is always winner-first ("17–13"); split it so the
-  // two halves can be coloured independently, as the score is on desktop.
   const [winScore, loseScore] = (heroResult?.scoreLine ?? '').split('–');
-  const showScore = !featured && winScore != null && loseScore != null && winScore !== '';
-  const isDraw = heroResult?.verb === 'drew';
   const href = featured
     ? featured.matchIndex
       ? `/matches/${featured.matchIndex}`
       : '/schedule'
-    : heroResult
-    ? heroResult.href
-    : lastCompleted
-    ? `/matches/${lastCompleted.matchIndex}`
-    : '/schedule';
+    : heroResult?.href ?? '/results';
 
   return (
-    <div className="home-mobile-only" style={{ padding: '16px 16px 8px' }}>
-      <div className="tbl-eyebrow" style={{ color: 'var(--tbl-accent)' }}>
-        {featured ? 'Fight of the Week' : heroResult ? heroResult.eyebrow : 'Latest Result'}
-      </div>
-      {featured || !heroResult ? (
-        <div className="tbl-display" style={{ fontSize: 44, lineHeight: 0.95, marginTop: 4 }}>
-          {abbr1}{' '}
-          <span style={{ color: 'var(--tbl-accent)', fontStyle: 'italic', fontWeight: 900 }}>
-            vs
-          </span>{' '}
-          {abbr2}
-        </div>
-      ) : (
-        /* No upcoming fight: name the winner, the way the desktop poster does,
-           rather than showing two abbreviations and leaving the crowning off. */
-        <div className="tbl-display" style={{ fontSize: 38, lineHeight: 0.98, marginTop: 4 }}>
-          {heroResult.winnerName}
-        </div>
-      )}
-      <Link
-        href={href}
-        className="home-mobile-banner"
-        style={{
-          marginTop: 12,
-          background: 'var(--tbl-ink)',
-          color: 'var(--tbl-bg)',
-          border: '1.5px solid var(--tbl-ink)',
-          padding: '16px 14px',
-          display: 'grid',
-          gridTemplateColumns: '1fr auto 1fr',
-          alignItems: 'center',
-          gap: 10,
-          textDecoration: 'none',
-        }}
-      >
-        {/* Team 1 */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-          {logo1 && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={logo1} alt="" style={{ width: 44, height: 44, objectFit: 'contain' }} />
-          )}
-          <div className="tbl-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}>
-            {abbr1}
+    <Section first>
+      <SectionHead
+        eyebrow={featured ? 'Next up' : heroResult?.eyebrow ?? 'Latest result'}
+        title={featured ? 'This week' : heroResult?.isChampion ? 'The champions' : 'Last time out'}
+        intro={
+          featured
+            ? 'The next match on the schedule, and the top fighter on either side of it.'
+            : 'The most recent result, and the fighter leading the league in net points.'
+        }
+        more={{ label: 'Full schedule', href: '/schedule' }}
+      />
+      <div className="hm-week">
+        <Link href={href} className="hm-card hm-match">
+          <div className="hm-match__teams">
+            {[team1, team2].map((t, i) => (
+              <div key={t} className="hm-match__team" style={{ order: i === 0 ? 0 : 2 }}>
+                {getTeamLogoPathByName(t) && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={getTeamLogoPathByName(t)} alt="" />
+                )}
+                <div className="hm-match__name">{getFullTeamName(teamSlug(t))}</div>
+                {teamRecords.get(t) && <div className="hm-label">{teamRecords.get(t)}</div>}
+              </div>
+            ))}
+            <div className="hm-match__mid" style={{ order: 1 }}>
+              {!featured && winScore && loseScore ? (
+                <span className="hm-num hm-match__score">
+                  {winScore}–{loseScore}
+                </span>
+              ) : (
+                'vs'
+              )}
+            </div>
           </div>
-          {rec1 && (
-            <div
-              style={{
-                fontFamily: 'var(--tbl-font-mono)',
-                fontSize: 10,
-                letterSpacing: '0.12em',
-                color: 'rgba(244,237,224,0.55)',
-              }}
-            >
-              {rec1}
-            </div>
-          )}
-        </div>
-
-        {/* Center: score or vs */}
-        <div style={{ textAlign: 'center', minWidth: 64 }}>
-          {showScore ? (
-            <div
-              className="tbl-display"
-              style={{
-                fontSize: 30,
-                lineHeight: 1,
-                color: 'var(--tbl-accent-bright)',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <span
-                style={{ color: isDraw ? 'var(--tbl-bg)' : 'var(--tbl-accent-bright)' }}
-              >
-                {winScore}
-              </span>
-              <span style={{ color: 'rgba(244,237,224,0.5)', margin: '0 4px' }}>—</span>
-              <span style={{ color: 'var(--tbl-bg)' }}>{loseScore}</span>
-            </div>
-          ) : (
-            <div
-              className="tbl-display"
-              style={{
-                fontSize: 22,
-                fontStyle: 'italic',
-                color: 'var(--tbl-accent-bright)',
-                fontWeight: 900,
-              }}
-            >
-              vs
-            </div>
-          )}
-          <div
-            style={{
-              fontFamily: 'var(--tbl-font-mono)',
-              fontSize: 9,
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase',
-              marginTop: 6,
-              color: 'var(--tbl-accent-bright)',
-              fontWeight: 700,
-            }}
-          >
+          <div className="hm-match__meta">
             {featured
-              ? featured.time
-                ? featured.time.replace(/\s*local/i, '').trim()
-                : 'Upcoming'
+              ? [featured.date, featured.time, featured.venueName, featured.venueCity]
+                  .filter(Boolean)
+                  .join(' · ')
               : heroResult?.isChampion
-              ? 'Champion'
+              ? 'MegaBrawl IV · Final'
               : 'Final'}
           </div>
-        </div>
-
-        {/* Team 2 */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-          {logo2 && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={logo2} alt="" style={{ width: 44, height: 44, objectFit: 'contain' }} />
-          )}
-          <div className="tbl-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}>
-            {abbr2}
-          </div>
-          {rec2 && (
-            <div
-              style={{
-                fontFamily: 'var(--tbl-font-mono)',
-                fontSize: 10,
-                letterSpacing: '0.12em',
-                color: 'rgba(244,237,224,0.55)',
-              }}
-            >
-              {rec2}
+          {alsoThisWeek.length > 0 && (
+            <div className="hm-also">
+              <div className="hm-label">Also this week</div>
+              {alsoThisWeek.slice(0, 3).map((m) => (
+                <div key={`${m.date}-${m.team1}-${m.team2}`} className="hm-also__row">
+                  <span>{m.date}</span>
+                  <span>
+                    {m.team1} vs {m.team2}
+                  </span>
+                  <span>{m.time}</span>
+                </div>
+              ))}
             </div>
           )}
-        </div>
-      </Link>
-    </div>
-  );
-}
+        </Link>
 
-function MobileTopFighters({ fighters }: { fighters: FighterStat[] }) {
-  if (fighters.length === 0) return null;
-  // Six, matching the desktop Top Six — this used to show four.
-  const top6 = fighters.slice(0, 6);
-  return (
-    <div className="home-mobile-only home-mobile-section">
-      <div className="home-mobile-section__head">
-        <span>Top Six · Net Pts</span>
-        <Link href="/fighters">See all →</Link>
-      </div>
-      <div className="home-mobile-list">
-        {top6.map((f, i) => {
-          const logo = getTeamLogoPathByName(f.team);
-          return (
-            <Link key={f.slug} href={`/fighters/${f.slug}`} className="home-mobile-list__row">
-              <div className="home-mobile-list__rank">{i + 1}</div>
-              {logo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={logo} alt="" className="home-mobile-list__logo" />
-              ) : (
-                <span className="home-mobile-list__logo" />
-              )}
-              <div className="home-mobile-list__body">
-                <div className="home-mobile-list__name">{f.name}</div>
-                <div className="home-mobile-list__meta">
-                  {f.weightClass} · {f.record}
+        {focus && (
+          <div className="hm-card hm-focus">
+            <div className="hm-focus__top">
+              <div>
+                <div className="hm-eyebrow">Fighter in focus</div>
+                <Link href={`/fighters/${focus.slug}`} className="hm-focus__name">
+                  {focus.name}
+                </Link>
+                <div className="hm-focus__meta">
+                  {getFullTeamName(teamSlug(focus.team))} · {focus.weightClass}
                 </div>
               </div>
-              <div className="home-mobile-list__value">
-                {f.netPts >= 0 ? '+' : ''}
-                {f.netPts.toFixed(0)}
+              <div className="hm-focus__net">
+                <div className="hm-num">{signed(focus.netPts)}</div>
+                <div className="hm-label">Net pts</div>
               </div>
-            </Link>
-          );
-        })}
+            </div>
+            <div className="hm-stats">
+              {[
+                { l: 'Rec', v: focus.record },
+                { l: 'WAR', v: focus.war.toFixed(2) },
+                { l: 'NPPR', v: focus.nppr.toFixed(2) },
+                { l: 'Win%', v: `${(focus.winPct * 100).toFixed(0)}` },
+                { l: 'Rnds', v: String(focus.rounds) },
+              ].map((s) => (
+                <div key={s.l}>
+                  <div className="hm-label">{s.l}</div>
+                  <div className="hm-num">{s.v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
-    </div>
+    </Section>
   );
 }
 
-function MobileStandings({ teams }: { teams: TeamStanding[] }) {
-  if (teams.length === 0) return null;
-  // Every club, matching the desktop table — this used to stop at six.
+// ─── Top six fighters ────────────────────────────────────────────────────────
+function TopSix({ fighters }: { fighters: FighterStat[] }) {
+  if (fighters.length === 0) return null;
   return (
-    <div className="home-mobile-only home-mobile-section">
-      <div className="home-mobile-section__head">
-        <span>Standings · {teams.length} Clubs</span>
-        <Link href="/teams">Teams →</Link>
+    <Section tint>
+      <SectionHead
+        eyebrow="Pound for pound"
+        title="The top six"
+        intro="Regular-season leaders by net points."
+        more={{ label: 'All fighters', href: '/fighters' }}
+      />
+      <div className="hm-six">
+        {fighters.slice(0, 6).map((f, i) => (
+          <Link
+            key={f.slug}
+            href={`/fighters/${f.slug}`}
+            className={`hm-card hm-fighter${i === 0 ? ' is-top' : ''}`}
+          >
+            <div className="hm-num hm-fighter__rank">{String(i + 1).padStart(2, '0')}</div>
+            {getTeamLogoPathByName(f.team) && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={getTeamLogoPathByName(f.team)} alt="" className="hm-fighter__logo" />
+            )}
+            <div>
+              <div className="hm-fighter__name">{f.name}</div>
+              <div className="hm-fighter__meta">
+                {getCityName(f.team)} · {f.weightClass}
+              </div>
+              <div className="hm-fighter__nums">
+                <div>
+                  <div className="hm-label">Net</div>
+                  <div className="hm-num is-net">{signed(f.netPts)}</div>
+                </div>
+                <div>
+                  <div className="hm-label">Rec</div>
+                  <div className="hm-num">{f.record}</div>
+                </div>
+              </div>
+            </div>
+          </Link>
+        ))}
       </div>
-      <div className="home-mobile-list">
-        {teams.map((t, i) => {
-          const logo = getTeamLogoPathByName(t.team);
-          return (
-            <Link key={t.slug} href={`/teams/${t.slug}`} className="home-mobile-list__row is-team">
-              <div className="home-mobile-list__rank">{i + 1}</div>
-              {logo ? (
+    </Section>
+  );
+}
+
+// ─── Standings ───────────────────────────────────────────────────────────────
+function Standings({ teams }: { teams: TeamStanding[] }) {
+  if (teams.length === 0) return null;
+  const half = Math.ceil(teams.length / 2);
+  return (
+    <Section>
+      <SectionHead
+        eyebrow="Standings"
+        title={`${teams.length} clubs, one table`}
+        intro="Regular-season record, points for and against, and current streak."
+        more={{ label: 'Full table', href: '/teams' }}
+      />
+      <div className="hm-card hm-table-card">
+        <div className="hm-table-cols">
+          {[teams.slice(0, half), teams.slice(half)].map((col, c) => (
+            <table key={c} className="hm-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Club</th>
+                  <th>W–L</th>
+                  <th className="hide-sm">PF</th>
+                  <th className="hide-sm">PA</th>
+                  <th>Diff</th>
+                  <th>Strk</th>
+                </tr>
+              </thead>
+              <tbody>
+                {col.map((t, i) => {
+                  const streakColor = t.streak.startsWith('W')
+                    ? 'var(--tbl-green)'
+                    : t.streak.startsWith('D')
+                    ? 'var(--hm-grey)'
+                    : 'var(--tbl-red)';
+                  return (
+                    <tr key={t.slug}>
+                      <td>{c * half + i + 1}</td>
+                      <td>
+                        <Link href={`/teams/${t.slug}`} className="hm-table__team">
+                          {getTeamLogoPathByName(t.team) && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={getTeamLogoPathByName(t.team)} alt="" />
+                          )}
+                          {getFullTeamName(t.slug)}
+                        </Link>
+                      </td>
+                      <td>{t.record}</td>
+                      <td className="is-muted hide-sm">{Math.round(t.pf)}</td>
+                      <td className="is-muted hide-sm">{Math.round(t.pa)}</td>
+                      <td style={{ color: t.diff >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)' }}>
+                        {signed(t.diff)}
+                      </td>
+                      <td style={{ color: streakColor }}>{t.streak}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          ))}
+        </div>
+      </div>
+    </Section>
+  );
+}
+
+// ─── Recent results ──────────────────────────────────────────────────────────
+function RecentResults({ results }: { results: ResultCard[] }) {
+  if (results.length === 0) return null;
+  return (
+    <Section tint>
+      <SectionHead
+        eyebrow="Recent results"
+        title="From the weekend"
+        intro="The latest matches. Open one for its full box score."
+        more={{ label: 'All results', href: '/results' }}
+      />
+      <div className="hm-results">
+        {results.slice(0, 6).map((r, i) => {
+          const isDraw = Math.abs(r.s1 - r.s2) < 0.0001;
+          const t1Won = !isDraw && r.s1 > r.s2;
+          const t2Won = !isDraw && r.s2 > r.s1;
+          const side = (team: string, lost: boolean, left: boolean, sub?: string) => (
+            <div className={`hm-result__side${left ? ' is-left' : ''}${lost ? ' is-lost' : ''}`}>
+              {!left && getTeamLogoPathByName(team) && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={logo} alt="" className="home-mobile-list__logo" />
-              ) : (
-                <span className="home-mobile-list__logo" />
+                <img src={getTeamLogoPathByName(team)} alt="" />
               )}
-              <div className="home-mobile-list__body">
-                <div className="home-mobile-list__name">{getFullTeamName(t.slug)}</div>
+              <div>
+                <div className="hm-result__name">
+                  <span className="full">{getFullTeamName(teamSlug(team))}</span>
+                  <span className="abbr">{shortAbbr(team)}</span>
+                </div>
+                {sub && <div className="hm-result__sub">{sub}</div>}
               </div>
-              <div className="home-mobile-list__record">{t.record}</div>
-              <div
-                className="home-mobile-list__diff"
-                style={{ color: t.diff >= 0 ? 'var(--tbl-green)' : 'var(--tbl-red)' }}
-              >
-                {t.diff >= 0 ? '+' : ''}
-                {t.diff.toFixed(0)}
+              {left && getTeamLogoPathByName(team) && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={getTeamLogoPathByName(team)} alt="" />
+              )}
+            </div>
+          );
+          return (
+            <Link
+              key={`${i}-${r.team1}-${r.team2}`}
+              href={`/matches/${r.matchIndex}`}
+              className="hm-card hm-result"
+            >
+              {side(r.team1, t2Won, true, r.date.replace(/\/\d{4}$/, '').replace(/^\d{4}-/, ''))}
+              <div className="hm-num hm-result__score">
+                <span className={t1Won ? 'is-win' : undefined}>{r.s1.toFixed(1)}</span>
+                <span className="sep">–</span>
+                <span className={t2Won ? 'is-win' : undefined}>{r.s2.toFixed(1)}</span>
               </div>
+              {side(r.team2, t1Won, false, r.phase)}
             </Link>
           );
         })}
       </div>
-    </div>
+    </Section>
   );
 }
 
-// ─── Advanced Stats (bottom of page) ─────────────────────────────────────────
+// ─── Advanced stats ──────────────────────────────────────────────────────────
 // Each advanced stat has its own public page; this section is the front door.
-function AdvancedStats() {
-  const cards: {
-    code: string;
-    title: string;
-    blurb: string;
-    links: { label: string; href: string }[];
-  }[] = [
-     {
-      code: 'ADV',
-      title: 'Advanced Stats',
-      blurb:
-        'The biggest rounds of the season, a leaderboard for every advanced stat, and the biggest comebacks — all in one place.',
+function AdvancedStats({ tint }: { tint: boolean }) {
+  const cards: { title: string; blurb: string; links: { label: string; href: string }[] }[] = [
+    {
+      title: 'Advanced stats',
+      blurb: 'The biggest rounds of the season, a leaderboard for every advanced stat, and the biggest comebacks.',
       links: [
-        { label: 'Biggest rounds →', href: '/advanced' },
-        { label: 'Fighter leaderboard →', href: '/advanced?view=fighters' },
+        { label: 'Biggest rounds', href: '/advanced' },
+        { label: 'Fighter leaderboard', href: '/advanced?view=fighters' },
       ],
     },
     {
-      code: 'ABC',
-      title: 'How the Stats Work',
+      title: 'How the stats work',
       blurb:
-        'Win Probability, Stakes, Timing, Comebacks, Adjusted NPPR, Schedule and WAR — what each one means, in plain English.',
-      links: [{ label: 'Every stat explained →', href: '/stats' }],
+        'Win Probability, Stakes, Timing, Comebacks, Adjusted NPPR, Schedule and WAR, in plain English.',
+      links: [{ label: 'Every stat explained', href: '/stats' }],
     },
   ];
-
   return (
-    <div style={{ padding: '0 32px 44px' }}>
-      <div style={{ marginBottom: 16 }}>
-        <div className="tbl-eyebrow">Beyond the Box Score</div>
-        <div className="tbl-display" style={{ fontSize: 34, lineHeight: 1, marginTop: 4 }}>
-          Advanced Stats
-        </div>
-      </div>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: 14,
-        }}
-      >
+    <Section tint={tint}>
+      <SectionHead
+        eyebrow="Beyond the box score"
+        title="Advanced stats"
+        intro="Numbers built from every round, not just the final score."
+      />
+      <div className="hm-adv">
         {cards.map((c) => (
-          <div
-            key={c.code}
-            style={{
-              background: 'var(--tbl-paper)',
-              border: '1.5px solid var(--tbl-ink)',
-              padding: '16px 18px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 8,
-            }}
-          >
-            <div
-              className="tbl-display"
-              style={{ fontSize: 30, lineHeight: 1, color: 'var(--tbl-accent)', letterSpacing: '-0.02em' }}
-            >
-              {c.code}
-            </div>
-            <div className="tbl-display" style={{ fontSize: 17, fontWeight: 800 }}>
-              {c.title}
-            </div>
-            <p
-              style={{
-                margin: 0,
-                fontFamily: 'var(--tbl-font-body)',
-                fontSize: 13,
-                lineHeight: 1.65,
-                color: 'var(--tbl-ink-soft)',
-                flex: 1,
-              }}
-            >
-              {c.blurb}
-            </p>
-            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+          <div key={c.title} className="hm-card hm-adv__card">
+            <div className="hm-adv__title">{c.title}</div>
+            <p>{c.blurb}</p>
+            <div className="hm-adv__links">
               {c.links.map((l) => (
-                <Link
-                  key={l.href}
-                  href={l.href}
-                  style={{
-                    fontFamily: 'var(--tbl-font-mono)',
-                    fontSize: 11,
-                    letterSpacing: '0.14em',
-                    textTransform: 'uppercase',
-                    color: 'var(--tbl-accent)',
-                    textDecoration: 'none',
-                    fontWeight: 700,
-                  }}
-                >
-                  {l.label}
+                <Link key={l.href} href={l.href} className="hm-more">
+                  {l.label} →
                 </Link>
               ))}
             </div>
           </div>
         ))}
       </div>
-    </div>
+    </Section>
   );
 }
 
@@ -1586,51 +766,37 @@ export default async function HomePage() {
   })();
 
   return (
-    <>
+    <div className="hm">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-
-      {/* Mobile compact layout (hidden on desktop via CSS) */}
-      <MobileMatchBanner
+      <Hero featured={featured} heroResult={heroResult} />
+      {/* Room for the screenshot hanging out of the hero. */}
+      <div className="hm-overhang" aria-hidden="true" />
+      <ThisWeek
         featured={featured}
-        lastCompleted={lastCompleted}
+        focus={focus}
+        alsoThisWeek={alsoThisWeek}
         heroResult={heroResult}
         teamRecords={teamRecords}
       />
-      <MobileTopFighters fighters={fightersByNetPts} />
-      <MobileStandings teams={topTeams} />
-
-      {/* Desktop layout (hidden on mobile via CSS) */}
-      <div className="home-desktop-only">
-        <FightCardHero
-          featured={featured}
-          focus={focus}
-          alsoThisWeek={alsoThisWeek}
-          heroResult={heroResult}
-        />
-        <TopSix fighters={topSix} />
-        <StandingsTwoCol teams={topTeams} />
-      </div>
-
-      <WeekendResults results={completed} />
+      <TopSix fighters={topSix} />
+      <Standings teams={topTeams} />
+      <RecentResults results={completed} />
       {awards.length > 0 && (
-        <div className="home-awards-section" style={{ padding: '0 32px 40px' }}>
-          <div style={{ marginBottom: 16 }}>
-            <div className="tbl-eyebrow">Past MVPs & Trophies</div>
-            <div
-              className="tbl-display"
-              style={{ fontSize: 34, lineHeight: 1, marginTop: 4 }}
-            >
-              Hall of Champions
-            </div>
-          </div>
+        <Section>
+          <SectionHead
+            eyebrow="Past MVPs & trophies"
+            title="Hall of champions"
+            intro="Every season's award winners."
+            more={{ label: 'All awards', href: '/awards' }}
+          />
           <HallOfChampions awards={awards} fighterSlugs={fighterSlugs} />
-        </div>
+        </Section>
       )}
-
-      <AdvancedStats />
-    </>
+      {/* Keep the white/tint alternation whether or not the awards block shows. */}
+      <AdvancedStats tint={awards.length > 0} />
+    </div>
   );
 }
