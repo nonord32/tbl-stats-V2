@@ -1,6 +1,6 @@
 // src/app/page.tsx
-// Home: dark hero with a framed screenshot → this week → top six → standings →
-// recent results → hall of champions → advanced stats. Styles live in ./home.css.
+// Home: hero with the live fight card → top six → standings → recent results →
+// hall of champions → advanced stats. Styles live in ./home.css.
 import type { Metadata } from 'next';
 import './home.css';
 import Link from 'next/link';
@@ -139,87 +139,18 @@ function SectionHead({
   );
 }
 
-function Section({
-  tint,
-  first,
-  children,
-}: {
-  tint?: boolean;
-  first?: boolean;
-  children: React.ReactNode;
-}) {
+function Section({ tint, children }: { tint?: boolean; children: React.ReactNode }) {
   return (
-    <section
-      className={`hm-section${tint ? ' hm-section--tint' : ''}${first ? ' hm-section--first' : ''}`}
-    >
+    <section className={`hm-section${tint ? ' hm-section--tint' : ''}`}>
       <Reveal className="hm-wrap">{children}</Reveal>
     </section>
   );
 }
 
-// ─── Hero ────────────────────────────────────────────────────────────────────
+// ─── Hero: masthead copy, then the live fight card ──────────────────────────
+// The poster shows the next match, or the latest result (the MegaBrawl
+// champion once the final is played). Fighter in focus sits beside it.
 function Hero({
-  featured,
-  heroResult,
-}: {
-  featured: ScheduleEntry | null;
-  heroResult: HeroResult | null;
-}) {
-  // One live line under the intro: the next match, or the latest result.
-  const live = featured
-    ? {
-        tag: 'Next',
-        text: `${getCityName(featured.team1)} vs ${getCityName(featured.team2)} · ${featured.date}`,
-        href: featured.matchIndex ? `/matches/${featured.matchIndex}` : '/schedule',
-      }
-    : heroResult
-    ? {
-        tag: heroResult.isChampion ? 'Champion' : 'Final',
-        text: `${heroResult.winnerName} ${heroResult.verb} ${heroResult.loserName} ${heroResult.scoreLine}`,
-        href: heroResult.href,
-      }
-    : null;
-
-  return (
-    <div className="hm-hero">
-      <div className="hm-wrap">
-        <div className="hm-hero__copy">
-          <div className="hm-eyebrow">Team Boxing League · 2026 Season</div>
-          <h1 className="hm-hero__title">
-            Every round. Every fighter. <em>Every team.</em>
-          </h1>
-          <p className="hm-hero__intro">
-            Independent stats, standings and results for Team Boxing League.
-          </p>
-          {live && (
-            <Link href={live.href} className="hm-hero__live">
-              <span className="hm-hero__live-tag">{live.tag}</span>
-              {live.text}
-            </Link>
-          )}
-        </div>
-        <Link href="/stats" className="hm-device" aria-label="How the Stats Work page">
-          <div className="hm-device__bar" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </div>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/home/stats-page.webp"
-            alt="The How the Stats Work page on TBL Stats, defining WAR, Stakes Faced and Timing."
-            width={1600}
-            height={1000}
-            fetchPriority="high"
-          />
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-// ─── This week: featured match (or latest result) + fighter in focus ────────
-function ThisWeek({
   featured,
   focus,
   alsoThisWeek,
@@ -234,7 +165,6 @@ function ThisWeek({
 }) {
   const team1 = featured ? featured.team1 : heroResult?.winnerTeam;
   const team2 = featured ? featured.team2 : heroResult?.loserTeam;
-  if (!team1 || !team2) return null;
   const [winScore, loseScore] = (heroResult?.scoreLine ?? '').split('–');
   const href = featured
     ? featured.matchIndex
@@ -243,100 +173,110 @@ function ThisWeek({
     : heroResult?.href ?? '/results';
 
   return (
-    <Section first>
-      <SectionHead
-        eyebrow={featured ? 'Next up' : heroResult?.eyebrow ?? 'Latest result'}
-        title={featured ? 'This week' : heroResult?.isChampion ? 'The champions' : 'Last time out'}
-        intro={
-          featured
-            ? 'The next match on the schedule, and the top fighter on either side of it.'
-            : 'The most recent result, and the fighter leading the league in net points.'
-        }
-        more={{ label: 'Full schedule', href: '/schedule' }}
-      />
-      <div className="hm-week">
-        <Link href={href} className="hm-card hm-match">
-          <div className="hm-match__teams">
-            {[team1, team2].map((t, i) => (
-              <div key={t} className="hm-match__team" style={{ order: i === 0 ? 0 : 2 }}>
-                {getTeamLogoPathByName(t) && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={getTeamLogoPathByName(t)} alt="" />
-                )}
-                <div className="hm-match__name">{getFullTeamName(teamSlug(t))}</div>
-                {teamRecords.get(t) && <div className="hm-label">{teamRecords.get(t)}</div>}
-              </div>
-            ))}
-            <div className="hm-match__mid" style={{ order: 1 }}>
-              {!featured && winScore && loseScore ? (
-                <span className="hm-num hm-match__score">
-                  {winScore}–{loseScore}
-                </span>
-              ) : (
-                'vs'
-              )}
+    <section className="hm-hero">
+      <div className="hm-hero__copy">
+        <div className="tbl-eyebrow">Team Boxing League · 2026 Season</div>
+        <h1 className="tbl-display hm-hero__title">
+          Every round. Every fighter. <em>Every team.</em>
+        </h1>
+        <p className="hm-hero__intro">
+          Independent stats, standings and results for Team Boxing League.
+        </p>
+      </div>
+
+      {team1 && team2 && (
+        <div className="hm-card-row">
+          <Link href={href} className="hm-poster">
+            <div className="hm-poster__eyebrow">
+              {featured
+                ? `Next Event · ${featured.date}${featured.time ? ' · ' + featured.time : ''}`
+                : heroResult?.eyebrow}
             </div>
-          </div>
-          <div className="hm-match__meta">
-            {featured
-              ? [featured.date, featured.time, featured.venueName, featured.venueCity]
-                  .filter(Boolean)
-                  .join(' · ')
-              : heroResult?.isChampion
-              ? 'MegaBrawl IV · Final'
-              : 'Final'}
-          </div>
-          {alsoThisWeek.length > 0 && (
-            <div className="hm-also">
-              <div className="hm-label">Also this week</div>
-              {alsoThisWeek.slice(0, 3).map((m) => (
-                <div key={`${m.date}-${m.team1}-${m.team2}`} className="hm-also__row">
-                  <span>{m.date}</span>
-                  <span>
-                    {m.team1} vs {m.team2}
-                  </span>
-                  <span>{m.time}</span>
+            <div className="hm-poster__teams">
+              {[team1, team2].map((t, i) => (
+                <div key={t} className="hm-poster__team" style={{ order: i === 0 ? 0 : 2 }}>
+                  {getTeamLogoPathByName(t) && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={getTeamLogoPathByName(t)} alt="" />
+                  )}
+                  <div className="tbl-display hm-poster__name">
+                    <span className="full">{getCityName(t)}</span>
+                    <span className="abbr">{shortAbbr(t)}</span>
+                  </div>
+                  {teamRecords.get(t) && <div className="hm-poster__rec">{teamRecords.get(t)}</div>}
                 </div>
               ))}
+              <div className="tbl-display hm-poster__mid" style={{ order: 1 }}>
+                {!featured && winScore && loseScore ? (
+                  <span className="hm-poster__score">
+                    {winScore}–{loseScore}
+                  </span>
+                ) : (
+                  'vs'
+                )}
+              </div>
+            </div>
+            <div className="hm-poster__meta">
+              {featured
+                ? [featured.venueName, featured.venueCity].filter(Boolean).join(' · ') || 'Upcoming'
+                : heroResult?.isChampion
+                ? `${heroResult.winnerName} · Champions`
+                : 'Final'}
+            </div>
+            {alsoThisWeek.length > 0 && (
+              <div className="hm-poster__also">
+                <div className="hm-poster__eyebrow">Also this week</div>
+                {alsoThisWeek.slice(0, 3).map((m) => (
+                  <div key={`${m.date}-${m.team1}-${m.team2}`} className="hm-poster__also-row">
+                    <span>{m.date}</span>
+                    <span>
+                      {m.team1} <em>vs</em> {m.team2}
+                    </span>
+                    <span>{m.time}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Link>
+
+          {focus && (
+            <div className="hm-focus">
+              <div className="hm-focus__top">
+                <div>
+                  <div className="tbl-eyebrow">Fighter in Focus</div>
+                  <Link href={`/fighters/${focus.slug}`} className="tbl-display hm-focus__name">
+                    {firstName(focus.name)}
+                    <br />
+                    {lastName(focus.name)}
+                  </Link>
+                  <div className="hm-label">
+                    {getFullTeamName(teamSlug(focus.team))} · {focus.weightClass}
+                  </div>
+                </div>
+                <div className="hm-focus__net">
+                  <div className="tbl-display">{signed(focus.netPts)}</div>
+                  <div className="hm-label">Net Pts</div>
+                </div>
+              </div>
+              <div className="hm-stats">
+                {[
+                  { l: 'Rec', v: focus.record },
+                  { l: 'WAR', v: focus.war.toFixed(2) },
+                  { l: 'NPPR', v: focus.nppr.toFixed(2) },
+                  { l: 'Win%', v: `${(focus.winPct * 100).toFixed(0)}` },
+                  { l: 'Rnds', v: String(focus.rounds) },
+                ].map((s) => (
+                  <div key={s.l}>
+                    <div className="hm-label">{s.l}</div>
+                    <div className="tbl-display">{s.v}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
-        </Link>
-
-        {focus && (
-          <div className="hm-card hm-focus">
-            <div className="hm-focus__top">
-              <div>
-                <div className="hm-eyebrow">Fighter in focus</div>
-                <Link href={`/fighters/${focus.slug}`} className="hm-focus__name">
-                  {focus.name}
-                </Link>
-                <div className="hm-focus__meta">
-                  {getFullTeamName(teamSlug(focus.team))} · {focus.weightClass}
-                </div>
-              </div>
-              <div className="hm-focus__net">
-                <div className="hm-num">{signed(focus.netPts)}</div>
-                <div className="hm-label">Net pts</div>
-              </div>
-            </div>
-            <div className="hm-stats">
-              {[
-                { l: 'Rec', v: focus.record },
-                { l: 'WAR', v: focus.war.toFixed(2) },
-                { l: 'NPPR', v: focus.nppr.toFixed(2) },
-                { l: 'Win%', v: `${(focus.winPct * 100).toFixed(0)}` },
-                { l: 'Rnds', v: String(focus.rounds) },
-              ].map((s) => (
-                <div key={s.l}>
-                  <div className="hm-label">{s.l}</div>
-                  <div className="hm-num">{s.v}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </Section>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -771,10 +711,7 @@ export default async function HomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <Hero featured={featured} heroResult={heroResult} />
-      {/* Room for the screenshot hanging out of the hero. */}
-      <div className="hm-overhang" aria-hidden="true" />
-      <ThisWeek
+      <Hero
         featured={featured}
         focus={focus}
         alsoThisWeek={alsoThisWeek}

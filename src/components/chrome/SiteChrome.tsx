@@ -9,7 +9,6 @@ import { TopStrip } from './TopStrip';
 import { TopNav } from './TopNav';
 import { MobileTabBar } from './MobileTabBar';
 import { GazetteFooter } from './GazetteFooter';
-import { HomeHeader } from './HomeHeader';
 
 function hideChromeFor(pathname: string | null): boolean {
   if (!pathname) return false;
@@ -20,14 +19,11 @@ function hideChromeFor(pathname: string | null): boolean {
 export function SiteChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const hide = hideChromeFor(pathname);
-  // The home page swaps the masthead for a floating header over its dark hero.
-  const isHome = pathname === '/';
   return (
     <>
-      {isHome && <HomeHeader />}
-      {!hide && !isHome && <TopStrip />}
-      {!hide && !isHome && <TopNav />}
-      <main className={isHome ? 'is-full-bleed' : undefined}>{children}</main>
+      {!hide && <TopStrip />}
+      {!hide && <TopNav />}
+      <main>{children}</main>
       {!hide && <GazetteFooter />}
       {!hide && <MobileTabBar />}
     </>
