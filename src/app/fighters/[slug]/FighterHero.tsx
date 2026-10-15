@@ -2,9 +2,8 @@
 // src/app/fighters/[slug]/FighterHero.tsx
 // Fighter profile: a compact identity hero (name + team meta on the left, form
 // strip + record on the right) over the stat sheet — four headline numbers,
-// then the remaining stats as compact group cards — a box-score row (Overview,
-// Scoring, Finishing) over a model-derived row (Schedule, Advanced) — with the
-// definitions collapsed behind one line. The name stays fixed; every stat rescopes with the View toggle, which
+// then the remaining stats as five compact columns, on a board trimmed in the
+// fighter's team colour — with the definitions collapsed behind one line. The name stays fixed; every stat rescopes with the View toggle, which
 // only appears once the fighter has playoff bouts. The exception is the
 // Schedule group, which is always full-season and says so on its heading.
 
@@ -12,7 +11,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { StatTile } from '@/components/ui';
 import type { FighterStat } from '@/types';
-import { getTeamLogoPathByName, getFullTeamName } from '@/lib/teams';
+import { getTeamLogoPathByName, getFullTeamName, getTeamColorByName } from '@/lib/teams';
 
 type Phase = 'regular' | 'playoffs' | 'all';
 
@@ -64,7 +63,8 @@ const labelStyle: React.CSSProperties = {
   whiteSpace: 'nowrap',
 };
 
-// One of the four headline numbers: label above, big value below, left aligned.
+// One of the four headline numbers: big value on top, label beneath — the
+// board reads number-first, like a broadcast lower third.
 function Head({ cell, rank }: { cell: StatCell; rank?: number }) {
   return (
     <div className="gz-sheet-head">
@@ -72,6 +72,7 @@ function Head({ cell, rank }: { cell: StatCell; rank?: number }) {
         label={cell.l}
         size="xl"
         orientation="stacked"
+        valueFirst
         align="left"
         color={cell.color}
         value={
@@ -85,10 +86,9 @@ function Head({ cell, rank }: { cell: StatCell; rank?: number }) {
   );
 }
 
-// A group card: a heading rule, then its stats as a row of compact stacked
-// tiles (label over value). Tiles sit side by side rather than as full-width
-// label …… value rows, which is what used to leave the sheet mostly whitespace.
-// The note rides on the heading rather than on every label.
+// A group column on the scoreboard: an accent heading, then tight label-value
+// rows. No rules between rows — the board gets its structure from the team
+// colour band and the column gutters, not from boxes.
 function Group({ title, note, cells }: { title: string; note?: string; cells: StatCell[] }) {
   return (
     <div className="gz-sheet-grp">
@@ -96,24 +96,11 @@ function Group({ title, note, cells }: { title: string; note?: string; cells: St
         {title}
         {note && <span className="gz-sheet-grp__note"> · {note}</span>}
       </div>
-      <div
-        className="gz-sheet-grp__tiles"
-        style={{ '--gz-tiles': cells.length } as React.CSSProperties}
-      >
-        {cells.map((c) => (
-          <div key={c.l} className="gz-sheet-grp__tile">
-            <StatTile
-              label={c.l}
-              value={c.v}
-              pre={c.pre}
-              hint={c.hint}
-              color={c.color}
-              orientation="stacked"
-              align="left"
-            />
-          </div>
-        ))}
-      </div>
+      {cells.map((c) => (
+        <div key={c.l} className="gz-sheet-grp__row">
+          <StatTile label={c.l} value={c.v} pre={c.pre} hint={c.hint} color={c.color} />
+        </div>
+      ))}
     </div>
   );
 }
@@ -177,6 +164,7 @@ export function FighterHero({
   const teamSlug = teamSlugOf(active.team);
   const fullTeamName = getFullTeamName(teamSlug);
   const teamLogo = getTeamLogoPathByName(active.team);
+  const teamColor = getTeamColorByName(active.team);
   const isWStreak = streak.startsWith('W');
   const instagram = active.instagram ?? season.instagram;
   const activeWpa = wpa ? wpa[phase] : null;
@@ -186,7 +174,7 @@ export function FighterHero({
   // that ignored the toggle beside four that obey it reads as a bug.
   const heads: StatCell[] = [
     { l: 'Win %', v: `${(active.winPct * 100).toFixed(0)}%` },
-    { l: 'Net Points', v: signed(active.netPts), color: 'var(--tbl-accent)' },
+    { l: 'Net Points', v: signed(active.netPts), color: 'var(--gz-team-text)' },
     { l: 'Net Pts / Round', v: active.nppr.toFixed(2) },
     { l: 'WAR', v: active.war.toFixed(2) },
   ];
@@ -427,12 +415,15 @@ export function FighterHero({
         </div>
       </div>
 
-      {/* Stat sheet: four headline numbers, then the rest as group cards —
-          box-score stats in the first row, model-derived stats in the second. The
+      {/* Stat sheet: a team-coloured board — four headline numbers, then the rest
+          as five group columns (box score left, model-derived right). The
           explainer sits outside the grids rather than spanning one, which is
           what used to hold the auto-fit tracks open and collide the cells. */}
       <div style={{ padding: '0 32px 24px' }}>
-        <div style={{ border: `1.5px solid var(--tbl-ink)`, background: 'var(--tbl-paper)' }}>
+        <div
+          className="gz-board"
+          style={teamColor ? ({ '--gz-team': teamColor } as React.CSSProperties) : undefined}
+        >
           <div className="gz-sheet-heads">
             {heads.map((c) => (
               <Head
@@ -444,15 +435,11 @@ export function FighterHero({
           </div>
 
           <div className="gz-sheet-groups">
-            <div className="gz-sheet-row gz-sheet-row--box">
-              <Group title="Overview" cells={overview} />
-              <Group title="Scoring" cells={scoring} />
-              <Group title="Finishing" cells={finishing} />
-            </div>
-            <div className="gz-sheet-row gz-sheet-row--model">
-              <Group title="Schedule" note="full season" cells={adjusted} />
-              <Group title="Advanced" cells={advanced} />
-            </div>
+            <Group title="Overview" cells={overview} />
+            <Group title="Scoring" cells={scoring} />
+            <Group title="Finishing" cells={finishing} />
+            <Group title="Schedule" note="full season" cells={adjusted} />
+            <Group title="Advanced" cells={advanced} />
           </div>
 
           <details className="gz-sheet-exp">

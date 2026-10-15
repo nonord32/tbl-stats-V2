@@ -1357,22 +1357,34 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Fighter stat sheet — four headline numbers over a two-column grouped list.
-   Nothing here spans a track list: the explainer is a sibling of the grids,
-   not an item inside one, which is what previously held auto-fit tracks open
-   and ran the Schedule values into the next label.
+   Fighter stat sheet — a team-coloured board: four headline numbers over five
+   group columns. The explainer is a sibling of the grids, not an item inside
+   one, which is what previously held auto-fit tracks open and collided
+   the cells.
    =========================================================================== */
+/* The board is trimmed in the fighter's team colour (--gz-team, set inline;
+   falls back to the site accent). Text uses a darkened mix so light team
+   colours (Nashville gold, Vegas sand) stay readable on cream. */
+.gz-board {
+  --gz-team: var(--tbl-accent);
+  --gz-team-text: color-mix(in srgb, var(--gz-team) 58%, #14110b);
+  --gz-board-rule: rgba(20,17,11,0.14);
+  background: var(--tbl-paper);
+  border: 1px solid rgba(20,17,11,0.22);
+  border-top: 5px solid var(--gz-team);
+}
+
 .gz-sheet-heads {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  border-bottom: 1px solid rgba(20,17,11,0.18);
+  padding: 22px 8px 18px;
 }
 .gz-sheet-head {
-  padding: 15px 16px 14px;
-  border-left: 1px solid rgba(20,17,11,0.18);
+  padding: 0 20px;
   min-width: 0;
 }
-.gz-sheet-head:first-child { border-left: none; }
+.gz-sheet-head + .gz-sheet-head { border-left: 1px solid var(--gz-board-rule); }
+.gz-sheet-head .tbl-display { font-size: 46px !important; }
 .gz-sheet-head__rank {
   font-family: var(--tbl-font-mono);
   font-size: 11px;
@@ -1380,56 +1392,48 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
   color: var(--tbl-ink-mute);
   letter-spacing: 0.1em;
   margin-left: 7px;
-  vertical-align: 5px;
+  vertical-align: 8px;
 }
 
-/* Group cards: box-score row (Overview 2 · Scoring 4 · Finishing 3 tiles, so
-   the tracks are weighted by tile count and every tile gets the same width),
-   then the model row (Schedule · Advanced, three tiles each). */
-.gz-sheet-row { display: grid; }
-.gz-sheet-row + .gz-sheet-row { border-top: 1px solid rgba(20,17,11,0.18); }
-.gz-sheet-row--box { grid-template-columns: 2fr 4fr 3fr; }
-.gz-sheet-row--model { grid-template-columns: 1fr 1fr; }
-.gz-sheet-grp { padding: 14px 16px 16px; min-width: 0; }
-.gz-sheet-grp + .gz-sheet-grp { border-left: 1px solid rgba(20,17,11,0.18); }
+/* Five group columns: box score (narrower) then model-derived (wider). */
+.gz-sheet-groups {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1.35fr 1.35fr;
+  gap: 0 28px;
+  margin: 0 28px;
+  padding: 18px 0 20px;
+  border-top: 1px solid var(--gz-board-rule);
+}
+.gz-sheet-grp { min-width: 0; }
 .gz-sheet-grp__head {
-  border-bottom: 1.5px solid var(--tbl-ink);
-  padding-bottom: 5px;
   font-family: var(--tbl-font-mono);
   font-size: 10px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
   font-weight: 700;
+  color: var(--gz-team-text);
+  margin-bottom: 6px;
 }
 .gz-sheet-grp__note {
   color: var(--tbl-ink-mute);
   font-weight: 400;
   letter-spacing: 0.12em;
 }
-.gz-sheet-grp__tiles {
-  display: grid;
-  grid-template-columns: repeat(var(--gz-tiles, 3), minmax(0, 1fr));
-  gap: 12px 16px;
-  margin-top: 12px;
-}
-.gz-sheet-grp__tile { min-width: 0; }
-.gz-sheet-grp__tile + .gz-sheet-grp__tile {
-  border-left: 1px dotted rgba(20,17,11,0.3);
-  padding-left: 14px;
-}
+.gz-sheet-grp__row { padding: 5px 0; }
+.gz-sheet-grp__row .tbl-display { font-size: 19px !important; }
 
-.gz-sheet-exp { border-top: 1px solid rgba(20,17,11,0.18); }
+.gz-sheet-exp { border-top: 1px solid var(--gz-board-rule); }
 .gz-sheet-exp__head {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 11px 28px;
   cursor: pointer;
   font-family: var(--tbl-font-mono);
   font-size: 11px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--tbl-accent);
+  color: var(--gz-team-text);
   font-weight: 700;
   list-style: none;
 }
@@ -1437,7 +1441,7 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
 .gz-sheet-exp__head::before { content: "+"; font-size: 14px; line-height: 1; width: 11px; }
 .gz-sheet-exp[open] .gz-sheet-exp__head::before { content: "\2212"; }
 .gz-sheet-exp__body {
-  padding: 0 16px 15px;
+  padding: 0 28px 16px;
   font-family: var(--tbl-font-mono);
   font-size: 11px;
   line-height: 1.75;
@@ -1447,43 +1451,26 @@ main { max-width: 1360px; margin: 0 auto; width: 100%; }
 .gz-sheet-exp__body p { margin: 0 0 11px; }
 .gz-sheet-exp__body p:last-child { margin-bottom: 0; }
 .gz-sheet-exp__body b { color: var(--tbl-ink); font-weight: 600; }
-.gz-sheet-exp__body a { color: var(--tbl-accent); text-decoration: none; font-weight: 600; }
+.gz-sheet-exp__body a { color: var(--gz-team-text); text-decoration: none; font-weight: 600; }
 
-/* Phone: tiles go two-up, the two columns stack. Every stat is kept. */
-@media (max-width: 820px) {
-  .gz-sheet-heads { grid-template-columns: 1fr 1fr; }
-  .gz-sheet-head { border-top: 1px solid rgba(20,17,11,0.18); }
-  .gz-sheet-head:nth-child(1),
-  .gz-sheet-head:nth-child(2) { border-top: none; }
-  .gz-sheet-head:nth-child(odd) { border-left: none; }
-}
-
-/* Tablet: each group card takes a full row; its tiles stay side by side. */
+/* Tablet: box score three-up, model groups two-up beneath. */
 @media (max-width: 1100px) {
-  .gz-sheet-row--model { grid-template-columns: 1fr; }
-  .gz-sheet-row--model .gz-sheet-grp + .gz-sheet-grp { border-left: none; border-top: 1px solid rgba(20,17,11,0.18); }
-  /* Overview (2) and Finishing (3) share a row; Scoring (4) takes the next. */
-  .gz-sheet-row--box { grid-template-columns: 2fr 3fr; }
-  .gz-sheet-row--box .gz-sheet-grp:nth-child(2) {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    border-left: none;
-    border-top: 1px solid rgba(20,17,11,0.18);
-  }
-}
-@media (max-width: 820px) {
-  .gz-sheet-row--box { grid-template-columns: 1fr; }
-  .gz-sheet-row--box .gz-sheet-grp:nth-child(2) { grid-row: auto; }
-  .gz-sheet-row--box .gz-sheet-grp + .gz-sheet-grp { border-left: none; border-top: 1px solid rgba(20,17,11,0.18); }
+  .gz-sheet-groups { grid-template-columns: repeat(6, 1fr); gap: 16px 28px; }
+  .gz-sheet-grp { grid-column: span 2; }
+  .gz-sheet-grp:nth-child(n+4) { grid-column: span 3; }
 }
 
-/* Phone: tiles inside a card go two-up so labels never truncate. */
-@media (max-width: 560px) {
-  .gz-sheet-grp__tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .gz-sheet-grp__tile:nth-child(odd) { border-left: none; padding-left: 0; }
-  /* Long labels ("Strength of Schedule", "Stakes Faced usage") wrap rather
-     than run into the neighbouring tile. */
-  .gz-sheet-grp__tile > div > span:first-child { white-space: normal !important; }
+/* Phone: headline numbers two-up, groups stack. */
+@media (max-width: 820px) {
+  .gz-sheet-heads { grid-template-columns: 1fr 1fr; row-gap: 18px; padding: 18px 0 16px; }
+  .gz-sheet-head:nth-child(odd) { border-left: none; }
+  .gz-sheet-head .tbl-display { font-size: 38px !important; }
+}
+@media (max-width: 640px) {
+  .gz-sheet-groups { grid-template-columns: 1fr; margin: 0 18px; }
+  .gz-sheet-grp, .gz-sheet-grp:nth-child(n+4) { grid-column: auto; }
+  .gz-sheet-exp__head { padding: 11px 18px; }
+  .gz-sheet-exp__body { padding: 0 18px 16px; }
 }
 
 /* Let the identity block (form strip + record) drop below the name. */
