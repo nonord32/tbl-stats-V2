@@ -1,0 +1,581 @@
+# TBL Stats Public API (v1)
+
+A free, public, **read-only** JSON API for live Team Boxing League stats, built
+for the official website (teamboxingleague.com on Shopify).
+
+**Base URL:** `https://tblstats.com/api/v1`
+
+| Endpoint | What it returns |
+|---|---|
+| [`GET /standings`](#get-standings) | Every team with W-L-D record, ordered by rank |
+| [`GET /leaders`](#get-leaders) | Top fighters in each main stat category |
+| [`GET /results/latest`](#get-resultslatest) | Every match from the most recent fight date, round by round |
+| [`GET /teams/{slug}`](#get-teamsslug) | One team, its standing, and its roster with each fighter's record |
+| [`GET /fighters/{id}`](#get-fightersid) | One fighter's profile and full fight history |
+
+The numbers come from the same Google Sheet and the same calculations as
+tblstats.com, so the API always agrees with the stats site.
+
+---
+
+## Conventions
+
+### Season phase: `?phase=`
+
+Every endpoint accepts an optional `phase` query parameter:
+
+| Value | Meaning |
+|---|---|
+| `regular` | Regular season only. **Default** for every endpoint except `/results/latest`. |
+| `playoffs` | Playoff games only |
+| `all` | Regular season and playoffs combined. **Default for `/results/latest`**, so "latest" stays the real latest event during the playoffs. |
+
+Example: `https://tblstats.com/api/v1/standings?phase=playoffs`
+
+### Team slugs
+
+Team slugs match the Shopify page handles exactly:
+
+| Team | Slug |
+|---|---|
+| Los Angeles Elite | `la-elite` |
+| Las Vegas Hustle | `las-vegas-hustle-1` |
+| Phoenix Fury | `phoenix-fury` |
+| Dallas Enforcers | `dallas-enforcers` |
+| Houston Hitmen | `houston-hitmen` |
+| San Antonio Snipers | `san-antonio-snipers` |
+| Boston Butchers | `boston-butchers` |
+| Philadelphia Smoke | `philly-smoke` |
+| NYC Attitude | `nyc-attitude-1` |
+| Atlanta Attack | `atlanta-attack` |
+| Miami Assassins | `miami-assassins` |
+| Nashville Smash | `nashville-smash-1` |
+
+The mapping lives in `SHOPIFY_TEAM_HANDLES` in `src/lib/api/v1.ts`. If a Shopify
+handle ever changes, update it there.
+
+### Fighter IDs
+
+Fighters are identified by the stable **Fighter ID** from the **Data** tab of
+the league Google Sheet: the column headed exactly `Fighter ID` (planned for
+column B). IDs never change when a fighter's name is corrected.
+
+Until that column is filled in, each fighter gets a **temporary** ID based on
+their name, marked `"id_is_stable": false`. Temporary IDs stop working once a
+fighter has a real ID. **Only save or link to IDs where `id_is_stable` is
+`true`.**
+
+Every fighter object carries the ID:
+
+```json
+{ "id": "TBL019", "id_is_stable": true, "name": "Jordan Reyes" }
+```
+
+### Response envelope
+
+Successful responses look like this:
+
+```json
+{
+  "data": { "...": "the endpoint's payload" },
+  "meta": {
+    "phase": "regular",
+    "sheet_last_updated": "Nov 2, 2026",
+    "generated_at": "2026-11-08T05:02:58.575Z"
+  }
+}
+```
+
+### Errors
+
+Errors always come back as JSON with a matching HTTP status code. They never
+come back as an HTML page.
+
+```json
+{ "error": { "status": 404, "code": "team_not_found", "message": "No team with slug \"dalas\". Valid slugs: la-elite, ..." } }
+```
+
+| Status | `code` | When |
+|---|---|---|
+| 400 | `invalid_phase`, `invalid_limit`, `invalid_min_rounds`, `invalid_category` | A query parameter has a bad value |
+| 404 | `team_not_found` | Unknown team slug |
+| 404 | `fighter_not_found` | Unknown fighter ID |
+| 404 | `no_results` | `/results/latest`: no completed matches in that phase yet |
+| 500 | `internal_error` | Unexpected server error |
+| 503 | `data_unavailable` | The Google Sheet couldn't be reached. Retry in a minute. |
+
+### Caching
+
+Successful responses send
+`Cache-Control: public, max-age=60, s-maxage=300, stale-while-revalidate=600`:
+
+- browsers reuse a response for 1 minute
+- Vercel's CDN serves it for 5 minutes
+- after that, the CDN refreshes it in the background
+
+The Google Sheet itself is read at most every couple of minutes, no matter how
+much traffic the API gets. **A change in the sheet can take up to about 5–7
+minutes to show up in the API.**
+
+### CORS (which websites can call the API)
+
+Browsers may call the API from these sites:
+
+- `https://teamboxingleague.com` and `https://www.teamboxingleague.com`
+- any `https://*.myshopify.com` store or theme preview
+- `http://127.0.0.1:9292` (local theme development with `shopify theme dev`)
+
+Other websites' browser requests are blocked. Server-to-server requests (curl,
+scripts) work from anywhere because the data is public.
+
+---
+
+## `GET /standings`
+
+Every team, ordered by rank. Ranking uses the same tiebreakers as
+tblstats.com/teams:
+
+1. record
+2. head-to-head sweep
+3. point differential
+4. head-to-head point differential
+5. points for
+
+Teams that haven't played yet in the chosen phase are listed last at 0-0-0.
+
+`record` is `W-L-D`. Wins and losses match tblstats.com. Draws are counted from
+match results (a match with tied total points).
+
+**Example:** `GET /api/v1/standings`
+
+```json
+{
+  "data": [
+    {
+      "rank": 1,
+      "team": {
+        "slug": "la-elite",
+        "name": "Los Angeles Elite",
+        "city": "Los Angeles",
+        "color": "#552583",
+        "logo_url": "https://tblstats.com/logos/los-angeles.png"
+      },
+      "wins": 2,
+      "losses": 0,
+      "draws": 1,
+      "record": "2-0-1",
+      "matches_played": 3,
+      "points_for": 68,
+      "points_against": 61,
+      "point_diff": 7,
+      "streak": "W2"
+    },
+    {
+      "rank": 2,
+      "team": {
+        "slug": "las-vegas-hustle-1",
+        "name": "Las Vegas Hustle",
+        "city": "Las Vegas",
+        "color": "#b4975a",
+        "logo_url": "https://tblstats.com/logos/las-vegas.png"
+      },
+      "wins": 2,
+      "losses": 1,
+      "draws": 0,
+      "record": "2-1-0",
+      "matches_played": 3,
+      "points_for": 60,
+      "points_against": 56,
+      "point_diff": 4,
+      "streak": "L1"
+    }
+  ],
+  "meta": { "phase": "regular", "sheet_last_updated": "Nov 2, 2026", "generated_at": "2026-11-08T05:02:58.575Z" }
+}
+```
+
+*(Only 2 of the 12 teams are shown here.)*
+
+---
+
+## `GET /leaders`
+
+The top fighters in each category, in this order:
+
+| `key` | Label | Best is | Qualifier? |
+|---|---|---|---|
+| `net_points` | Net Points | highest | – |
+| `points_scored` | Points Scored | highest | – |
+| `points_allowed_per_round` | Fewest Points Allowed per Round | lowest | yes |
+| `war` | WAR | highest | – |
+| `wins` | Wins | highest | – |
+| `win_pct` | Win % | highest | yes |
+| `nppr` | Net Points per Round | highest | yes |
+| `ko_tko` | KO / TKO | highest | – |
+| `knockdowns` | Knockdowns | highest | – |
+
+**Qualifier:** per-round and percentage stats only include fighters with at
+least `min_rounds` rounds. That stops a fighter who went 1-0 from leading the
+league. By default the cutoff is half the league-average number of rounds
+(minimum 1), and it is reported in each category as `min_rounds`.
+
+Tied fighters share a rank (1, 2, 2, 4).
+
+**Query parameters**
+
+| Param | Default | Notes |
+|---|---|---|
+| `phase` | `regular` | See [Season phase](#season-phase-phase) |
+| `limit` | `10` | Fighters per category, 1–50 |
+| `category` | all | Return only one category, e.g. `?category=net_points` |
+| `min_rounds` | auto | Override the qualifier, e.g. `?min_rounds=5` |
+
+**Example:** `GET /api/v1/leaders?limit=2&category=net_points`
+
+```json
+{
+  "data": [
+    {
+      "key": "net_points",
+      "label": "Net Points",
+      "order": "highest_first",
+      "min_rounds": null,
+      "leaders": [
+        {
+          "rank": 1,
+          "value": 6,
+          "fighter": {
+            "id": "TBL016",
+            "id_is_stable": true,
+            "name": "Marcus Hale",
+            "team": {
+              "slug": "la-elite",
+              "name": "Los Angeles Elite",
+              "city": "Los Angeles",
+              "color": "#552583",
+              "logo_url": "https://tblstats.com/logos/los-angeles.png"
+            },
+            "weight_class": "Lightweight",
+            "gender": "Male",
+            "profile_url": "https://tblstats.com/fighters/marcus-hale"
+          },
+          "record": "3-0-0",
+          "rounds": 3
+        },
+        {
+          "rank": 2,
+          "value": 5,
+          "fighter": {
+            "id": "TBL001",
+            "id_is_stable": true,
+            "name": "Dre Collins",
+            "team": {
+              "slug": "atlanta-attack",
+              "name": "Atlanta Attack",
+              "city": "Atlanta",
+              "color": "#c8102e",
+              "logo_url": "https://tblstats.com/logos/atlanta.png"
+            },
+            "weight_class": "Lightweight",
+            "gender": "Male",
+            "profile_url": "https://tblstats.com/fighters/dre-collins"
+          },
+          "record": "3-0-0",
+          "rounds": 3
+        }
+      ]
+    }
+  ],
+  "meta": { "phase": "regular", "sheet_last_updated": "Nov 2, 2026", "generated_at": "2026-11-08T05:02:58.575Z", "limit": 2 }
+}
+```
+
+---
+
+## `GET /results/latest`
+
+Every team-vs-team match from the **most recent fight date**. A fight night can
+have several matches. Each match includes its rounds in order, with both
+fighters' scores.
+
+- `team1` / `team2` are the two teams. Each has a `score` (total points) and
+  `rounds_won`.
+- `winner` is `"team1"`, `"team2"` or `"draw"`. This applies to the whole match
+  and to each round.
+- `round_phase` is the bout label from the sheet (e.g. Launch, Middle, Money).
+  `season_phase` is `regular` or `playoffs`.
+- `week` and `venue` come from the Schedule tab. They are `null` when not listed.
+
+Default `phase` is `all`. Use `?phase=regular` for the latest regular-season
+event only.
+
+**Example:** `GET /api/v1/results/latest`
+
+```json
+{
+  "data": {
+    "date": "2026-11-01",
+    "matches": [
+      {
+        "match_id": 19,
+        "date": "2026-11-01",
+        "week": null,
+        "season_phase": "playoffs",
+        "venue": { "name": "Main Arena", "city": "Dallas" },
+        "stats_url": "https://tblstats.com/matches/19",
+        "team1": {
+          "slug": "miami-assassins",
+          "name": "Miami Assassins",
+          "city": "Miami",
+          "color": "#98002e",
+          "logo_url": "https://tblstats.com/logos/miami.png",
+          "score": 26,
+          "rounds_won": 2
+        },
+        "team2": {
+          "slug": "dallas-enforcers",
+          "name": "Dallas Enforcers",
+          "city": "Dallas",
+          "color": "#003594",
+          "logo_url": "https://tblstats.com/logos/dallas.png",
+          "score": 22,
+          "rounds_won": 1
+        },
+        "winner": "team1",
+        "rounds": [
+          {
+            "round": 1,
+            "round_id": 55,
+            "round_phase": "Launch",
+            "weight_class": "Lightweight",
+            "method": "KO / TKO",
+            "team1_fighter": { "id": "TBL019", "id_is_stable": true, "name": "Jordan Reyes", "score": 7 },
+            "team2_fighter": { "id": "TBL007", "id_is_stable": true, "name": "Cole Barnes", "score": 4 },
+            "winner": "team1"
+          },
+          {
+            "round": 2,
+            "round_id": 56,
+            "round_phase": "Middle",
+            "weight_class": "Welterweight",
+            "method": "Decision",
+            "team1_fighter": { "id": "TBL020", "id_is_stable": true, "name": "Luis Ortega", "score": 8 },
+            "team2_fighter": { "id": "TBL008", "id_is_stable": true, "name": "Ty Morgan", "score": 10 },
+            "winner": "team2"
+          },
+          {
+            "round": 3,
+            "round_id": 57,
+            "round_phase": "Money",
+            "weight_class": "Middleweight",
+            "method": "KO / TKO",
+            "team1_fighter": { "id": "TBL021", "id_is_stable": true, "name": "Andre Price", "score": 11 },
+            "team2_fighter": { "id": "TBL009", "id_is_stable": true, "name": "Sam Whitfield", "score": 8 },
+            "winner": "team1"
+          }
+        ]
+      }
+    ]
+  },
+  "meta": { "phase": "all", "sheet_last_updated": "Nov 2, 2026", "generated_at": "2026-11-08T05:02:58.575Z" }
+}
+```
+
+---
+
+## `GET /teams/{slug}`
+
+One team: its details, its current standing, and its roster. Each roster entry
+includes the fighter's stats for the chosen phase. The roster is sorted by net
+points, highest first. Unknown slugs return **404 `team_not_found`**.
+
+**Example:** `GET /api/v1/teams/la-elite`
+
+```json
+{
+  "data": {
+    "slug": "la-elite",
+    "name": "Los Angeles Elite",
+    "city": "Los Angeles",
+    "color": "#552583",
+    "logo_url": "https://tblstats.com/logos/los-angeles.png",
+    "stats_url": "https://tblstats.com/teams/los-angeles",
+    "standing": {
+      "rank": 1,
+      "team": { "slug": "la-elite", "name": "Los Angeles Elite", "city": "Los Angeles", "color": "#552583", "logo_url": "https://tblstats.com/logos/los-angeles.png" },
+      "wins": 2,
+      "losses": 0,
+      "draws": 1,
+      "record": "2-0-1",
+      "matches_played": 3,
+      "points_for": 68,
+      "points_against": 61,
+      "point_diff": 7,
+      "streak": "W2"
+    },
+    "roster": [
+      {
+        "id": "TBL016",
+        "id_is_stable": true,
+        "name": "Marcus Hale",
+        "team": { "slug": "la-elite", "name": "Los Angeles Elite", "city": "Los Angeles", "color": "#552583", "logo_url": "https://tblstats.com/logos/los-angeles.png" },
+        "weight_class": "Lightweight",
+        "gender": "Male",
+        "profile_url": "https://tblstats.com/fighters/marcus-hale",
+        "stats": {
+          "wins": 3,
+          "losses": 0,
+          "draws": 0,
+          "record": "3-0-0",
+          "rounds": 3,
+          "win_pct": 1,
+          "net_points": 6,
+          "nppr": 2,
+          "points_scored": 23,
+          "points_allowed": 17,
+          "points_allowed_per_round": 5.667,
+          "war": 0.393,
+          "ko_tko": 2,
+          "knockdowns": 0,
+          "double_knockdowns": 0
+        }
+      }
+    ]
+  },
+  "meta": { "phase": "regular", "sheet_last_updated": "Nov 2, 2026", "generated_at": "2026-11-08T05:03:29.087Z" }
+}
+```
+
+*(Roster shortened to one fighter.)*
+
+### The `stats` object
+
+The same `stats` object appears on team rosters and fighter profiles. Each
+"round" is one bout.
+
+| Field | Meaning |
+|---|---|
+| `wins`, `losses`, `draws`, `record` | Bout results (`W-L-D`). Disqualified bouts are excluded, as on tblstats.com. |
+| `rounds` | Bouts fought |
+| `win_pct` | Wins ÷ (wins + losses), from 0 to 1 |
+| `net_points` | Points scored minus points allowed |
+| `nppr` | Net points per round |
+| `points_scored`, `points_allowed` | Totals |
+| `points_allowed_per_round` | Points allowed ÷ rounds |
+| `war` | Wins Above Replacement |
+| `ko_tko`, `knockdowns`, `double_knockdowns` | Finishes in bouts won |
+
+---
+
+## `GET /fighters/{id}`
+
+One fighter's profile, stats for the chosen phase, and every bout in that
+phase, newest first. `{id}` is the fighter's ID (see [Fighter IDs](#fighter-ids)).
+Matching ignores upper/lower case. Unknown IDs return
+**404 `fighter_not_found`**.
+
+If the fighter has no bouts in the chosen phase, `stats` is all zeros and
+`fights` is empty. The fighter's profile still comes back.
+
+**Example:** `GET /api/v1/fighters/TBL019?phase=all`
+
+```json
+{
+  "data": {
+    "id": "TBL019",
+    "id_is_stable": true,
+    "name": "Jordan Reyes",
+    "team": { "slug": "miami-assassins", "name": "Miami Assassins", "city": "Miami", "color": "#98002e", "logo_url": "https://tblstats.com/logos/miami.png" },
+    "weight_class": "Lightweight",
+    "gender": "Male",
+    "profile_url": "https://tblstats.com/fighters/jordan-reyes",
+    "weight_classes": ["Lightweight"],
+    "instagram": "https://www.instagram.com/jordanreyes/",
+    "streak": "W1",
+    "stats": {
+      "wins": 2,
+      "losses": 1,
+      "draws": 1,
+      "record": "2-1-1",
+      "rounds": 4,
+      "win_pct": 0.667,
+      "net_points": 4,
+      "nppr": 1,
+      "points_scored": 25,
+      "points_allowed": 21,
+      "points_allowed_per_round": 5.25,
+      "war": 0.25,
+      "ko_tko": 1,
+      "knockdowns": 1,
+      "double_knockdowns": 0
+    },
+    "fights": [
+      {
+        "date": "2026-11-01",
+        "match_id": 19,
+        "round_id": 55,
+        "round": 1,
+        "round_phase": "Launch",
+        "season_phase": "playoffs",
+        "week": null,
+        "weight_class": "Lightweight",
+        "opponent": {
+          "id": "TBL007",
+          "id_is_stable": true,
+          "name": "Cole Barnes",
+          "team": { "slug": "dallas-enforcers", "name": "Dallas Enforcers", "city": "Dallas", "color": "#003594", "logo_url": "https://tblstats.com/logos/dallas.png" }
+        },
+        "result": "W",
+        "method": "KO / TKO",
+        "points_scored": 7,
+        "points_allowed": 4,
+        "net_points": 3,
+        "match_url": "https://tblstats.com/matches/19"
+      }
+    ]
+  },
+  "meta": { "phase": "all", "sheet_last_updated": "Nov 2, 2026", "generated_at": "2026-11-08T05:03:00.000Z" }
+}
+```
+
+*(Fight list shortened to one bout.)*
+
+---
+
+## Using it from the Shopify theme
+
+A minimal example for a section or snippet (`.liquid`) that shows standings:
+
+```html
+<div id="tbl-standings">Loading standings…</div>
+<script>
+  fetch('https://tblstats.com/api/v1/standings')
+    .then((r) => r.json())
+    .then(({ data, error }) => {
+      const el = document.getElementById('tbl-standings');
+      if (error) { el.textContent = 'Standings are unavailable right now.'; return; }
+      el.innerHTML = data.map((row) =>
+        `<div>${row.rank}. <a href="/pages/${row.team.slug}">${row.team.name}</a> ${row.record}</div>`
+      ).join('');
+    })
+    .catch(() => {
+      document.getElementById('tbl-standings').textContent = 'Standings are unavailable right now.';
+    });
+</script>
+```
+
+On a team page, `{{ page.handle }}` is already the team slug:
+
+```js
+fetch('https://tblstats.com/api/v1/teams/{{ page.handle }}')
+```
+
+---
+
+## For maintainers
+
+- Routes: `src/app/api/v1/**/route.ts`
+- JSON shapes: `src/lib/api/v1.ts`
+- CORS, caching and errors: `src/lib/api/http.ts`
+- This API is versioned. Adding new fields is safe. Renaming or removing fields
+  would break the website, so do that in a new `/api/v2` instead.
