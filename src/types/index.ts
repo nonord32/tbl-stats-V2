@@ -167,6 +167,9 @@ export interface ParsedSheetData {
   teams: TeamStanding[];
   teamMatches: Record<string, TeamMatch[]>;
   fighterHistory: Record<string, FightHistory[]>;
+  // Stable fighter ID (Data tab "Fighter ID" column) keyed by fighter slug.
+  // Empty until that column is populated. Used by the public /api/v1 API.
+  fighterIds: Record<string, string>;
   schedule: ScheduleEntry[];
   highlights: HighlightEntry[];
   awards: AwardEntry[];

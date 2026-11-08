@@ -289,6 +289,7 @@ function parseMatchData(rows: string[][]): {
   teamMatches: Record<string, TeamMatch[]>;
   fighterHistory: Record<string, FightHistory[]>;
   fighterIdentity: Record<string, FighterIdentity>;
+  fighterIds: Record<string, string>;
 } {
   // Scan for the header row — the sheet may have a title/notes row before headers.
   const headerRowIndex = Math.max(0, findHeaderRow(rows, [
@@ -326,6 +327,19 @@ function parseMatchData(rows: string[][]): {
   // column mislabeled as "Fighter Name" (duplicate of column A), so
   // pick(r, 'Team') returns nothing. Detect by content instead.
   const detectedTeamKey = detectTeamColumn(objects);
+
+  // Stable fighter IDs, keyed by name slug. Read from a "Fighter ID" column on
+  // the Data tab (planned for column B) — matched by header, never by position.
+  // Used only by the public /api/v1 endpoints; empty until the column exists.
+  const fighterIds: Record<string, string> = {};
+  objects.forEach((row) => {
+    const name = pick(row, 'Fighter Name', 'FighterName', 'Fighter').trim();
+    const id = pick(row, 'Fighter ID').trim();
+    if (!name || !id) return;
+    if (name.toUpperCase() === 'N/A' || id.toUpperCase() === 'N/A') return;
+    const slug = toSlug(name);
+    if (!fighterIds[slug]) fighterIds[slug] = id;
+  });
   const teamOf = (r: Record<string, string>) => {
     const direct = pick(r, 'Team', "Fighter's Team", 'Fighter Team').trim();
     if (direct) return direct;
@@ -565,7 +579,7 @@ function parseMatchData(rows: string[][]): {
     fighterIdentity[slug].playoffTeam = mostFrequent(t.playoffs);
   });
 
-  return { teamMatches, fighterHistory, fighterIdentity };
+  return { teamMatches, fighterHistory, fighterIdentity, fighterIds };
 }
 
 // ─── Streak Calculators ────────────────────────────────────────────────────────
@@ -811,11 +825,13 @@ export const getAllData = cache(async (): Promise<ParsedSheetData> => {
   let teamMatches: Record<string, TeamMatch[]> = {};
   let fighterHistory: Record<string, FightHistory[]> = {};
   let fighterIdentity: Record<string, FighterIdentity> = {};
+  let fighterIds: Record<string, string> = {};
   try {
     const parsed = parseMatchData(matchRawRows);
     teamMatches = parsed.teamMatches;
     fighterHistory = parsed.fighterHistory;
     fighterIdentity = parsed.fighterIdentity;
+    fighterIds = parsed.fighterIds;
   } catch (err) {
     console.error('[getAllData] parseMatchData threw:', err);
   }
@@ -887,6 +903,7 @@ export const getAllData = cache(async (): Promise<ParsedSheetData> => {
     teams,
     teamMatches,
     fighterHistory,
+    fighterIds,
     schedule,
     highlights,
     awards,
