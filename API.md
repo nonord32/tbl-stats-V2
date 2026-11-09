@@ -3,13 +3,18 @@
 A free, public, **read-only** JSON API for live Team Boxing League stats, built
 for the official website (teamboxingleague.com on Shopify).
 
-**Base URL:** `https://tblstats.com/api/v1`
+**Base URL:** `https://www.tblstats.com/api/v1`
+
+> Call the `www` address directly from browsers. `tblstats.com` redirects to
+> `www.tblstats.com`, and that redirect doesn't carry CORS headers, so a
+> browser request to the bare domain is blocked.
 
 | Endpoint | What it returns |
 |---|---|
 | [`GET /standings`](#get-standings) | Every team with W-L-D record, ordered by rank |
 | [`GET /leaders`](#get-leaders) | Top fighters in each main stat category |
 | [`GET /results/latest`](#get-resultslatest) | Every match from the most recent fight date, round by round |
+| [`GET /schedule`](#get-schedule) | The season schedule: upcoming fights and completed results with final scores |
 | [`GET /teams/{slug}`](#get-teamsslug) | One team, its standing, and its roster with each fighter's record |
 | [`GET /fighters/{id}`](#get-fightersid) | One fighter's profile and full fight history |
 
@@ -151,7 +156,7 @@ come back as an HTML page.
 
 | Status | `code` | When |
 |---|---|---|
-| 400 | `invalid_phase`, `invalid_limit`, `invalid_min_rounds`, `invalid_category` | A query parameter has a bad value |
+| 400 | `invalid_phase`, `invalid_limit`, `invalid_min_rounds`, `invalid_category`, `invalid_status` | A query parameter has a bad value |
 | 400 | `phase_not_available` | `phase` is `playoffs` or `all`, which aren't offered yet |
 | 404 | `team_not_found` | Unknown team slug |
 | 404 | `fighter_not_found` | Unknown fighter ID |
@@ -178,6 +183,7 @@ Browsers may call the API from these sites:
 
 - `https://teamboxingleague.com` and `https://www.teamboxingleague.com`
 - any `https://*.myshopify.com` store or theme preview
+- any `https://*.shopifypreview.com` shareable theme preview link
 - `http://127.0.0.1:9292` (local theme development with `shopify theme dev`)
 
 Other websites' browser requests are blocked. Server-to-server requests (curl,
@@ -442,6 +448,74 @@ added, this endpoint's default will be revisited.
   "meta": { "phase": "regular", "sheet_last_updated": "2026-11-09T17:46:31.000Z", "sheet_last_updated_source": "data_fetched", "generated_at": "2026-11-08T05:02:58.575Z" }
 }
 ```
+
+---
+
+## `GET /schedule`
+
+The season schedule from the **Schedule** tab, joined to final scores by
+Match ID. One entry per scheduled match, ordered by date.
+
+- `status` is `upcoming`, `completed` or `cancelled`. An entry is `completed`
+  as soon as its match has results on the Data tab.
+- `team1` / `team2` are team objects, or `null` while a team is TBD.
+- Completed entries use the match's own team order, so `result` lines up with
+  `/results/latest`. `result` and `stats_url` are `null` until the match is played.
+- `date` is `YYYY-MM-DD`. `time` is the sheet's text (for example `7:00PM`, the
+  venue's local time) or `null`.
+- `data.next` is the first upcoming entry (or `null`), handy for a "next
+  fight night" banner.
+- With the default `phase=regular`, completed playoff matches are left out.
+  Upcoming entries are always listed, because the sheet doesn't say which
+  phase a future match belongs to.
+
+**Query parameters**
+
+| Param | Default | Notes |
+|---|---|---|
+| `phase` | `regular` | See [Season phase](#season-phase-phase) |
+| `status` | `all` | `all`, `upcoming` or `completed`. Anything else is `400 invalid_status` |
+| `team` | none | A team slug. Only that team's matches. Unknown slugs are `404 team_not_found` |
+
+**Example:** `GET /api/v1/schedule?team=phoenix-fury`
+
+```json
+{
+  "data": {
+    "next": {
+      "match_id": null,
+      "week": 22,
+      "date": "2027-03-14",
+      "time": "7:00PM",
+      "status": "upcoming",
+      "season_phase": null,
+      "venue": { "name": "We-Ko-Pa Casino Resort", "city": "Fort McDowell, AZ" },
+      "team1": { "slug": "phoenix-fury", "name": "Phoenix Fury", "short_name": "Phoenix Fury", "city": "Phoenix", "color": "#e56020", "logo_url": "https://tblstats.com/logos/phoenix.png" },
+      "team2": null,
+      "result": null,
+      "stats_url": null
+    },
+    "entries": [
+      {
+        "match_id": 6,
+        "week": 2,
+        "date": "2026-03-29",
+        "time": "7:00PM",
+        "status": "completed",
+        "season_phase": "regular",
+        "venue": { "name": "Roadrunner Boston", "city": "Boston, MA" },
+        "team1": { "slug": "phoenix-fury", "name": "Phoenix Fury", "short_name": "Phoenix Fury", "city": "Phoenix", "color": "#e56020", "logo_url": "https://tblstats.com/logos/phoenix.png" },
+        "team2": { "slug": "boston-butchers", "name": "Boston Butchers", "short_name": "Boston Butchers", "city": "Boston", "color": "#ba0c2f", "logo_url": "https://tblstats.com/logos/boston.png" },
+        "result": { "team1_score": 24, "team2_score": 21, "team1_rounds_won": 13, "team2_rounds_won": 11, "winner": "team1" },
+        "stats_url": "https://tblstats.com/matches/6"
+      }
+    ]
+  },
+  "meta": { "phase": "regular", "status": "all", "team": "phoenix-fury", "sheet_last_updated": "2026-11-02T18:00:00.000Z", "sheet_last_updated_source": "sheet_modified", "generated_at": "2026-11-09T19:00:00.000Z" }
+}
+```
+
+*(Entries shortened to one match. Values are illustrative.)*
 
 ---
 

@@ -8,6 +8,7 @@ import { NextResponse } from 'next/server';
 // Allowed browser origins:
 //   • https://teamboxingleague.com (and www.)
 //   • https://<anything>.myshopify.com  (Shopify storefront / theme previews)
+//   • https://<anything>.shopifypreview.com (Shopify's shareable theme preview links)
 //   • http://127.0.0.1:9292             (Shopify CLI `shopify theme dev`)
 const EXACT_ORIGINS = new Set([
   'https://teamboxingleague.com',
@@ -23,7 +24,7 @@ export function isAllowedOrigin(origin: string | null): boolean {
     return (
       url.protocol === 'https:' &&
       url.port === '' &&
-      url.hostname.endsWith('.myshopify.com')
+      (url.hostname.endsWith('.myshopify.com') || url.hostname.endsWith('.shopifypreview.com'))
     );
   } catch {
     return false;
