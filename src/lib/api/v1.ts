@@ -29,6 +29,8 @@ import {
   getTeamSlugByName,
 } from '@/lib/teams';
 import { getFighterWeightClassesOrdered } from '@/lib/fighters';
+import type { MatchWpa } from '@/lib/wpa/core';
+import { computeMatchComeback, comebackDrivers } from '@/lib/wpa/comebacks';
 
 const SITE = 'https://tblstats.com';
 
@@ -493,6 +495,72 @@ export function buildSchedule(
   return {
     data: { next, entries },
     meta: { ...meta(data, phase), status: opts.status, team: opts.team },
+  };
+}
+
+// ─── /matches/{id} ─────────────────────────────────────────────────────────────
+// One match with everything tblstats.com's match page shows: the box score
+// (same shape as /results/latest), each round's win probability, the comeback
+// story when there is one, the playoff round name and highlight links.
+const round4 = (n: number) => Math.round(n * 10000) / 10000;
+
+export function buildMatch(
+  data: ParsedSheetData,
+  matchIndex: number,
+  extras: { wpa: MatchWpa | null; playoffRound: string | null },
+) {
+  const m = extractUniqueMatches(data.teamMatches).find((x) => x.matchIndex === matchIndex);
+  if (!m) return null;
+  const base = matchJson(data, m);
+  const wpa = extras.wpa;
+  const wpaByRound = new Map((wpa?.rounds ?? []).map((r) => [r.roundId ?? -r.round, r] as const));
+  const peakRound = wpa && wpa.rounds.length > 0 ? wpa.rounds.reduce((best, r) => (r.li > best.li ? r : best)).round : null;
+
+  const rounds = base.rounds.map((r) => {
+    const w = wpaByRound.get(r.round_id ?? -r.round);
+    return {
+      ...r,
+      // Team 1's win probability after the round, and the swing it caused
+      // (team 1 perspective, -1..1). null when the round is excluded (e.g. DQ).
+      team1_win_prob_after: w && !w.isDq ? round4(w.wpAfter) : null,
+      team1_wpa: w && !w.isDq ? round4(w.teamWpa) : null,
+      leverage: w && !w.isDq ? round3(w.li) : null,
+      is_peak_leverage: w ? w.round === peakRound : false,
+    };
+  });
+
+  const cb = wpa ? computeMatchComeback(wpa) : null;
+  const comeback =
+    cb && cb.isComeback && wpa
+      ? {
+          winner: cb.winnerTeam === m.team1 ? 'team1' : 'team2',
+          lowest_win_prob: round4(cb.comebackLow),
+          low_round: cb.lowRound,
+          deficit_at_low: round3(cb.deficitAtLow),
+          final_margin: round3(cb.finalMargin),
+          key_rounds: comebackDrivers(wpa, cb.lowRound, 3).map((d) => ({
+            round: d.round,
+            fighter: fighterRef(data, d.fighter),
+            opponent: fighterRef(data, d.opponent),
+            wpa: round4(d.wpa),
+            method: d.method || null,
+          })),
+        }
+      : null;
+
+  const highlights = data.highlights
+    .filter((h) => h.page === String(matchIndex))
+    .map((h) => ({ label: h.label || null, url: h.url, type: h.type || null }));
+
+  return {
+    data: {
+      ...base,
+      rounds,
+      playoff_round: extras.playoffRound ?? null,
+      comeback,
+      highlights,
+    },
+    meta: meta(data, 'all'),
   };
 }
 

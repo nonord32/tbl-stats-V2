@@ -14,6 +14,7 @@ for the official website (teamboxingleague.com on Shopify).
 | [`GET /standings`](#get-standings) | Every team with W-L-D record, ordered by rank |
 | [`GET /leaders`](#get-leaders) | Top fighters in each main stat category |
 | [`GET /results/latest`](#get-resultslatest) | Every match from the most recent fight date, round by round |
+| [`GET /matches/{id}`](#get-matchesid) | One match: box score, round by round, win probability, comeback, highlights |
 | [`GET /schedule`](#get-schedule) | The season schedule: upcoming fights and completed results with final scores |
 | [`GET /teams/{slug}`](#get-teamsslug) | One team, its standing, and its roster with each fighter's record |
 | [`GET /fighters/{id}`](#get-fightersid) | One fighter's profile and full fight history |
@@ -171,6 +172,7 @@ come back as an HTML page.
 | 400 | `invalid_phase`, `invalid_limit`, `invalid_min_rounds`, `invalid_category`, `invalid_status` | A query parameter has a bad value |
 | 400 | `phase_not_available` | `phase` is `playoffs` or `all`, which aren't offered yet |
 | 404 | `team_not_found` | Unknown team slug |
+| 404 | `match_not_found` | Unknown match ID |
 | 404 | `fighter_not_found` | Unknown fighter ID |
 | 404 | `no_results` | `/results/latest`: no completed regular-season matches yet |
 | 500 | `internal_error` | Unexpected server error |
@@ -460,6 +462,54 @@ added, this endpoint's default will be revisited.
   "meta": { "phase": "regular", "sheet_last_updated": "2026-11-09T17:46:31.000Z", "sheet_last_updated_source": "data_fetched", "generated_at": "2026-11-08T05:02:58.575Z" }
 }
 ```
+
+---
+
+## `GET /matches/{id}`
+
+Everything tblstats.com's match page shows, for one match. `{id}` is the
+**Match ID** (`match_id` in `/results/latest`, `/schedule` and fighter fight
+histories). Unknown IDs return **404 `match_not_found`**.
+
+The match fields are the same as one entry of [`/results/latest`](#get-resultslatest),
+plus:
+
+| Field | Meaning |
+|---|---|
+| `rounds[].team1_win_prob_after` | Team 1's chance of winning the match after this round (0–1) |
+| `rounds[].team1_wpa` | How much this round changed that chance (team 1's view; negative = it helped team 2) |
+| `rounds[].leverage` | How much the round mattered going in (1 = average, higher = bigger moment) |
+| `rounds[].is_peak_leverage` | `true` for the single biggest-moment round |
+| `playoff_round` | `Quarterfinals`, `Semifinals` or `MegaBrawl` for playoff matches, else `null` |
+| `comeback` | `null`, or the comeback story: `winner`, `lowest_win_prob`, `low_round`, `deficit_at_low`, `final_margin` and the three `key_rounds` (fighter, opponent, `wpa`, `method`) |
+| `highlights` | Highlight links for this match (`label`, `url`, `type` such as `youtube` or `instagram`) |
+
+Win-probability values are `null` for rounds left out of the model (for
+example a disqualification).
+
+**Example:** `GET /api/v1/matches/19` (shortened)
+
+```json
+{
+  "data": {
+    "match_id": 19,
+    "date": "2026-08-30",
+    "season_phase": "playoffs",
+    "playoff_round": "MegaBrawl",
+    "team1": { "slug": "miami-assassins", "name": "Miami Assassins", "score": 26, "rounds_won": 13 },
+    "team2": { "slug": "philly-smoke", "name": "Philadelphia Smoke", "score": 22, "rounds_won": 11 },
+    "winner": "team1",
+    "rounds": [
+      { "round": 1, "round_phase": "Launch", "winner": "team2", "team1_win_prob_after": 0.418, "team1_wpa": -0.082, "leverage": 1.319, "is_peak_leverage": false }
+    ],
+    "comeback": { "winner": "team1", "lowest_win_prob": 0.12, "low_round": 12, "deficit_at_low": -5, "final_margin": 4, "key_rounds": [] },
+    "highlights": []
+  },
+  "meta": { "phase": "all", "sheet_last_updated": "2026-11-09T19:50:53.000Z", "generated_at": "2026-11-09T21:00:00.000Z" }
+}
+```
+
+*(Values are illustrative.)*
 
 ---
 
