@@ -72,8 +72,11 @@ export { computeSeasonRatings, correlation } from './core';
 // from — so DQ rounds are already excluded and the SOS denominators match the
 // published NPPR exactly. React cache() dedupes within a request; the
 // underlying CSVs are ISR-cached in getAllData.
-export const getRatingsData = cache(async (): Promise<SeasonRatings> => {
-  const data = await getAllData();
+//
+// Takes an optional season id (default: the current season). Every season uses
+// the frozen 2026 model until a refit adds its own versioned file.
+export const getRatingsData = cache(async (season?: string | null): Promise<SeasonRatings> => {
+  const data = await getAllData(season);
 
   // Scope 'all' — data.fighters — is the full-season aggregate, whose netPts
   // and rounds are the NPPR numerator and denominator readers see on the site.

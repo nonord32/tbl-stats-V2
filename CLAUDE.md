@@ -126,6 +126,7 @@ Both are versioned per season via `*-2026.json` model files, so past figures sta
   - Team slugs are the Shopify page handles (`SHOPIFY_TEAM_HANDLES`), not site slugs.
   - Team objects carry `short_name`, TBL's official display names (`OFFICIAL_SHORT_NAMES`). `name` is kept for compatibility.
   - Every endpoint takes `?season=` (`resolveSeason`) and echoes `meta.season`; `/leaders` also takes `season=career`. `/seasons` lists them. `/fighters/{id}` returns `seasons[]` + `career`, and without `?season=` falls back to the fighter's most recent season (`findFighterSeason`).
+  - `/fighters`, `/playoffs`, `/awards` (all seasons, merged), `/advanced` and the team extras (`teamExtras`) reuse the site's libs. Playoff round names come from `playoffRoundNames(data)` (the final is `megaBrawlName(season)`); `getRatingsData(season?)` / `getComebackData(season?)` take a season.
   - The API is regular season only. `?phase=` is validated against `AVAILABLE_PHASES`, which is currently `['regular']`. The builders already support playoffs/all, so enabling them is a one-line change plus an API.md update.
   - `meta.sheet_last_updated` comes from `ParsedSheetData.dataUpdated`: Google's Last-Modified header when present, else the Data-tab CSV's `Date` header, which Next's fetch cache preserves. The site's own `lastUpdated` is separate.
   - `/fighters/{id}` accepts the stable Fighter ID **or** the fighter's name slug, even after a stable ID exists, so links the website saved never break (`findFighterSlug`).

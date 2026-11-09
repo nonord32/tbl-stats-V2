@@ -112,3 +112,21 @@ export function getFighterWeightClassesOrdered(
     .map(([wc]) => wc);
 }
 
+
+/**
+ * Classes that run separate men's and women's divisions. A woman whose primary
+ * class is one of these is in "Female <class>"; everyone else is in their class.
+ * Same rule as the /fighters weight filter.
+ */
+export const FEMALE_DIVISION_CLASSES: ReadonlySet<string> = new Set([
+  'Bantamweight',
+  'Featherweight',
+  'Super Lightweight',
+]);
+
+export function divisionOf(primaryClass: string, gender: string): string {
+  if (!primaryClass) return '';
+  return gender === 'Female' && FEMALE_DIVISION_CLASSES.has(primaryClass)
+    ? `Female ${primaryClass}`
+    : primaryClass;
+}

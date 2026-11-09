@@ -68,10 +68,13 @@ interface GameOutcome {
 // "Semifinals", "MegaBrawl"), derived from a built bracket. Only games that have
 // actually been played carry a matchIndex, so only those are labeled — a
 // not-yet-played round can't be identified from results alone.
-export function playoffRoundLabelsByMatch(bracket: Bracket): Map<number, string> {
+export function playoffRoundLabelsByMatch(
+  bracket: Bracket,
+  labels: Record<Round, string> = ROUND_LABELS,
+): Map<number, string> {
   const out = new Map<number, string>();
   for (const slot of [...bracket.qf, ...bracket.sf, bracket.final]) {
-    if (slot.matchIndex != null) out.set(slot.matchIndex, ROUND_LABELS[slot.round]);
+    if (slot.matchIndex != null) out.set(slot.matchIndex, labels[slot.round]);
   }
   return out;
 }

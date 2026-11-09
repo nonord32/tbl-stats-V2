@@ -72,8 +72,9 @@ export const getWpaData = cache(async (season?: string | null): Promise<SeasonWp
 
 // Comebacks & blown leads for the season, derived from the same stored win
 // probabilities. Request-cached like getWpaData.
-export const getComebackData = cache(async (): Promise<SeasonComebacks> => {
-  const season = await getWpaData();
+// Optional season id, like getWpaData.
+export const getComebackData = cache(async (seasonId?: string | null): Promise<SeasonComebacks> => {
+  const season = await getWpaData(seasonId);
   return computeSeasonComebacks(season, getTeamSlugByName);
 });
 

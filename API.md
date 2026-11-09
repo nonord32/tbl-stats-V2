@@ -16,9 +16,13 @@ for the official website (teamboxingleague.com on Shopify).
 | [`GET /results/latest`](#get-resultslatest) | Every match from the most recent fight date, round by round |
 | [`GET /matches/{id}`](#get-matchesid) | One match: box score, round by round, win probability, comeback, highlights |
 | [`GET /schedule`](#get-schedule) | The season schedule: upcoming fights and completed results with final scores |
-| [`GET /teams/{slug}`](#get-teamsslug) | One team, its standing, and its roster with each fighter's record |
+| [`GET /teams/{slug}`](#get-teamsslug) | One team: standing, roster, match log, next match, comeback totals, highlights |
 | [`GET /fighters/{id}`](#get-fightersid) | One fighter's profile, fight history, a stat line per season, and career totals |
 | [`GET /seasons`](#get-seasons) | Every league season, newest first, and which one is current |
+| [`GET /fighters`](#get-fighters) | Every fighter in a season with stats, division and Instagram (for a directory) |
+| [`GET /playoffs`](#get-playoffs) | The playoff bracket: seeds, every round, champion, or the live projection |
+| [`GET /awards`](#get-awards) | Every season's awards and champions, grouped by award |
+| [`GET /advanced`](#get-advanced) | Win probability added, leverage, clutch, opponent-adjusted ratings, comebacks |
 
 The numbers come from the same Google Sheet and the same calculations as
 tblstats.com, so the API always agrees with the stats site.
@@ -553,6 +557,9 @@ Match ID. One entry per scheduled match, ordered by date.
 - `status` is `upcoming`, `completed` or `cancelled`. An entry is `completed`
   as soon as its match has results on the Data tab.
 - `team1` / `team2` are team objects, or `null` while a team is TBD.
+- `playoff_round` is the round name for played playoff matches
+  ("Quarterfinals", "Semifinals", or the final's name, e.g. "MegaBrawl IV"),
+  otherwise `null`.
 - Completed entries use the match's own team order, so `result` lines up with
   `/results/latest`. `result` and `stats_url` are `null` until the match is played.
 - `date` is `YYYY-MM-DD`. Played matches use the match date. For unplayed
@@ -620,6 +627,15 @@ Match ID. One entry per scheduled match, ordered by date.
 One team: its details, its current standing, and its roster. Each roster entry
 includes the fighter's stats for the chosen phase. The roster is sorted by net
 points, highest first. Unknown slugs return **404 `team_not_found`**.
+
+It also includes:
+
+| Field | Meaning |
+|---|---|
+| `matches[]` | The team's matches in the chosen phase, newest first: `match_id`, `season`, `date`, `week`, `season_phase`, `playoff_round`, `opponent` (team object), `result` (`W`/`L`/`D`, from this team's side), `points_for`, `points_against`. |
+| `next_match` | The team's next upcoming match, in the same shape as a [`/schedule`](#get-schedule) entry, or `null`. |
+| `comebacks` | `comeback_wins`, `deepest_hole` (lowest win probability they came back from, 0–1), `blown_leads`, `highest_lead_blown`. `null` if unavailable. |
+| `highlights[]` | Highlight links for the team from the Highlights tab: `label`, `url`, `type` (`youtube`, `instagram`…). |
 
 **Example:** `GET /api/v1/teams/la-elite`
 
@@ -830,6 +846,101 @@ Every league season, newest first. Use it to build a season picker.
 | `is_current` | The season every endpoint uses when `season` is left off. |
 | `complete` | The season is over; its numbers no longer change. |
 | `has_data` | Its sheet loaded and has teams or matches. `false` for a brand-new empty sheet or one that can't be reached right now. |
+
+---
+
+## `GET /fighters`
+
+Every fighter who fought in the season (and phase), with their stats. Built
+for a fighters directory: the website sorts, searches and filters it. Sorted by
+net points, highest first.
+
+Each entry has the same fields as a fighter in [`/leaders`](#get-leaders)
+(`id`, `name`, `team`, `weight_class`, `gender`, `bio`, `photo_url`…) plus:
+
+| Field | Meaning |
+|---|---|
+| `primary_weight_class` | The class they fought in most (ties: the most recent). |
+| `division` | `primary_weight_class`, or "Female …" for women in classes with separate women's divisions (Bantamweight, Featherweight, Super Lightweight). Same rule as tblstats.com's weight filter. |
+| `instagram` | Instagram URL or `null`. |
+| `streak` | Current streak, e.g. `"W3"`, or `null`. |
+| `stats` | A [`stats` object](#the-stats-object) plus `ko_pct` (KO/TKO wins ÷ wins). |
+
+`meta.count` is the number of fighters. `meta.filters` lists the values to
+offer in filters: `teams` (team objects), `divisions` (light to heavy) and
+`genders`.
+
+---
+
+## `GET /playoffs`
+
+The playoff bracket: the top 8 of the regular-season table, seeded 1–8
+(quarterfinals 1v8, 4v5, 3v6, 2v7), the same bracket tblstats.com shows.
+Takes `?season=`.
+
+| Field | Meaning |
+|---|---|
+| `status` | `projection` (regular season still going: "if the playoffs started today"), `set` (field locked), `underway` (a playoff match has been played) or `complete` (there is a champion). |
+| `final_name` | The final's name, e.g. `"MegaBrawl IV"` (from the season number). |
+| `seeds[]` | `seed`, `team`, `record`, `point_diff`, `streak`. |
+| `quarterfinals[]`, `semifinals[]`, `final` | Bracket slots (below). |
+| `champion` | Team object, or `null`. |
+| `on_the_bubble[]` | Seeds 9–12, while the field is still a projection. Empty once it's set. |
+| `tiebreaks[]` | Head-to-head tiebreaks between teams with the same record: `team`, `seed`, `won_tiebreak_over` (team objects). |
+
+A **slot** is `{ round, label, status, team1, team2, score, winner, match_id, season }`:
+
+- `round` is `quarterfinal`, `semifinal` or `final`. `label` is its display name.
+- `status`:
+  - `played`
+  - `pending` (both teams known, not played yet)
+  - `tbd` (waiting on earlier rounds)
+- `team1` / `team2` are `{ seed, team, record }` or `null` when TBD.
+- `score` is `{ team1, team2 }` once played.
+- `winner` is `team1`, `team2` or `null`.
+- `match_id` + `season` link to [`/matches/{id}`](#get-matchesid).
+
+---
+
+## `GET /awards`
+
+Every season's awards and champions, grouped by award in tblstats.com's
+order (MegaBrawl Champions, Most Valuable Fighter, …). All the "MegaBrawl …
+Champions" rows are one group. Covers every season, so it takes no
+`?season=`. Rows that appear in more than one season's sheet are listed once.
+
+Each group is `{ award, kind, winners[] }`. `kind` is `team` or `fighter`.
+Each winner:
+
+| Field | Meaning |
+|---|---|
+| `season` | Season id (`"2026"`) when the row's season is in [`/seasons`](#get-seasons), else `null` (older seasons). |
+| `season_label` | e.g. `"2026 · Season 4"`, or the year/number from the sheet. |
+| `season_value` | The raw Season/Year value from the Awards tab. |
+| `is_latest` | The most recent winner of this award. |
+| `winner` | As written on the sheet. |
+| `fighter` | `{ id, id_is_stable, name }` when the winner is a known fighter (links to `/fighters/{id}`), else `null`. |
+| `teams[]` | Team objects (two for awards like Fight of the Year). |
+| `notes` | Notes column, or `null`. |
+
+---
+
+## `GET /advanced`
+
+tblstats.com's advanced stats for a season. Takes `?season=` and `?phase=`,
+plus `rounds_limit` (1–200, default 50).
+
+| Field | Meaning |
+|---|---|
+| `headlines` | Picks for fan-friendly cards. Each item is `null` when there's no data: `biggest_comeback` (a `matches[]` row), `highest_stakes_round` (a `rounds[]` row), `most_clutch`, `best_adjusted` and `toughest_schedule` (`fighters[]` rows). |
+| `rounds[]` | Rounds with the most at stake (highest **leverage**), highest first: `match_id`, `season`, `date`, `playoff_round`, `round`, `rounds_to_go`, `team1`, `team2`, `team1_fighter` / `team2_fighter` (`{ id, name, score }`), `winner`, `team1_lead_before`, `leverage`, `swing` (win probability that changed hands, 0–1), `method`. |
+| `fighters[]` | Every fighter, by WPA: `fighter`, `matches`, `rounds`, `round_wins`, `wpa` (wins added through their rounds), `wpa_per_round`, `avg_leverage`, `clutch` (WPA minus what the same results would be worth at average stakes), `net_points`, `nppr`, `war`, and `rating`. |
+| `fighters[].rating` | Opponent-adjusted rating, full season only: `rounds`, `strength_of_schedule`, `adjusted_nppr`, `adjustment`, `low` / `high` (likely range), `uncertain`, `qualified`. `null` when unrated. |
+| `matches[]` | Every decided match, by how close the winner came to losing: `match_id`, `season`, `date`, `playoff_round`, `winner`, `loser`, `lowest_win_prob`, `low_round`, `deficit_at_low`, `final_margin`, `is_comeback`, `note`. |
+
+`meta` adds `wpa_model_version`, `ratings_model_version`, `min_rounds` (the
+qualifier for `most_clutch` and ratings), `comeback_threshold`,
+`comeback_count`, `decided_matches` and `rounds_limit`.
 
 ---
 
