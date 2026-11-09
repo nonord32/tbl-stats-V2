@@ -1,14 +1,15 @@
 // GET /api/v1/teams/[slug] — one team with its roster and each fighter's record.
 // [slug] is the Shopify page handle (e.g. la-elite). Public, read-only. See API.md.
 import { getAllData } from '@/lib/data';
-import { buildTeam, isDataUnavailable, KNOWN_TEAM_SLUGS, parsePhase } from '@/lib/api/v1';
+import { buildTeam, isDataUnavailable, KNOWN_TEAM_SLUGS, resolvePhase } from '@/lib/api/v1';
 import { jsonError, jsonOk, preflight, safely } from '@/lib/api/http';
 
 export async function GET(request: Request, { params }: { params: { slug: string } }) {
   return safely(request, async () => {
     const slug = (params.slug ?? '').toLowerCase();
-    const phase = parsePhase(new URL(request.url).searchParams.get('phase'), 'regular');
-    if (!phase) return jsonError(request, 400, 'invalid_phase', 'phase must be one of: regular, playoffs, all.');
+    const phaseResult = resolvePhase(new URL(request.url).searchParams.get('phase'));
+    if (!phaseResult.ok) return jsonError(request, 400, phaseResult.code, phaseResult.message);
+    const phase = phaseResult.phase;
     if (!KNOWN_TEAM_SLUGS.includes(slug)) {
       return jsonError(request, 404, 'team_not_found', `No team with slug "${slug}". Valid slugs: ${KNOWN_TEAM_SLUGS.join(', ')}.`);
     }

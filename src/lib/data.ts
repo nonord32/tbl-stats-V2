@@ -52,6 +52,20 @@ export function toSlug(name: string): string {
 // Fetch raw CSV rows as string arrays (no automatic header parsing)
 // so we can handle sheets with title rows before the real header
 async function fetchRawCSV(url: string): Promise<string[][]> {
+  return (await fetchRawCSVWithMeta(url)).rows;
+}
+
+// Same fetch (and therefore the same cache entry) as fetchRawCSV, but also
+// returns two HTTP response headers, used only for the public API's
+// "sheet_last_updated" timestamp:
+//   • lastModified — Google's own modified time for the published tab, IF
+//     Google sends a Last-Modified header (not guaranteed for publish-to-web).
+//   • fetchedAt    — the Date header Google stamped when it served the CSV.
+//     Next's data cache stores response headers, so on a cache hit this is
+//     still the time of the real download — not the time of this request.
+async function fetchRawCSVWithMeta(
+  url: string,
+): Promise<{ rows: string[][]; lastModified: string | null; fetchedAt: string | null }> {
   // Hard timeout: a hung Google fetch must fail fast, not stall the render.
   // During `next build`, one hanging fetch can wedge EVERY static page (they
   // all funnel through the shared fetch cache) and kill the deploy; at
@@ -67,7 +81,17 @@ async function fetchRawCSV(url: string): Promise<string[][]> {
     header: false,
     skipEmptyLines: true,
   });
-  return result.data;
+  return {
+    rows: result.data,
+    lastModified: httpDateToIso(res.headers.get('last-modified')),
+    fetchedAt: httpDateToIso(res.headers.get('date')),
+  };
+}
+
+function httpDateToIso(value: string | null): string | null {
+  if (!value) return null;
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? null : d.toISOString();
 }
 
 function safeNum(val: string | undefined, fallback = 0): number {
@@ -742,7 +766,7 @@ export const getAllData = cache(async (): Promise<ParsedSheetData> => {
   // Each CSV fetch has its own fallback so one bad source (rename, network,
   // rate limit) can't take down every page that uses getAllData.
   const emptyRows: string[][] = [];
-  const [fighterRawRows, teamRawRows, matchRawRows, scheduleRawRows, highlightsRawRows, awardsRawRows] = await Promise.all([
+  const [fighterRawRows, teamRawRows, matchFetch, scheduleRawRows, highlightsRawRows, awardsRawRows] = await Promise.all([
     fetchRawCSV(SHEETS.fighters).catch((err) => {
       console.error('[getAllData] fighters CSV fetch failed:', err);
       return emptyRows;
@@ -751,9 +775,9 @@ export const getAllData = cache(async (): Promise<ParsedSheetData> => {
       console.error('[getAllData] teams CSV fetch failed:', err);
       return emptyRows;
     }),
-    fetchRawCSV(SHEETS.matches).catch((err) => {
+    fetchRawCSVWithMeta(SHEETS.matches).catch((err) => {
       console.error('[getAllData] matches CSV fetch failed:', err);
-      return emptyRows;
+      return { rows: emptyRows, lastModified: null, fetchedAt: null };
     }),
     fetchRawCSV(SHEETS.schedule).catch((err) => {
       console.error('[getAllData] schedule CSV fetch failed:', err);
@@ -768,6 +792,7 @@ export const getAllData = cache(async (): Promise<ParsedSheetData> => {
       return emptyRows;
     }),
   ]);
+  const matchRawRows = matchFetch.rows;
 
   // Wrap every parser so a single header-rename or malformed row doesn't
   // throw out of the data layer. Each returns the empty shape of its output.
@@ -835,6 +860,20 @@ export const getAllData = cache(async (): Promise<ParsedSheetData> => {
   } catch (err) {
     console.error('[getAllData] parseMatchData threw:', err);
   }
+
+  // When the stats data (the Data tab — the source of every stat) was last
+  // updated, for the public API. Only set when that tab actually parsed into
+  // at least one match, so a failed or empty fetch never claims to be fresh.
+  // Prefers Google's own modified time; otherwise falls back to when the CSV
+  // was last downloaded from Google. The site's `lastUpdated` (the sheet's
+  // hand-typed stamp) is separate and unchanged.
+  const parsedOk = Object.keys(teamMatches).length > 0;
+  const dataUpdated: ParsedSheetData['dataUpdated'] =
+    parsedOk && matchFetch.lastModified
+      ? { at: matchFetch.lastModified, source: 'sheet_modified' }
+      : parsedOk && matchFetch.fetchedAt
+      ? { at: matchFetch.fetchedAt, source: 'data_fetched' }
+      : { at: null, source: null };
 
   // ─── Derive the fighter roster + all stats (incl. WAR) from the Data tab ───
   // buildFighters recomputes wins/losses/record/net-pts/NPPR/win%/rounds from
@@ -908,6 +947,7 @@ export const getAllData = cache(async (): Promise<ParsedSheetData> => {
     highlights,
     awards,
     lastUpdated,
+    dataUpdated,
   };
 });
 
