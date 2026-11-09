@@ -14,6 +14,7 @@ import type {
   BoxScoreRound,
   MatchResult,
   ScheduleEntry,
+  FighterProfileExtras,
   HighlightEntry,
   AwardEntry,
   ParsedSheetData,
@@ -254,6 +255,29 @@ function parseFighterSocials(rows: string[][]): Map<string, string> {
     const igRaw = pick(r, 'Instagram', 'Instagram URL', 'IG', 'Instagram Handle');
     const ig = cleanInstagramUrl(igRaw);
     if (ig) out.set(toSlug(name), ig);
+  }
+  return out;
+}
+
+// ─── Fighter Profile Extras (Fighter Stats tab) ────────────────────────────────
+// Optional "Bio" and "Photo URL" columns on the Fighter Stats tab (found by
+// header name). Returns slug -> { bio, photoUrl }; fighters with neither are
+// left out. Photo links must be https.
+export function parseFighterProfiles(rows: string[][]): Record<string, FighterProfileExtras> {
+  const out: Record<string, FighterProfileExtras> = {};
+  const headerRowIndex = Math.max(0, findHeaderRow(rows, ['Fighter', 'Fighter Name']));
+  const objects = toObjects(rows, headerRowIndex);
+  for (const r of objects) {
+    const name = pick(r, 'Fighter', 'Fighter Name').trim();
+    if (!name || name === 'Fighter') continue;
+    const bio = pick(r, 'Bio', 'Biography', 'Fighter Bio').trim();
+    const photoRaw = pick(r, 'Photo URL', 'Photo', 'Headshot', 'Headshot URL', 'Image URL').trim();
+    const photoUrl = /^https:\/\/\S+$/i.test(photoRaw) ? photoRaw : '';
+    if (!bio && !photoUrl) continue;
+    out[toSlug(name)] = {
+      ...(bio ? { bio } : {}),
+      ...(photoUrl ? { photoUrl } : {}),
+    };
   }
   return out;
 }
@@ -813,6 +837,12 @@ export const getAllData = cache(async (): Promise<ParsedSheetData> => {
   } catch (err) {
     console.error('[getAllData] parseFighterSocials threw:', err);
   }
+  let fighterProfiles: Record<string, FighterProfileExtras> = {};
+  try {
+    fighterProfiles = parseFighterProfiles(fighterRawRows);
+  } catch (err) {
+    console.error('[getAllData] parseFighterProfiles threw:', err);
+  }
 
   // Admin-managed Instagram overrides from Supabase (`fighter_socials`). A row
   // here wins over the sheet value (even when cleared to empty). Defensive: a
@@ -943,6 +973,7 @@ export const getAllData = cache(async (): Promise<ParsedSheetData> => {
     teamMatches,
     fighterHistory,
     fighterIds,
+    fighterProfiles,
     schedule,
     highlights,
     awards,

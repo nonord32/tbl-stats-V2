@@ -95,9 +95,21 @@ the league Google Sheet: the column headed exactly `Fighter ID` (planned for
 column B). IDs never change when a fighter's name is corrected.
 
 Until that column is filled in, each fighter gets a **temporary** ID based on
-their name, marked `"id_is_stable": false`. Temporary IDs stop working once a
-fighter has a real ID. **Only save or link to IDs where `id_is_stable` is
-`true`.**
+their name, marked `"id_is_stable": false`. That name ID **keeps working** with
+`/fighters/{id}` even after the fighter gets a real ID, so links built from it
+don't break. Prefer the real ID when there is one: a name ID changes if the
+fighter's name is corrected on the sheet.
+
+### Fighter bio and photo
+
+Every fighter object also has `bio` and `photo_url`, both `null` unless filled
+in. They come from two optional columns on the **Fighter Stats** tab, found by
+header name:
+
+| Column header | Field | Notes |
+|---|---|---|
+| `Bio` | `bio` | Plain text |
+| `Photo URL` (or `Photo`, `Headshot`) | `photo_url` | Must start with `https://`; anything else is ignored |
 
 Every fighter object carries the ID:
 
@@ -610,8 +622,8 @@ The same `stats` object appears on team rosters and fighter profiles. Each
 
 One fighter's profile, stats for the chosen phase, and every bout in that
 phase, newest first. `{id}` is the fighter's ID (see [Fighter IDs](#fighter-ids)).
-Matching ignores upper/lower case. Unknown IDs return
-**404 `fighter_not_found`**.
+It can also be the fighter's name ID (for example `jordan-reyes`). Matching
+ignores upper/lower case. Unknown IDs return **404 `fighter_not_found`**.
 
 If the fighter has no bouts in the chosen phase, `stats` is all zeros and
 `fights` is empty. The fighter's profile still comes back.
@@ -628,6 +640,8 @@ If the fighter has no bouts in the chosen phase, `stats` is all zeros and
     "weight_class": "Lightweight",
     "gender": "Male",
     "profile_url": "https://tblstats.com/fighters/jordan-reyes",
+    "bio": null,
+    "photo_url": null,
     "weight_classes": ["Lightweight"],
     "instagram": "https://www.instagram.com/jordanreyes/",
     "streak": "W1",

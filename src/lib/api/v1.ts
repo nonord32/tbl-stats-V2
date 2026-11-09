@@ -188,6 +188,7 @@ function fightersForPhase(data: ParsedSheetData, phase: ApiPhase): FighterStat[]
 }
 
 function fighterSummary(data: ParsedSheetData, f: FighterStat) {
+  const extras = data.fighterProfiles?.[f.slug];
   return {
     ...fighterIdOf(data, f.slug),
     name: f.name,
@@ -195,6 +196,9 @@ function fighterSummary(data: ParsedSheetData, f: FighterStat) {
     weight_class: f.weightClass || null,
     gender: f.gender || null,
     profile_url: `${SITE}/fighters/${f.slug}`,
+    // Optional, from the Fighter Stats tab ("Bio", "Photo URL" columns).
+    bio: extras?.bio ?? null,
+    photo_url: extras?.photoUrl ?? null,
   };
 }
 
@@ -526,9 +530,10 @@ function findFighterSlug(data: ParsedSheetData, id: string): string | null {
   for (const [slug, fid] of Object.entries(data.fighterIds ?? {})) {
     if (fid.trim().toLowerCase() === wanted) return slug;
   }
-  // 2. Temporary ID — only for fighters who don't have a stable ID yet.
+  // 2. The fighter's name slug. This is their temporary ID until a stable ID is
+  //    added, and keeps working afterwards so links saved earlier never break.
   const f = data.fighters.find((x) => x.slug === wanted);
-  if (f && !data.fighterIds?.[f.slug]) return f.slug;
+  if (f) return f.slug;
   return null;
 }
 
