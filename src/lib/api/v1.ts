@@ -31,6 +31,16 @@ import {
 import { getFighterWeightClassesOrdered } from '@/lib/fighters';
 import type { MatchWpa } from '@/lib/wpa/core';
 import { computeMatchComeback, comebackDrivers } from '@/lib/wpa/comebacks';
+import {
+  CAREER,
+  CURRENT_SEASON_ID,
+  currentSeason,
+  getSeason,
+  normalizeSeasonId,
+  seasonsNewestFirst,
+  type SeasonDef,
+} from '@/lib/seasons';
+import { combineStatLines, groupFightersAcrossSeasons, type StatLine } from './career';
 
 const SITE = 'https://tblstats.com';
 
@@ -69,6 +79,35 @@ export function resolvePhase(raw: string | null): PhaseResult {
     message: `phase must be one of: ${AVAILABLE_PHASES.join(', ')}.`,
   };
 }
+
+// ─── Season ────────────────────────────────────────────────────────────────────
+// Every endpoint takes an optional ?season= (default: the current season) and
+// echoes it in meta.season. /leaders also accepts season=career (all seasons).
+export type SeasonResult =
+  | { ok: true; season: string } // a season id, or 'career'
+  | { ok: false; code: string; message: string };
+
+export function resolveSeason(raw: string | null, opts: { allowCareer?: boolean } = {}): SeasonResult {
+  if (raw == null || raw.trim() === '') return { ok: true, season: currentSeason().id };
+  const v = raw.trim().toLowerCase();
+  if (opts.allowCareer && v === CAREER) return { ok: true, season: CAREER };
+  const id = normalizeSeasonId(v);
+  if (id) return { ok: true, season: id };
+  const allowed = seasonsNewestFirst().map((s) => s.id);
+  if (opts.allowCareer) allowed.push(CAREER);
+  return { ok: false, code: 'invalid_season', message: `season must be one of: ${allowed.join(', ')}.` };
+}
+
+function seasonRef(def: SeasonDef | null) {
+  if (!def) return null;
+  return { id: def.id, year: def.year, number: def.number, label: def.label, is_current: def.id === CURRENT_SEASON_ID };
+}
+
+function seasonOf(data: ParsedSheetData) {
+  return seasonRef(getSeason(data.season ?? '') ?? currentSeason());
+}
+
+const CAREER_REF = { id: CAREER, year: null, number: null, label: 'Career', is_current: false };
 
 // ─── Teams ─────────────────────────────────────────────────────────────────────
 // Internal city key (see src/lib/teams.ts) → Shopify page handle. These must
@@ -216,6 +255,7 @@ function isoDate(raw: string): string | null {
 
 function meta(data: ParsedSheetData, phase: ApiPhase) {
   return {
+    season: seasonOf(data),
     phase,
     // When the stats data was last updated (ISO 8601), and which clock that is:
     //   'sheet_modified' — Google's own modified time for the Data tab;
@@ -299,13 +339,16 @@ const CATEGORIES: Category[] = [
 
 export const LEADER_CATEGORY_KEYS = CATEGORIES.map((c) => c.key);
 
-export function buildLeaders(
-  data: ParsedSheetData,
-  phase: ApiPhase,
+interface LeaderEntry {
+  name: string;
+  summary: ReturnType<typeof fighterSummary>;
+  s: StatLine;
+}
+
+function rankLeaders(
+  fighters: LeaderEntry[],
   opts: { limit: number; minRounds: number | null; category: string | null },
 ) {
-  const fighters = fightersForPhase(data, phase).map((f) => ({ f, s: fighterStats(f) }));
-
   // Default qualifier for rate stats: at least half the average rounds fought.
   const avgRounds =
     fighters.length > 0 ? fighters.reduce((n, x) => n + x.s.rounds, 0) / fighters.length : 0;
@@ -313,11 +356,11 @@ export function buildLeaders(
 
   const cats = opts.category ? CATEGORIES.filter((c) => c.key === opts.category) : CATEGORIES;
 
-  const categories = cats.map((c) => {
+  return cats.map((c) => {
     const pool = fighters.filter((x) => !c.qualified || x.s.rounds >= minRounds);
     pool.sort((a, b) => {
       const d = c.order === 'desc' ? c.value(b.s) - c.value(a.s) : c.value(a.s) - c.value(b.s);
-      return d !== 0 ? d : a.f.name.localeCompare(b.f.name);
+      return d !== 0 ? d : a.name.localeCompare(b.name);
     });
     // Standard competition ranking: ties share a rank (1, 2, 2, 4).
     let rank = 0;
@@ -329,7 +372,7 @@ export function buildLeaders(
       return {
         rank,
         value: v,
-        fighter: fighterSummary(data, x.f),
+        fighter: x.summary,
         record: x.s.record,
         rounds: x.s.rounds,
       };
@@ -342,8 +385,83 @@ export function buildLeaders(
       leaders,
     };
   });
+}
 
-  return { data: categories, meta: { ...meta(data, phase), limit: opts.limit } };
+export function buildLeaders(
+  data: ParsedSheetData,
+  phase: ApiPhase,
+  opts: { limit: number; minRounds: number | null; category: string | null },
+) {
+  const fighters = fightersForPhase(data, phase).map((f) => ({
+    name: f.name,
+    summary: fighterSummary(data, f),
+    s: fighterStats(f),
+  }));
+  return { data: rankLeaders(fighters, opts), meta: { ...meta(data, phase), limit: opts.limit } };
+}
+
+// ─── Across seasons ────────────────────────────────────────────────────────────
+export interface SeasonData {
+  season: SeasonDef;
+  data: ParsedSheetData;
+}
+
+interface SeasonFighter {
+  seasonId: string;
+  slug: string;
+  id: string | null;
+  season: SeasonDef;
+  data: ParsedSheetData;
+  f: FighterStat;
+}
+
+/** Every fighter in every season (for the given phase), grouped by person. Groups list seasons oldest first. */
+function fightersAcrossSeasons(seasons: readonly SeasonData[], phase: ApiPhase): SeasonFighter[][] {
+  const entries: SeasonFighter[] = [];
+  for (const { season, data } of seasons) {
+    for (const f of fightersForPhase(data, phase)) {
+      entries.push({ seasonId: season.id, slug: f.slug, id: data.fighterIds?.[f.slug] ?? null, season, data, f });
+    }
+  }
+  return [...groupFightersAcrossSeasons(entries).values()].map((g) =>
+    [...g].sort((a, b) => a.season.year - b.season.year),
+  );
+}
+
+/** /leaders?season=career — all-time leaders, with rates recomputed from career totals. */
+export function buildCareerLeaders(
+  seasons: readonly SeasonData[],
+  phase: ApiPhase,
+  opts: { limit: number; minRounds: number | null; category: string | null },
+) {
+  const fighters = fightersAcrossSeasons(seasons, phase).map((group) => {
+    const latest = group[group.length - 1];
+    return {
+      name: latest.f.name,
+      // Name, team and photo from their most recent season.
+      summary: fighterSummary(latest.data, latest.f),
+      s: combineStatLines(group.map((x) => fighterStats(x.f))),
+    };
+  });
+  const newest = seasons[seasons.length - 1]?.data;
+  const base = newest ? meta(newest, phase) : { phase, generated_at: new Date().toISOString() };
+  return {
+    data: rankLeaders(fighters, opts),
+    meta: { ...base, season: CAREER_REF, seasons_included: seasons.map((x) => x.season.id), limit: opts.limit },
+  };
+}
+
+// ─── /seasons ──────────────────────────────────────────────────────────────────
+export function buildSeasons(withData: readonly SeasonData[]) {
+  const has = new Set(withData.map((x) => x.season.id));
+  return {
+    data: seasonsNewestFirst().map((s) => ({
+      ...seasonRef(s)!,
+      complete: s.complete,
+      has_data: has.has(s.id),
+    })),
+    meta: { current: CURRENT_SEASON_ID, generated_at: new Date().toISOString() },
+  };
 }
 
 // ─── Matches (shared by /results/latest) ───────────────────────────────────────
@@ -353,6 +471,8 @@ function matchJson(data: ParsedSheetData, m: MatchResult) {
   const team2Wins = m.result === 'L';
   return {
     match_id: m.matchIndex,
+    // Match IDs restart each season, so links to a match should carry this too.
+    season: data.season ?? CURRENT_SEASON_ID,
     date: isoDate(m.date),
     week: sched && sched.week > 0 ? sched.week : null,
     season_phase: m.phase,
@@ -460,6 +580,7 @@ export function buildSchedule(
       const team2 = m ? teamRef(m.team2) : scheduleTeam(s.team2);
       return {
         match_id: m ? m.matchIndex : s.matchIndex,
+        season: data.season ?? CURRENT_SEASON_ID,
         week: s.week > 0 ? s.week : null,
         // Played matches: the Data tab's date (it has the year). Otherwise the schedule's.
         date: (m ? isoDate(m.date) : null) ?? scheduleIsoDate(s.date),
@@ -609,6 +730,7 @@ function fightJson(data: ParsedSheetData, h: FightHistory) {
   return {
     date: isoDate(h.date),
     match_id: h.matchIndex,
+    season: data.season ?? CURRENT_SEASON_ID,
     round_id: h.roundId,
     round: Number(h.round) || null,
     round_phase: h.roundPhase || null,
@@ -625,7 +747,20 @@ function fightJson(data: ParsedSheetData, h: FightHistory) {
   };
 }
 
-export function buildFighter(data: ParsedSheetData, id: string, phase: ApiPhase) {
+/** The season (newest first) whose sheet has this fighter, for links that don't name a season. */
+export function findFighterSeason(seasons: readonly SeasonData[], id: string): SeasonData | null {
+  const byNewest = [...seasons].sort((a, b) => b.season.year - a.season.year);
+  const current = byNewest.find((x) => x.season.id === CURRENT_SEASON_ID);
+  const order = current ? [current, ...byNewest.filter((x) => x !== current)] : byNewest;
+  return order.find((x) => findFighterSlug(x.data, id) !== null) ?? null;
+}
+
+export function buildFighter(
+  data: ParsedSheetData,
+  id: string,
+  phase: ApiPhase,
+  allSeasons: readonly SeasonData[] = [],
+) {
   const slug = findFighterSlug(data, id);
   if (!slug) return null;
   const career = data.fighters.find((f) => f.slug === slug);
@@ -642,6 +777,23 @@ export function buildFighter(data: ParsedSheetData, id: string, phase: ApiPhase)
   });
   const history = fullHistory.filter((h) => phase === 'all' || h.phase === phase);
 
+  // Season-by-season lines + career totals (like the back of a baseball card).
+  // Always includes the season being viewed, even when other sheets fail.
+  const thisSeason = getSeason(data.season ?? '') ?? currentSeason();
+  const seasonsIn = allSeasons.some((x) => x.season.id === thisSeason.id)
+    ? allSeasons
+    : [...allSeasons, { season: thisSeason, data }];
+  const group =
+    fightersAcrossSeasons(seasonsIn, phase).find((g) =>
+      g.some((x) => x.season.id === thisSeason.id && x.slug === slug),
+    ) ?? [];
+  const seasonLines = group.map((x) => ({
+    season: seasonRef(x.season),
+    team: teamRef(x.f.team),
+    weight_class: x.f.weightClass || null,
+    stats: fighterStats(x.f),
+  }));
+
   return {
     data: {
       ...fighterSummary(data, scoped ?? career),
@@ -650,6 +802,11 @@ export function buildFighter(data: ParsedSheetData, id: string, phase: ApiPhase)
       streak: calcFighterStreak(history) || null,
       stats: fighterStats(scoped),
       fights: history.map((h) => fightJson(data, h)),
+      seasons: seasonLines,
+      career: {
+        seasons_played: seasonLines.length,
+        stats: combineStatLines(seasonLines.map((l) => l.stats)),
+      },
     },
     meta: meta(data, phase),
   };
