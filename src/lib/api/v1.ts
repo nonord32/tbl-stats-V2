@@ -404,6 +404,30 @@ function scheduleTeam(name: string) {
   return teamRef(n);
 }
 
+// The Schedule tab usually writes dates without a year ("Fri, Mar 20"), which
+// JavaScript would read as 2001. Use the year when the sheet gives one;
+// otherwise pick the year that puts the date nearest to today (so a fixture
+// in March reads as next March when we're in November).
+function scheduleIsoDate(raw: string, now: Date = new Date()): string | null {
+  const text = (raw || '').trim();
+  if (!text) return null;
+  if (/\b\d{4}\b/.test(text)) return isoDate(text);
+  const parsed = new Date(`${text.replace(/^[A-Za-z]+,?\s+(?=[A-Za-z]+\s+\d)/, '')} 2000`);
+  const us = /^(\d{1,2})\/(\d{1,2})$/.exec(text);
+  const month = us ? Number(us[1]) - 1 : parsed.getMonth();
+  const day = us ? Number(us[2]) : parsed.getDate();
+  if (!us && isNaN(parsed.getTime())) return null;
+  const candidates = [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => new Date(y, month, day));
+  const best = candidates.reduce((a, b) => (Math.abs(b.getTime() - now.getTime()) < Math.abs(a.getTime() - now.getTime()) ? b : a));
+  return isoDate(best.toDateString());
+}
+
+/** "7:00 PM Local" → "7:00 PM" (times on the Schedule tab are always the venue's local time). */
+function scheduleTime(raw: string): string | null {
+  const t = (raw || '').replace(/\s*local\s*$/i, '').trim();
+  return t || null;
+}
+
 function scheduleStatus(raw: string, hasResult: boolean): 'upcoming' | 'completed' | 'cancelled' {
   const s = (raw || '').trim().toLowerCase();
   if (hasResult || s === 'completed' || s === 'final') return 'completed';
@@ -431,8 +455,9 @@ export function buildSchedule(
       return {
         match_id: m ? m.matchIndex : s.matchIndex,
         week: s.week > 0 ? s.week : null,
-        date: isoDate(s.date) ?? (m ? isoDate(m.date) : null),
-        time: s.time || null,
+        // Played matches: the Data tab's date (it has the year). Otherwise the schedule's.
+        date: (m ? isoDate(m.date) : null) ?? scheduleIsoDate(s.date),
+        time: scheduleTime(s.time),
         status,
         season_phase: m ? m.phase : null,
         venue: s.venueName || s.venueCity ? { name: s.venueName || null, city: s.venueCity || null } : null,
