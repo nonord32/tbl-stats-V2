@@ -17,7 +17,8 @@ for the official website (teamboxingleague.com on Shopify).
 | [`GET /matches/{id}`](#get-matchesid) | One match: box score, round by round, win probability, comeback, highlights |
 | [`GET /schedule`](#get-schedule) | The season schedule: upcoming fights and completed results with final scores |
 | [`GET /teams/{slug}`](#get-teamsslug) | One team, its standing, and its roster with each fighter's record |
-| [`GET /fighters/{id}`](#get-fightersid) | One fighter's profile and full fight history |
+| [`GET /fighters/{id}`](#get-fightersid) | One fighter's profile, fight history, a stat line per season, and career totals |
+| [`GET /seasons`](#get-seasons) | Every league season, newest first, and which one is current |
 
 The numbers come from the same Google Sheet and the same calculations as
 tblstats.com, so the API always agrees with the stats site.
@@ -25,6 +26,25 @@ tblstats.com, so the API always agrees with the stats site.
 ---
 
 ## Conventions
+
+### Season: `?season=`
+
+Each league season has its own Google Sheet. Every endpoint accepts an
+optional `season` query parameter with a season id from
+[`GET /seasons`](#get-seasons), for example `?season=2026`.
+
+| Value | Meaning |
+|---|---|
+| *(left off)* | **The current season.** The same as sending its id. |
+| `2026` | 2026 · Season 4 |
+| `career` | **Only on `/leaders`:** all seasons added together. See [career leaders](#career-leaders). |
+
+Unknown values return **400 `invalid_season`**. Every response names its
+season in `meta.season`.
+
+**Match IDs restart each season**, so match `1` in 2026 and match `1` in 2027
+are different matches. Every match and fight object carries a `season` field.
+When you link to a match, pass it along: `/matches/1?season=2026`.
 
 ### Season phase: `?phase=`
 
@@ -126,6 +146,7 @@ Successful responses look like this:
 {
   "data": { "...": "the endpoint's payload" },
   "meta": {
+    "season": { "id": "2026", "year": 2026, "number": 4, "label": "2026 · Season 4", "is_current": true },
     "phase": "regular",
     "sheet_last_updated": "2026-11-09T17:46:31.000Z",
     "sheet_last_updated_source": "data_fetched",
@@ -136,6 +157,7 @@ Successful responses look like this:
 
 | `meta` field | Meaning |
 |---|---|
+| `season` | Which season the numbers are from: `id`, `year`, league season `number`, display `label` and `is_current`. For `/leaders?season=career` it is `{ "id": "career", "label": "Career", ... }`. |
 | `phase` | Which part of the season the numbers cover. Always `"regular"` for now. |
 | `sheet_last_updated` | When the stats data was last updated, as an ISO 8601 UTC timestamp. See below. |
 | `sheet_last_updated_source` | Which clock `sheet_last_updated` uses: `"sheet_modified"` or `"data_fetched"`. See below. |
@@ -297,6 +319,16 @@ league. By default the cutoff is half the league-average number of rounds
 (minimum 1), and it is reported in each category as `min_rounds`.
 
 Tied fighters share a rank (1, 2, 2, 4).
+
+<a id="career-leaders"></a>
+**Career leaders: `?season=career`.** All seasons added together, like an
+all-time leaderboard. The same fighter is matched across seasons by Fighter ID
+(or by name when a season has no ID for them). Counting stats (wins, points,
+WAR, knockouts…) are added up, and rates (win %, per-round stats) are
+recalculated from the career totals, never averaged. Each fighter shows the
+name, team and photo from their most recent season. `meta.seasons_included`
+lists the seasons that were added. A season whose sheet can't be loaded is
+left out rather than failing the request.
 
 **Query parameters**
 
@@ -670,13 +702,30 @@ The same `stats` object appears on team rosters and fighter profiles. Each
 
 ## `GET /fighters/{id}`
 
-One fighter's profile, stats for the chosen phase, and every bout in that
-phase, newest first. `{id}` is the fighter's ID (see [Fighter IDs](#fighter-ids)).
+One fighter's profile, stats for the chosen season and phase, every bout in
+that season, a stat line for **every** season they fought in, and career
+totals. `{id}` is the fighter's ID (see [Fighter IDs](#fighter-ids)).
 It can also be the fighter's name ID (for example `jordan-reyes`). Matching
 ignores upper/lower case. Unknown IDs return **404 `fighter_not_found`**.
 
 If the fighter has no bouts in the chosen phase, `stats` is all zeros and
 `fights` is empty. The fighter's profile still comes back.
+
+**Which season?** With `?season=`, that season only (404 if they didn't fight
+in it). Without it, the current season; a fighter who only fought in earlier
+seasons gets their most recent season instead, so saved links keep working.
+
+**`seasons` and `career`** (the back of a baseball card):
+
+| Field | Meaning |
+|---|---|
+| `seasons[]` | One line per season the fighter fought in, oldest first: `season` (same shape as `meta.season`), `team`, `weight_class` and a [`stats`](#the-stats-object) object. |
+| `career.seasons_played` | How many seasons are in `seasons[]`. |
+| `career.stats` | All seasons added together. Counting stats are summed; win %, NPPR and points allowed per round are recalculated from the totals. |
+
+The same fighter is matched across seasons by Fighter ID, falling back to the
+name when a season has no ID for them. Filling in Fighter IDs keeps careers
+correct even if a fighter's name is spelled differently later.
 
 **Example:** `GET /api/v1/fighters/TBL019`
 
@@ -733,15 +782,54 @@ If the fighter has no bouts in the chosen phase, `stats` is all zeros and
         "points_scored": 7,
         "points_allowed": 4,
         "net_points": 3,
-        "match_url": "https://tblstats.com/matches/19"
+        "match_url": "https://tblstats.com/matches/19",
+        "season": "2026"
       }
-    ]
+    ],
+    "seasons": [
+      {
+        "season": { "id": "2026", "year": 2026, "number": 4, "label": "2026 · Season 4", "is_current": true },
+        "team": { "slug": "miami-assassins", "name": "Miami Assassins", "short_name": "Miami Assassins", "city": "Miami", "color": "#98002e", "logo_url": "https://tblstats.com/logos/miami.png" },
+        "weight_class": "Lightweight",
+        "stats": { "wins": 2, "losses": 1, "draws": 1, "record": "2-1-1", "rounds": 4, "win_pct": 0.667, "net_points": 4, "nppr": 1, "points_scored": 25, "points_allowed": 21, "points_allowed_per_round": 5.25, "war": 0.25, "ko_tko": 1, "knockdowns": 1, "double_knockdowns": 0 }
+      }
+    ],
+    "career": {
+      "seasons_played": 1,
+      "stats": { "wins": 2, "losses": 1, "draws": 1, "record": "2-1-1", "rounds": 4, "win_pct": 0.667, "net_points": 4, "nppr": 1, "points_scored": 25, "points_allowed": 21, "points_allowed_per_round": 5.25, "war": 0.25, "ko_tko": 1, "knockdowns": 1, "double_knockdowns": 0 }
+    }
   },
-  "meta": { "phase": "regular", "sheet_last_updated": "2026-11-09T17:46:31.000Z", "sheet_last_updated_source": "data_fetched", "generated_at": "2026-11-08T05:03:00.000Z" }
+  "meta": { "season": { "id": "2026", "year": 2026, "number": 4, "label": "2026 · Season 4", "is_current": true }, "phase": "regular", "sheet_last_updated": "2026-11-09T17:46:31.000Z", "sheet_last_updated_source": "data_fetched", "generated_at": "2026-11-08T05:03:00.000Z" }
 }
 ```
 
 *(Fight list shortened to one bout.)*
+
+---
+
+## `GET /seasons`
+
+Every league season, newest first. Use it to build a season picker.
+
+**Example:** `GET /api/v1/seasons`
+
+```json
+{
+  "data": [
+    { "id": "2026", "year": 2026, "number": 4, "label": "2026 · Season 4", "is_current": true, "complete": false, "has_data": true }
+  ],
+  "meta": { "current": "2026", "generated_at": "2026-11-09T17:49:02.118Z" }
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `id` | Pass this as `?season=` to any endpoint. |
+| `number` | The league's season number (2026 is Season 4). |
+| `label` | Display name. |
+| `is_current` | The season every endpoint uses when `season` is left off. |
+| `complete` | The season is over; its numbers no longer change. |
+| `has_data` | Its sheet loaded and has teams or matches. `false` for a brand-new empty sheet or one that can't be reached right now. |
 
 ---
 
@@ -780,5 +868,7 @@ fetch('https://tblstats.com/api/v1/teams/{{ page.handle }}')
 - Routes: `src/app/api/v1/**/route.ts`
 - JSON shapes: `src/lib/api/v1.ts`
 - CORS, caching and errors: `src/lib/api/http.ts`
+- Seasons (which sheet each season reads): `src/lib/seasons.ts`. Starting a new season: `docs/NEW-SEASON.md`
+- Career totals and matching fighters across seasons: `src/lib/api/career.ts`
 - This API is versioned. Adding new fields is safe. Renaming or removing fields
   would break the website, so do that in a new `/api/v2` instead.

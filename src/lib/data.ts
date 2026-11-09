@@ -5,6 +5,16 @@ import { cache } from 'react';
 import Papa from 'papaparse';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { buildFighters } from './warStats';
+import {
+  SEASONS,
+  currentSeason,
+  getSeason,
+  normalizeSeasonId,
+  sheetCsvUrl,
+  sheetRevalidateSeconds,
+  type SeasonDef,
+  type SheetTab,
+} from './seasons';
 import type {
   FighterStat,
   FighterIdentity,
@@ -22,24 +32,10 @@ import type {
 } from '@/types';
 
 // ─── Sheet URLs ────────────────────────────────────────────────────────────────
-const SHEETS = {
-  // The "Fighter Stats" tab is no longer the source of fighter stats — every
-  // stat (incl. WAR) is now derived in code from the Data/`matches` tab. This
-  // tab is still fetched only for two non-stat things: each fighter's Instagram
-  // URL and the "Last Updated" date.
-  fighters:
-    'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=1273687161&single=true&output=csv',
-  teams:
-    'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=1404001793&single=true&output=csv',
-  matches:
-    'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=0&single=true&output=csv',
-  schedule:
-    'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=1716719705&single=true&output=csv',
-  highlights:
-    'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=1508158260&single=true&output=csv',
-  awards:
-    'https://docs.google.com/spreadsheets/d/e/2PACX-1vTDpxOV--xewT8SdQckLWo70ZEeupxHRcyOYui9nEPQwvbvE2bc5nkOs0JN-XUVpIXwjn3WauVLdeJw/pub?gid=644608532&single=true&output=csv',
-};
+// Each season has its own Google Sheet; see src/lib/seasons.ts. The "Fighter
+// Stats" tab ('fighters') is no longer the source of fighter stats — every stat
+// (incl. WAR) is derived in code from the Data tab ('matches'). That tab is
+// still read for Instagram URLs, bios/photos and the "Last Updated" date.
 
 // ─── Utility ───────────────────────────────────────────────────────────────────
 export function toSlug(name: string): string {
@@ -52,8 +48,8 @@ export function toSlug(name: string): string {
 
 // Fetch raw CSV rows as string arrays (no automatic header parsing)
 // so we can handle sheets with title rows before the real header
-async function fetchRawCSV(url: string): Promise<string[][]> {
-  return (await fetchRawCSVWithMeta(url)).rows;
+async function fetchRawCSV(url: string, revalidate = 120): Promise<string[][]> {
+  return (await fetchRawCSVWithMeta(url, revalidate)).rows;
 }
 
 // Same fetch (and therefore the same cache entry) as fetchRawCSV, but also
@@ -66,6 +62,7 @@ async function fetchRawCSV(url: string): Promise<string[][]> {
 //     still the time of the real download — not the time of this request.
 async function fetchRawCSVWithMeta(
   url: string,
+  revalidate = 120,
 ): Promise<{ rows: string[][]; lastModified: string | null; fetchedAt: string | null }> {
   // Hard timeout: a hung Google fetch must fail fast, not stall the render.
   // During `next build`, one hanging fetch can wedge EVERY static page (they
@@ -73,7 +70,7 @@ async function fetchRawCSVWithMeta(
   // runtime the per-tab try/catch in getAllData degrades gracefully and ISR
   // retries within 120s.
   const res = await fetch(url, {
-    next: { revalidate: 120 },
+    next: { revalidate },
     signal: AbortSignal.timeout(20_000),
   });
   if (!res.ok) throw new Error(`Failed to fetch CSV: ${url}`);
@@ -781,37 +778,53 @@ function parseAwards(rows: string[][]): AwardEntry[] {
 }
 
 // ─── Main export ───────────────────────────────────────────────────────────────
+// getAllData(season?) loads one season's sheet (default: the current season).
 // Wrapped in React cache so multiple call sites within a single request tree
 // (e.g. layout + page + an internal API hop) reuse one fetch+parse pass
 // instead of re-running the whole pipeline. Cache is per-request, not shared
 // across users — Vercel ISR + the per-fetch revalidate window handle the
-// across-request caching.
-export const getAllData = cache(async (): Promise<ParsedSheetData> => {
+// across-request caching. Finished seasons are cached for a day.
+export function getAllData(season?: string | null): Promise<ParsedSheetData> {
+  return loadSeasonData(normalizeSeasonId(season) ?? currentSeason().id);
+}
+
+/** Every season that has data, oldest first. Seasons whose sheet is empty or unreachable are left out. */
+export async function getAllSeasonsData(): Promise<{ season: SeasonDef; data: ParsedSheetData }[]> {
+  const all = await Promise.all(SEASONS.map(async (season) => ({ season, data: await getAllData(season.id) })));
+  return all.filter(({ data }) => data.teams.length > 0 || Object.keys(data.teamMatches).length > 0);
+}
+
+const loadSeasonData = cache(async (seasonId: string): Promise<ParsedSheetData> => {
+  const season = getSeason(seasonId) ?? currentSeason();
+  const ttl = sheetRevalidateSeconds(season);
+  const SHEETS = Object.fromEntries(
+    (['fighters', 'teams', 'matches', 'schedule', 'highlights', 'awards'] as const).map((t) => [t, sheetCsvUrl(season, t)]),
+  ) as Record<SheetTab, string>;
   // Each CSV fetch has its own fallback so one bad source (rename, network,
   // rate limit) can't take down every page that uses getAllData.
   const emptyRows: string[][] = [];
   const [fighterRawRows, teamRawRows, matchFetch, scheduleRawRows, highlightsRawRows, awardsRawRows] = await Promise.all([
-    fetchRawCSV(SHEETS.fighters).catch((err) => {
+    fetchRawCSV(SHEETS.fighters, ttl).catch((err) => {
       console.error('[getAllData] fighters CSV fetch failed:', err);
       return emptyRows;
     }),
-    fetchRawCSV(SHEETS.teams).catch((err) => {
+    fetchRawCSV(SHEETS.teams, ttl).catch((err) => {
       console.error('[getAllData] teams CSV fetch failed:', err);
       return emptyRows;
     }),
-    fetchRawCSVWithMeta(SHEETS.matches).catch((err) => {
+    fetchRawCSVWithMeta(SHEETS.matches, ttl).catch((err) => {
       console.error('[getAllData] matches CSV fetch failed:', err);
       return { rows: emptyRows, lastModified: null, fetchedAt: null };
     }),
-    fetchRawCSV(SHEETS.schedule).catch((err) => {
+    fetchRawCSV(SHEETS.schedule, ttl).catch((err) => {
       console.error('[getAllData] schedule CSV fetch failed:', err);
       return emptyRows;
     }),
-    fetchRawCSV(SHEETS.highlights).catch((err) => {
+    fetchRawCSV(SHEETS.highlights, ttl).catch((err) => {
       console.error('[getAllData] highlights CSV fetch failed:', err);
       return emptyRows;
     }),
-    fetchRawCSV(SHEETS.awards).catch((err) => {
+    fetchRawCSV(SHEETS.awards, ttl).catch((err) => {
       console.error('[getAllData] awards CSV fetch failed:', err);
       return emptyRows;
     }),
@@ -967,6 +980,7 @@ export const getAllData = cache(async (): Promise<ParsedSheetData> => {
   });
 
   return {
+    season: season.id,
     fighters,
     fightersByPhase,
     teams,

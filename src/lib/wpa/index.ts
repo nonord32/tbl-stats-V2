@@ -61,8 +61,11 @@ export { wpLookup, liLookup, cnWpaFor, computeMatchWpa };
 // Season WPA for every fighter and match, derived from the same match data the
 // rest of the site uses. React cache() dedupes within a request; the underlying
 // CSVs are ISR-cached in getAllData.
-export const getWpaData = cache(async (): Promise<SeasonWpa> => {
-  const data = await getAllData();
+//
+// Takes an optional season id (default: the current season). Every season uses
+// the frozen 2026 model until a refit adds its own versioned files.
+export const getWpaData = cache(async (season?: string | null): Promise<SeasonWpa> => {
+  const data = await getAllData(season);
   const matches = extractUniqueMatches(data.teamMatches);
   return computeSeasonWpa(matches, WPA_TABLE, WPA_MODEL, toSlug, LI_TABLE);
 });

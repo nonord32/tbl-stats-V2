@@ -8,6 +8,7 @@ import {
   resolvePhase,
   SCHEDULE_STATUSES,
   type ScheduleStatusFilter,
+  resolveSeason,
 } from '@/lib/api/v1';
 import { jsonError, jsonOk, preflight, safely } from '@/lib/api/http';
 
@@ -27,7 +28,9 @@ export async function GET(request: Request) {
       return jsonError(request, 404, 'team_not_found', `No team with slug "${team}". Valid slugs: ${KNOWN_TEAM_SLUGS.join(', ')}.`);
     }
 
-    const data = await getAllData();
+    const seasonResult = resolveSeason(params.get('season'));
+    if (!seasonResult.ok) return jsonError(request, 400, seasonResult.code, seasonResult.message);
+    const data = await getAllData(seasonResult.season);
     if (isDataUnavailable(data)) return jsonError(request, 503, 'data_unavailable', 'League data is temporarily unavailable. Try again in a minute.');
     return jsonOk(request, buildSchedule(data, phaseResult.phase, { status, team }));
   });

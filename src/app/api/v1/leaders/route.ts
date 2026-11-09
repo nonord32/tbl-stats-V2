@@ -1,7 +1,16 @@
-// GET /api/v1/leaders — top fighters in the main stat categories.
+// GET /api/v1/leaders — top fighters in the main stat categories, for one
+// season or (season=career) all seasons combined.
 // Public, read-only. See API.md.
-import { getAllData } from '@/lib/data';
-import { buildLeaders, isDataUnavailable, LEADER_CATEGORY_KEYS, resolvePhase } from '@/lib/api/v1';
+import { getAllData, getAllSeasonsData } from '@/lib/data';
+import {
+  buildCareerLeaders,
+  buildLeaders,
+  isDataUnavailable,
+  LEADER_CATEGORY_KEYS,
+  resolvePhase,
+  resolveSeason,
+} from '@/lib/api/v1';
+import { CAREER } from '@/lib/seasons';
 import { jsonError, jsonOk, preflight, safely } from '@/lib/api/http';
 
 const DEFAULT_LIMIT = 10;
@@ -31,9 +40,19 @@ export async function GET(request: Request) {
       return jsonError(request, 400, 'invalid_category', `category must be one of: ${LEADER_CATEGORY_KEYS.join(', ')}.`);
     }
 
-    const data = await getAllData();
+    const seasonResult = resolveSeason(params.get('season'), { allowCareer: true });
+    if (!seasonResult.ok) return jsonError(request, 400, seasonResult.code, seasonResult.message);
+    const opts = { limit, minRounds, category };
+
+    if (seasonResult.season === CAREER) {
+      const seasons = await getAllSeasonsData();
+      if (seasons.length === 0) return jsonError(request, 503, 'data_unavailable', 'League data is temporarily unavailable. Try again in a minute.');
+      return jsonOk(request, buildCareerLeaders(seasons, phase, opts));
+    }
+
+    const data = await getAllData(seasonResult.season);
     if (isDataUnavailable(data)) return jsonError(request, 503, 'data_unavailable', 'League data is temporarily unavailable. Try again in a minute.');
-    return jsonOk(request, buildLeaders(data, phase, { limit, minRounds, category }));
+    return jsonOk(request, buildLeaders(data, phase, opts));
   });
 }
 

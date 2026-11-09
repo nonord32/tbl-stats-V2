@@ -24,10 +24,20 @@ npm test               # node:test suites in scripts/*.test.mjs (WPA, ratings, W
 
 ### Everything comes from one function
 
-`getAllData()` in `src/lib/data.ts` is wrapped in React `cache`. It fetches the published-CSV tabs of the league sheet (URLs are in the `SHEETS` constant) in parallel and parses them into `ParsedSheetData` (`src/types/index.ts`).
+`getAllData(season?)` in `src/lib/data.ts` is wrapped in React `cache`. It fetches the published-CSV tabs of that season's sheet in parallel and parses them into `ParsedSheetData` (`src/types/index.ts`). With no argument it loads the current season, so existing callers are unchanged.
 
 - **Each tab and each parser is isolated in try/catch.** A broken tab degrades to an empty result instead of crashing pages. Preserve this pattern.
 - **Every fetch has a 20s timeout.** A hung Google fetch would otherwise stall `next build`, because static pages fetch at build time.
+
+### Seasons
+
+- **Each season has its own Google Sheet.** The registry is `SEASONS` in `src/lib/seasons.ts` (published key, tab gids, label such as "2026 · Season 4", `complete`). `CURRENT_SEASON_ID` is the default everywhere.
+- **Finished seasons** (`complete: true`) cache their CSVs for a day instead of 120s.
+- **`getAllSeasonsData()`** loads every season and drops ones whose sheet is empty or unreachable. Used for careers.
+- **Match IDs restart each season.** Anything linking to a match across seasons must carry the season.
+- **Careers:** `src/lib/api/career.ts` (no runtime imports, tested by `scripts/career.test.mjs`). Same fighter across seasons = same Fighter ID, else same name slug. Counting stats are summed; rates are recomputed from totals.
+- **WPA:** `getWpaData(season?)` takes a season and reuses the 2026 model for every season until a refit.
+- **Starting a season:** follow `docs/NEW-SEASON.md`.
 
 ### Tabs
 
@@ -115,6 +125,7 @@ Both are versioned per season via `*-2026.json` model files, so past figures sta
 - **Contract:** documented in `API.md`, and it's versioned.
   - Team slugs are the Shopify page handles (`SHOPIFY_TEAM_HANDLES`), not site slugs.
   - Team objects carry `short_name`, TBL's official display names (`OFFICIAL_SHORT_NAMES`). `name` is kept for compatibility.
+  - Every endpoint takes `?season=` (`resolveSeason`) and echoes `meta.season`; `/leaders` also takes `season=career`. `/seasons` lists them. `/fighters/{id}` returns `seasons[]` + `career`, and without `?season=` falls back to the fighter's most recent season (`findFighterSeason`).
   - The API is regular season only. `?phase=` is validated against `AVAILABLE_PHASES`, which is currently `['regular']`. The builders already support playoffs/all, so enabling them is a one-line change plus an API.md update.
   - `meta.sheet_last_updated` comes from `ParsedSheetData.dataUpdated`: Google's Last-Modified header when present, else the Data-tab CSV's `Date` header, which Next's fetch cache preserves. The site's own `lastUpdated` is separate.
   - `/fighters/{id}` accepts the stable Fighter ID **or** the fighter's name slug, even after a stable ID exists, so links the website saved never break (`findFighterSlug`).

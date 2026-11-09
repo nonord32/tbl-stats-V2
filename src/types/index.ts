@@ -164,6 +164,8 @@ export interface FighterProfileExtras {
 }
 
 export interface ParsedSheetData {
+  // Which season's sheet this is (src/lib/seasons.ts), e.g. "2026".
+  season?: string;
   fighters: FighterStat[];
   // Phase-scoped fighter stats pulled from the dedicated per-phase tabs.
   // Empty arrays when those tabs are unpublished/missing — callers fall back
