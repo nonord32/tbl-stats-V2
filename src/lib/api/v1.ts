@@ -391,6 +391,82 @@ export function buildLatestResults(data: ParsedSheetData, phase: ApiPhase) {
   };
 }
 
+// ─── /schedule ─────────────────────────────────────────────────────────────────
+// The season schedule from the Schedule tab, joined to results by Match ID.
+// Completed entries carry the final score; upcoming entries carry the venue and
+// time as typed in the sheet. "TBD" or blank teams come back as null.
+export type ScheduleStatusFilter = 'all' | 'upcoming' | 'completed';
+export const SCHEDULE_STATUSES: readonly ScheduleStatusFilter[] = ['all', 'upcoming', 'completed'];
+
+function scheduleTeam(name: string) {
+  const n = (name || '').trim();
+  if (!n || /^tb[ad]$/i.test(n)) return null;
+  return teamRef(n);
+}
+
+function scheduleStatus(raw: string, hasResult: boolean): 'upcoming' | 'completed' | 'cancelled' {
+  const s = (raw || '').trim().toLowerCase();
+  if (hasResult || s === 'completed' || s === 'final') return 'completed';
+  if (s === 'cancelled' || s === 'canceled' || s === 'postponed') return 'cancelled';
+  return 'upcoming';
+}
+
+export function buildSchedule(
+  data: ParsedSheetData,
+  phase: ApiPhase,
+  opts: { status: ScheduleStatusFilter; team: string | null },
+) {
+  const matches = new Map(extractUniqueMatches(data.teamMatches).map((m) => [m.matchIndex, m]));
+  const entries = data.schedule
+    .map((s) => {
+      const m = s.matchIndex != null ? matches.get(s.matchIndex) ?? null : null;
+      // A completed match outside the requested phase is left out; upcoming
+      // games are always listed (the sheet doesn't say which phase they are).
+      if (m && phase !== 'all' && m.phase !== phase) return null;
+      const status = scheduleStatus(s.status, Boolean(m));
+      // Use the match's own team order when there is a result, so the scores
+      // line up with /results/latest.
+      const team1 = m ? teamRef(m.team1) : scheduleTeam(s.team1);
+      const team2 = m ? teamRef(m.team2) : scheduleTeam(s.team2);
+      return {
+        match_id: m ? m.matchIndex : s.matchIndex,
+        week: s.week > 0 ? s.week : null,
+        date: isoDate(s.date) ?? (m ? isoDate(m.date) : null),
+        time: s.time || null,
+        status,
+        season_phase: m ? m.phase : null,
+        venue: s.venueName || s.venueCity ? { name: s.venueName || null, city: s.venueCity || null } : null,
+        team1,
+        team2,
+        result: m
+          ? {
+              team1_score: round3(m.score1),
+              team2_score: round3(m.score2),
+              team1_rounds_won: m.wins1,
+              team2_rounds_won: m.wins2,
+              winner: m.result === 'W' ? 'team1' : m.result === 'L' ? 'team2' : 'draw',
+            }
+          : null,
+        stats_url: m ? `${SITE}/matches/${m.matchIndex}` : null,
+      };
+    })
+    .filter((e): e is NonNullable<typeof e> => e !== null)
+    .filter((e) => opts.status === 'all' || e.status === opts.status)
+    .filter((e) => !opts.team || e.team1?.slug === opts.team || e.team2?.slug === opts.team)
+    .sort(
+      (a, b) =>
+        (a.date ?? '9999').localeCompare(b.date ?? '9999') ||
+        (a.week ?? 0) - (b.week ?? 0) ||
+        (a.match_id ?? 0) - (b.match_id ?? 0),
+    );
+
+  const next = entries.find((e) => e.status === 'upcoming') ?? null;
+  return {
+    data: { next, entries },
+    meta: { ...meta(data, phase), status: opts.status, team: opts.team },
+  };
+}
+
 // ─── /teams/[slug] ─────────────────────────────────────────────────────────────
 export const KNOWN_TEAM_SLUGS = Object.values(SHOPIFY_TEAM_HANDLES);
 
