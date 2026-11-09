@@ -117,6 +117,8 @@ Both are versioned per season via `*-2026.json` model files, so past figures sta
   - Team objects carry `short_name`, TBL's official display names (`OFFICIAL_SHORT_NAMES`). `name` is kept for compatibility.
   - The API is regular season only. `?phase=` is validated against `AVAILABLE_PHASES`, which is currently `['regular']`. The builders already support playoffs/all, so enabling them is a one-line change plus an API.md update.
   - `meta.sheet_last_updated` comes from `ParsedSheetData.dataUpdated`: Google's Last-Modified header when present, else the Data-tab CSV's `Date` header, which Next's fetch cache preserves. The site's own `lastUpdated` is separate.
+  - `/fighters/{id}` accepts the stable Fighter ID **or** the fighter's name slug, even after a stable ID exists, so links the website saved never break (`findFighterSlug`).
+  - Fighter `bio` / `photo_url` come from optional `Bio` / `Photo URL` columns on the Fighter Stats tab (`parseFighterProfiles` in `data.ts`, stored as `fighterProfiles`).
   - Adding fields is safe. Renames and removals need a `/api/v2`.
 
 ## Testing against fake sheet data

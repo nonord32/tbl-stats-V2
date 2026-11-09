@@ -158,6 +158,11 @@ export interface AwardEntry {
 // Playoffs"). WAR is carried over from the joint tab (see getAllData).
 export type FightersByPhase = Record<'regular' | 'playoffs', FighterStat[]>;
 
+export interface FighterProfileExtras {
+  bio?: string;
+  photoUrl?: string;
+}
+
 export interface ParsedSheetData {
   fighters: FighterStat[];
   // Phase-scoped fighter stats pulled from the dedicated per-phase tabs.
@@ -170,6 +175,9 @@ export interface ParsedSheetData {
   // Stable fighter ID (Data tab "Fighter ID" column) keyed by fighter slug.
   // Empty until that column is populated. Used by the public /api/v1 API.
   fighterIds: Record<string, string>;
+  // Optional bio and photo per fighter slug, from the "Bio" and "Photo URL"
+  // columns of the Fighter Stats tab. Only the public /api/v1 API uses them.
+  fighterProfiles?: Record<string, FighterProfileExtras>;
   schedule: ScheduleEntry[];
   highlights: HighlightEntry[];
   awards: AwardEntry[];
