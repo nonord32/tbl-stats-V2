@@ -461,8 +461,10 @@ Match ID. One entry per scheduled match, ordered by date.
 - `team1` / `team2` are team objects, or `null` while a team is TBD.
 - Completed entries use the match's own team order, so `result` lines up with
   `/results/latest`. `result` and `stats_url` are `null` until the match is played.
-- `date` is `YYYY-MM-DD`. `time` is the sheet's text (for example `7:00PM`, the
-  venue's local time) or `null`.
+- `date` is `YYYY-MM-DD`. Played matches use the match date. For unplayed
+  ones, when the sheet's date has no year, the year closest to today is used.
+- `time` is the start time as written on the sheet, without the word "Local"
+  (for example `7:00 PM`), in the **venue's** local time; or `null`.
 - `data.next` is the first upcoming entry (or `null`), handy for a "next
   fight night" banner.
 - With the default `phase=regular`, completed playoff matches are left out.
@@ -486,7 +488,7 @@ Match ID. One entry per scheduled match, ordered by date.
       "match_id": null,
       "week": 22,
       "date": "2027-03-14",
-      "time": "7:00PM",
+      "time": "7:00 PM",
       "status": "upcoming",
       "season_phase": null,
       "venue": { "name": "We-Ko-Pa Casino Resort", "city": "Fort McDowell, AZ" },
@@ -500,7 +502,7 @@ Match ID. One entry per scheduled match, ordered by date.
         "match_id": 6,
         "week": 2,
         "date": "2026-03-29",
-        "time": "7:00PM",
+        "time": "7:00 PM",
         "status": "completed",
         "season_phase": "regular",
         "venue": { "name": "Roadrunner Boston", "city": "Boston, MA" },
