@@ -174,6 +174,14 @@ export interface ParsedSheetData {
   highlights: HighlightEntry[];
   awards: AwardEntry[];
   lastUpdated: string;
+  // When the Data tab (source of all stats) was last updated, as ISO 8601.
+  // 'sheet_modified' = Google's own modified time for the tab;
+  // 'data_fetched'   = when the CSV was last downloaded from Google and parsed.
+  // Used by the public /api/v1; the site keeps using `lastUpdated`.
+  dataUpdated: {
+    at: string | null;
+    source: 'sheet_modified' | 'data_fetched' | null;
+  };
 }
 
 // ─── Pick'em types ────────────────────────────────────────────────────────────

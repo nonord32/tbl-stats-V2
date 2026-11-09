@@ -1,7 +1,7 @@
 // GET /api/v1/leaders — top fighters in the main stat categories.
 // Public, read-only. See API.md.
 import { getAllData } from '@/lib/data';
-import { buildLeaders, isDataUnavailable, LEADER_CATEGORY_KEYS, parsePhase } from '@/lib/api/v1';
+import { buildLeaders, isDataUnavailable, LEADER_CATEGORY_KEYS, resolvePhase } from '@/lib/api/v1';
 import { jsonError, jsonOk, preflight, safely } from '@/lib/api/http';
 
 const DEFAULT_LIMIT = 10;
@@ -10,8 +10,9 @@ const MAX_LIMIT = 50;
 export async function GET(request: Request) {
   return safely(request, async () => {
     const params = new URL(request.url).searchParams;
-    const phase = parsePhase(params.get('phase'), 'regular');
-    if (!phase) return jsonError(request, 400, 'invalid_phase', 'phase must be one of: regular, playoffs, all.');
+    const phaseResult = resolvePhase(params.get('phase'));
+    if (!phaseResult.ok) return jsonError(request, 400, phaseResult.code, phaseResult.message);
+    const phase = phaseResult.phase;
 
     const limitRaw = params.get('limit');
     const limit = limitRaw == null ? DEFAULT_LIMIT : Number(limitRaw);

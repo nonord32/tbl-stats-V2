@@ -22,15 +22,26 @@ tblstats.com, so the API always agrees with the stats site.
 
 ### Season phase: `?phase=`
 
+**All records and stats in this API are regular season only.** This is
+intentional. Every response says which phase it covers in `meta.phase`.
+
 Every endpoint accepts an optional `phase` query parameter:
 
-| Value | Meaning |
+| Value | Status |
 |---|---|
-| `regular` | Regular season only. **Default** for every endpoint except `/results/latest`. |
-| `playoffs` | Playoff games only |
-| `all` | Regular season and playoffs combined. **Default for `/results/latest`**, so "latest" stays the real latest event during the playoffs. |
+| `regular` | **Default** for every endpoint. The same as leaving `phase` off. |
+| `playoffs` | Planned, not available yet. Returns **400 `phase_not_available`**. |
+| `all` | Planned (regular season + playoffs combined), not available yet. Returns **400 `phase_not_available`**. |
 
-Example: `https://tblstats.com/api/v1/standings?phase=playoffs`
+`https://tblstats.com/api/v1/standings` and
+`https://tblstats.com/api/v1/standings?phase=regular` return the same thing.
+
+You don't need to send `phase` today. If the theme sends `?phase=regular`
+anyway, it will keep working unchanged after playoffs are added.
+
+*For maintainers:* the playoff calculations already exist internally. To offer
+them, add `'playoffs'` (and/or `'all'`) to `AVAILABLE_PHASES` in
+`src/lib/api/v1.ts` and update this section.
 
 ### Team slugs
 
@@ -53,6 +64,24 @@ Team slugs match the Shopify page handles exactly:
 
 The mapping lives in `SHOPIFY_TEAM_HANDLES` in `src/lib/api/v1.ts`. If a Shopify
 handle ever changes, update it there.
+
+### Team names: `name` vs `short_name`
+
+Every team object, on every endpoint, has both fields:
+
+| Field | Example | Use it for |
+|---|---|---|
+| `short_name` | `"LA Elite"` | **TBL's official display name.** Use this on the website. |
+| `name` | `"Los Angeles Elite"` | The long-standing full name. It is kept unchanged for compatibility. |
+| `city` | `"Los Angeles"` | City only |
+
+The official `short_name` values:
+
+LA Elite · Las Vegas Hustle · Phoenix Fury · Dallas Enforcers · Houston Hitmen ·
+San Antonio Snipers · Boston Butchers · Philadelphia Smoke · NYC Attitude ·
+Atlanta Attack · Miami Assassins · Nashville Smash
+
+They live in `OFFICIAL_SHORT_NAMES` in `src/lib/api/v1.ts`.
 
 ### Fighter IDs
 
@@ -80,11 +109,36 @@ Successful responses look like this:
   "data": { "...": "the endpoint's payload" },
   "meta": {
     "phase": "regular",
-    "sheet_last_updated": "Nov 2, 2026",
-    "generated_at": "2026-11-08T05:02:58.575Z"
+    "sheet_last_updated": "2026-11-09T17:46:31.000Z",
+    "sheet_last_updated_source": "data_fetched",
+    "generated_at": "2026-11-09T17:49:02.118Z"
   }
 }
 ```
+
+| `meta` field | Meaning |
+|---|---|
+| `phase` | Which part of the season the numbers cover. Always `"regular"` for now. |
+| `sheet_last_updated` | When the stats data was last updated, as an ISO 8601 UTC timestamp. See below. |
+| `sheet_last_updated_source` | Which clock `sheet_last_updated` uses: `"sheet_modified"` or `"data_fetched"`. See below. |
+| `generated_at` | When this response was built. With caching, it can be a few minutes older than "now". |
+
+#### `sheet_last_updated`
+
+This is the time the stats changed or were last refreshed. The stats come from
+the **Data** tab of the league Google Sheet. The timestamp is in UTC, so format
+it for display in the browser, e.g.
+`new Date(meta.sheet_last_updated).toLocaleString()`.
+
+`sheet_last_updated_source` tells you what the time means:
+
+| Source | Meaning |
+|---|---|
+| `"sheet_modified"` | Google's own "last modified" time for the Data tab. This is the true edit time. It's used whenever Google provides it. |
+| `"data_fetched"` | The last time tblstats.com downloaded the Data tab from Google **and** parsed it successfully. Google doesn't always report a modified time for published sheets, so this is the fallback. The site re-downloads the sheet every couple of minutes while the API is in use, so this shows how fresh the data is, **not** when someone last edited the sheet. |
+
+If the Data tab couldn't be loaded or parsed, both fields are `null`. In that
+case the endpoints usually return `503 data_unavailable` anyway.
 
 ### Errors
 
@@ -98,9 +152,10 @@ come back as an HTML page.
 | Status | `code` | When |
 |---|---|---|
 | 400 | `invalid_phase`, `invalid_limit`, `invalid_min_rounds`, `invalid_category` | A query parameter has a bad value |
+| 400 | `phase_not_available` | `phase` is `playoffs` or `all`, which aren't offered yet |
 | 404 | `team_not_found` | Unknown team slug |
 | 404 | `fighter_not_found` | Unknown fighter ID |
-| 404 | `no_results` | `/results/latest`: no completed matches in that phase yet |
+| 404 | `no_results` | `/results/latest`: no completed regular-season matches yet |
 | 500 | `internal_error` | Unexpected server error |
 | 503 | `data_unavailable` | The Google Sheet couldn't be reached. Retry in a minute. |
 
@@ -156,6 +211,7 @@ match results (a match with tied total points).
       "team": {
         "slug": "la-elite",
         "name": "Los Angeles Elite",
+        "short_name": "LA Elite",
         "city": "Los Angeles",
         "color": "#552583",
         "logo_url": "https://tblstats.com/logos/los-angeles.png"
@@ -175,6 +231,7 @@ match results (a match with tied total points).
       "team": {
         "slug": "las-vegas-hustle-1",
         "name": "Las Vegas Hustle",
+        "short_name": "Las Vegas Hustle",
         "city": "Las Vegas",
         "color": "#b4975a",
         "logo_url": "https://tblstats.com/logos/las-vegas.png"
@@ -190,7 +247,7 @@ match results (a match with tied total points).
       "streak": "L1"
     }
   ],
-  "meta": { "phase": "regular", "sheet_last_updated": "Nov 2, 2026", "generated_at": "2026-11-08T05:02:58.575Z" }
+  "meta": { "phase": "regular", "sheet_last_updated": "2026-11-09T17:46:31.000Z", "sheet_last_updated_source": "data_fetched", "generated_at": "2026-11-08T05:02:58.575Z" }
 }
 ```
 
@@ -251,6 +308,7 @@ Tied fighters share a rank (1, 2, 2, 4).
             "team": {
               "slug": "la-elite",
               "name": "Los Angeles Elite",
+              "short_name": "LA Elite",
               "city": "Los Angeles",
               "color": "#552583",
               "logo_url": "https://tblstats.com/logos/los-angeles.png"
@@ -272,6 +330,7 @@ Tied fighters share a rank (1, 2, 2, 4).
             "team": {
               "slug": "atlanta-attack",
               "name": "Atlanta Attack",
+              "short_name": "Atlanta Attack",
               "city": "Atlanta",
               "color": "#c8102e",
               "logo_url": "https://tblstats.com/logos/atlanta.png"
@@ -286,7 +345,7 @@ Tied fighters share a rank (1, 2, 2, 4).
       ]
     }
   ],
-  "meta": { "phase": "regular", "sheet_last_updated": "Nov 2, 2026", "generated_at": "2026-11-08T05:02:58.575Z", "limit": 2 }
+  "meta": { "phase": "regular", "sheet_last_updated": "2026-11-09T17:46:31.000Z", "sheet_last_updated_source": "data_fetched", "generated_at": "2026-11-08T05:02:58.575Z", "limit": 2 }
 }
 ```
 
@@ -303,29 +362,31 @@ fighters' scores.
 - `winner` is `"team1"`, `"team2"` or `"draw"`. This applies to the whole match
   and to each round.
 - `round_phase` is the bout label from the sheet (e.g. Launch, Middle, Money).
-  `season_phase` is `regular` or `playoffs`.
+  `season_phase` is the part of the season the match belongs to. It is always
+  `regular` for now.
 - `week` and `venue` come from the Schedule tab. They are `null` when not listed.
 
-Default `phase` is `all`. Use `?phase=regular` for the latest regular-season
-event only.
+This shows the most recent **regular-season** fight date. When playoffs are
+added, this endpoint's default will be revisited.
 
 **Example:** `GET /api/v1/results/latest`
 
 ```json
 {
   "data": {
-    "date": "2026-11-01",
+    "date": "2026-10-18",
     "matches": [
       {
         "match_id": 19,
-        "date": "2026-11-01",
-        "week": null,
-        "season_phase": "playoffs",
+        "date": "2026-10-18",
+        "week": 3,
+        "season_phase": "regular",
         "venue": { "name": "Main Arena", "city": "Dallas" },
         "stats_url": "https://tblstats.com/matches/19",
         "team1": {
           "slug": "miami-assassins",
           "name": "Miami Assassins",
+          "short_name": "Miami Assassins",
           "city": "Miami",
           "color": "#98002e",
           "logo_url": "https://tblstats.com/logos/miami.png",
@@ -335,6 +396,7 @@ event only.
         "team2": {
           "slug": "dallas-enforcers",
           "name": "Dallas Enforcers",
+          "short_name": "Dallas Enforcers",
           "city": "Dallas",
           "color": "#003594",
           "logo_url": "https://tblstats.com/logos/dallas.png",
@@ -377,7 +439,7 @@ event only.
       }
     ]
   },
-  "meta": { "phase": "all", "sheet_last_updated": "Nov 2, 2026", "generated_at": "2026-11-08T05:02:58.575Z" }
+  "meta": { "phase": "regular", "sheet_last_updated": "2026-11-09T17:46:31.000Z", "sheet_last_updated_source": "data_fetched", "generated_at": "2026-11-08T05:02:58.575Z" }
 }
 ```
 
@@ -396,13 +458,14 @@ points, highest first. Unknown slugs return **404 `team_not_found`**.
   "data": {
     "slug": "la-elite",
     "name": "Los Angeles Elite",
+    "short_name": "LA Elite",
     "city": "Los Angeles",
     "color": "#552583",
     "logo_url": "https://tblstats.com/logos/los-angeles.png",
     "stats_url": "https://tblstats.com/teams/los-angeles",
     "standing": {
       "rank": 1,
-      "team": { "slug": "la-elite", "name": "Los Angeles Elite", "city": "Los Angeles", "color": "#552583", "logo_url": "https://tblstats.com/logos/los-angeles.png" },
+      "team": { "slug": "la-elite", "name": "Los Angeles Elite", "short_name": "LA Elite", "city": "Los Angeles", "color": "#552583", "logo_url": "https://tblstats.com/logos/los-angeles.png" },
       "wins": 2,
       "losses": 0,
       "draws": 1,
@@ -418,7 +481,7 @@ points, highest first. Unknown slugs return **404 `team_not_found`**.
         "id": "TBL016",
         "id_is_stable": true,
         "name": "Marcus Hale",
-        "team": { "slug": "la-elite", "name": "Los Angeles Elite", "city": "Los Angeles", "color": "#552583", "logo_url": "https://tblstats.com/logos/los-angeles.png" },
+        "team": { "slug": "la-elite", "name": "Los Angeles Elite", "short_name": "LA Elite", "city": "Los Angeles", "color": "#552583", "logo_url": "https://tblstats.com/logos/los-angeles.png" },
         "weight_class": "Lightweight",
         "gender": "Male",
         "profile_url": "https://tblstats.com/fighters/marcus-hale",
@@ -442,7 +505,7 @@ points, highest first. Unknown slugs return **404 `team_not_found`**.
       }
     ]
   },
-  "meta": { "phase": "regular", "sheet_last_updated": "Nov 2, 2026", "generated_at": "2026-11-08T05:03:29.087Z" }
+  "meta": { "phase": "regular", "sheet_last_updated": "2026-11-09T17:46:31.000Z", "sheet_last_updated_source": "data_fetched", "generated_at": "2026-11-08T05:03:29.087Z" }
 }
 ```
 
@@ -477,7 +540,7 @@ Matching ignores upper/lower case. Unknown IDs return
 If the fighter has no bouts in the chosen phase, `stats` is all zeros and
 `fights` is empty. The fighter's profile still comes back.
 
-**Example:** `GET /api/v1/fighters/TBL019?phase=all`
+**Example:** `GET /api/v1/fighters/TBL019`
 
 ```json
 {
@@ -485,7 +548,7 @@ If the fighter has no bouts in the chosen phase, `stats` is all zeros and
     "id": "TBL019",
     "id_is_stable": true,
     "name": "Jordan Reyes",
-    "team": { "slug": "miami-assassins", "name": "Miami Assassins", "city": "Miami", "color": "#98002e", "logo_url": "https://tblstats.com/logos/miami.png" },
+    "team": { "slug": "miami-assassins", "name": "Miami Assassins", "short_name": "Miami Assassins", "city": "Miami", "color": "#98002e", "logo_url": "https://tblstats.com/logos/miami.png" },
     "weight_class": "Lightweight",
     "gender": "Male",
     "profile_url": "https://tblstats.com/fighters/jordan-reyes",
@@ -511,19 +574,19 @@ If the fighter has no bouts in the chosen phase, `stats` is all zeros and
     },
     "fights": [
       {
-        "date": "2026-11-01",
+        "date": "2026-10-18",
         "match_id": 19,
         "round_id": 55,
         "round": 1,
         "round_phase": "Launch",
-        "season_phase": "playoffs",
-        "week": null,
+        "season_phase": "regular",
+        "week": 3,
         "weight_class": "Lightweight",
         "opponent": {
           "id": "TBL007",
           "id_is_stable": true,
           "name": "Cole Barnes",
-          "team": { "slug": "dallas-enforcers", "name": "Dallas Enforcers", "city": "Dallas", "color": "#003594", "logo_url": "https://tblstats.com/logos/dallas.png" }
+          "team": { "slug": "dallas-enforcers", "name": "Dallas Enforcers", "short_name": "Dallas Enforcers", "city": "Dallas", "color": "#003594", "logo_url": "https://tblstats.com/logos/dallas.png" }
         },
         "result": "W",
         "method": "KO / TKO",
@@ -534,7 +597,7 @@ If the fighter has no bouts in the chosen phase, `stats` is all zeros and
       }
     ]
   },
-  "meta": { "phase": "all", "sheet_last_updated": "Nov 2, 2026", "generated_at": "2026-11-08T05:03:00.000Z" }
+  "meta": { "phase": "regular", "sheet_last_updated": "2026-11-09T17:46:31.000Z", "sheet_last_updated_source": "data_fetched", "generated_at": "2026-11-08T05:03:00.000Z" }
 }
 ```
 
@@ -555,7 +618,7 @@ A minimal example for a section or snippet (`.liquid`) that shows standings:
       const el = document.getElementById('tbl-standings');
       if (error) { el.textContent = 'Standings are unavailable right now.'; return; }
       el.innerHTML = data.map((row) =>
-        `<div>${row.rank}. <a href="/pages/${row.team.slug}">${row.team.name}</a> ${row.record}</div>`
+        `<div>${row.rank}. <a href="/pages/${row.team.slug}">${row.team.short_name}</a> ${row.record}</div>`
       ).join('');
     })
     .catch(() => {

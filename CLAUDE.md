@@ -114,6 +114,9 @@ Both are versioned per season via `*-2026.json` model files, so past figures sta
 - **Files:** routes in `src/app/api/v1/`, response shapes in `src/lib/api/v1.ts`, CORS allow-list, caching and JSON errors in `src/lib/api/http.ts`.
 - **Contract:** documented in `API.md`, and it's versioned.
   - Team slugs are the Shopify page handles (`SHOPIFY_TEAM_HANDLES`), not site slugs.
+  - Team objects carry `short_name`, TBL's official display names (`OFFICIAL_SHORT_NAMES`). `name` is kept for compatibility.
+  - The API is regular season only. `?phase=` is validated against `AVAILABLE_PHASES`, which is currently `['regular']`. The builders already support playoffs/all, so enabling them is a one-line change plus an API.md update.
+  - `meta.sheet_last_updated` comes from `ParsedSheetData.dataUpdated`: Google's Last-Modified header when present, else the Data-tab CSV's `Date` header, which Next's fetch cache preserves. The site's own `lastUpdated` is separate.
   - Adding fields is safe. Renames and removals need a `/api/v2`.
 
 ## Testing against fake sheet data

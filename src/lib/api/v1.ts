@@ -33,14 +33,39 @@ import { getFighterWeightClassesOrdered } from '@/lib/fighters';
 const SITE = 'https://tblstats.com';
 
 // ─── Phase ─────────────────────────────────────────────────────────────────────
+// Every endpoint takes an optional ?phase= and echoes it in meta.phase. All the
+// builders below already work for any phase ('regular' | 'playoffs' | 'all');
+// what the API *offers* is controlled only by AVAILABLE_PHASES.
+//
+// The API is regular-season only for now. To open up the playoffs later, add
+// 'playoffs' (and/or 'all') to AVAILABLE_PHASES and update API.md.
 export type ApiPhase = Phase; // 'regular' | 'playoffs' | 'all'
 
-/** Parse ?phase=…; returns null when the value is not recognised. */
-export function parsePhase(raw: string | null, fallback: ApiPhase): ApiPhase | null {
-  if (raw == null || raw.trim() === '') return fallback;
-  const v = raw.trim().toLowerCase();
-  if (v === 'regular' || v === 'playoffs' || v === 'all') return v;
-  return null;
+const KNOWN_PHASES: readonly ApiPhase[] = ['regular', 'playoffs', 'all'];
+export const AVAILABLE_PHASES: readonly ApiPhase[] = ['regular'];
+export const DEFAULT_PHASE: ApiPhase = 'regular';
+
+export type PhaseResult =
+  | { ok: true; phase: ApiPhase }
+  | { ok: false; code: string; message: string };
+
+/** Validate ?phase=…, applying the default when it's missing. */
+export function resolvePhase(raw: string | null): PhaseResult {
+  if (raw == null || raw.trim() === '') return { ok: true, phase: DEFAULT_PHASE };
+  const v = raw.trim().toLowerCase() as ApiPhase;
+  if (AVAILABLE_PHASES.includes(v)) return { ok: true, phase: v };
+  if (KNOWN_PHASES.includes(v)) {
+    return {
+      ok: false,
+      code: 'phase_not_available',
+      message: `phase "${v}" is not available yet. Available: ${AVAILABLE_PHASES.join(', ')}.`,
+    };
+  }
+  return {
+    ok: false,
+    code: 'invalid_phase',
+    message: `phase must be one of: ${AVAILABLE_PHASES.join(', ')}.`,
+  };
 }
 
 // ─── Teams ─────────────────────────────────────────────────────────────────────
@@ -59,6 +84,23 @@ export const SHOPIFY_TEAM_HANDLES: Record<string, string> = {
   atlanta: 'atlanta-attack',
   miami: 'miami-assassins',
   nashville: 'nashville-smash-1',
+};
+
+// TBL's official display names, keyed by city key. Exposed as `short_name`;
+// `name` stays the long-standing full name so existing consumers don't break.
+export const OFFICIAL_SHORT_NAMES: Record<string, string> = {
+  'los-angeles': 'LA Elite',
+  'las-vegas': 'Las Vegas Hustle',
+  phoenix: 'Phoenix Fury',
+  dallas: 'Dallas Enforcers',
+  houston: 'Houston Hitmen',
+  'san-antonio': 'San Antonio Snipers',
+  boston: 'Boston Butchers',
+  philadelphia: 'Philadelphia Smoke',
+  nyc: 'NYC Attitude',
+  atlanta: 'Atlanta Attack',
+  miami: 'Miami Assassins',
+  nashville: 'Nashville Smash',
 };
 
 // Extra spellings the sheet might use that the city-key matcher won't catch.
@@ -94,6 +136,7 @@ function teamRef(name: string) {
   return {
     slug: SHOPIFY_TEAM_HANDLES[key] ?? toSlug(name),
     name: key ? getFullTeamName(key) : name,
+    short_name: OFFICIAL_SHORT_NAMES[key] ?? name,
     city: key ? getCityName(key) : name,
     color: key ? getTeamColor(key) || null : null,
     logo_url: key ? `${SITE}/logos/${key}.png` : null,
@@ -168,7 +211,13 @@ function isoDate(raw: string): string | null {
 function meta(data: ParsedSheetData, phase: ApiPhase) {
   return {
     phase,
-    sheet_last_updated: data.lastUpdated || null,
+    // When the stats data was last updated (ISO 8601), and which clock that is:
+    //   'sheet_modified' — Google's own modified time for the Data tab;
+    //   'data_fetched'   — when the Data tab was last downloaded from Google and
+    //                      successfully parsed (used when Google doesn't send a
+    //                      modified time). See dataUpdated in src/lib/data.ts.
+    sheet_last_updated: data.dataUpdated?.at ?? null,
+    sheet_last_updated_source: data.dataUpdated?.source ?? null,
     generated_at: new Date().toISOString(),
   };
 }
