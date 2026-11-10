@@ -2,10 +2,8 @@
 // probability, comeback and highlights. {id} is the Match ID. Public,
 // read-only. See API.md.
 import { getAllData } from '@/lib/data';
-import { getBracketContext } from '@/lib/bracketData';
-import { playoffRoundLabelsByMatch } from '@/lib/playoffs';
 import { getWpaData } from '@/lib/wpa';
-import { buildMatch, isDataUnavailable, resolveSeason } from '@/lib/api/v1';
+import { buildMatch, isDataUnavailable, playoffLabelsFor, resolveSeason } from '@/lib/api/v1';
 import { jsonError, jsonOk, preflight, safely } from '@/lib/api/http';
 
 export async function GET(request: Request, { params }: { params: { id: string } }) {
@@ -19,12 +17,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
     if (isDataUnavailable(data)) return jsonError(request, 503, 'data_unavailable', 'League data is temporarily unavailable. Try again in a minute.');
 
     const wpa = (await getWpaData(seasonResult.season)).byMatch.get(matchIndex) ?? null;
-    let playoffRound: string | null = null;
-    try {
-      playoffRound = playoffRoundLabelsByMatch(getBracketContext(data).bracket).get(matchIndex) ?? null;
-    } catch {
-      playoffRound = null; // the bracket is optional decoration; never fail the match for it
-    }
+    // Optional decoration: playoffLabelsFor never throws.
+    const playoffRound = playoffLabelsFor(data).get(matchIndex) ?? null;
     const body = buildMatch(data, matchIndex, { wpa, playoffRound });
     if (!body) return jsonError(request, 404, 'match_not_found', `No match with id "${raw}".`);
     return jsonOk(request, body);

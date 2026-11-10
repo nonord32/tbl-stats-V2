@@ -95,6 +95,23 @@ export function sheetRevalidateSeconds(season: SeasonDef): number {
   return season.complete ? 86_400 : 120;
 }
 
+/** 4 → "IV". For 1–3999; anything else comes back as plain digits. */
+export function toRoman(n: number): string {
+  if (!Number.isInteger(n) || n < 1 || n > 3999) return String(n);
+  const table: [number, string][] = [
+    [1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'],
+    [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I'],
+  ];
+  let out = '';
+  for (const [v, r] of table) while (n >= v) { out += r; n -= v; }
+  return out;
+}
+
+/** The season's championship final, e.g. Season 4 → "MegaBrawl IV". */
+export function megaBrawlName(season: Pick<SeasonDef, 'number'>): string {
+  return `MegaBrawl ${toRoman(season.number)}`;
+}
+
 /** Newest first, the order the API lists them. */
 export function seasonsNewestFirst(): SeasonDef[] {
   return [...SEASONS].sort((a, b) => b.year - a.year);

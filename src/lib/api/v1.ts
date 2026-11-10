@@ -28,7 +28,21 @@ import {
   getTeamColor,
   getTeamSlugByName,
 } from '@/lib/teams';
-import { getFighterWeightClassesOrdered } from '@/lib/fighters';
+import { divisionOf, getFighterWeightClassesOrdered, getPrimaryWeightClass } from '@/lib/fighters';
+import { compareWeightClass } from '@/lib/weightClasses';
+import { getBracketContext, PLAYOFF_SPOTS } from '@/lib/bracketData';
+import { playoffRoundLabelsByMatch, type BracketMatch, type Round } from '@/lib/playoffs';
+import { getH2HTiebreakerWinners } from '@/lib/standings';
+import { getDisplayedCurrentWeek } from '@/lib/week';
+import {
+  awardOrderIndex,
+  normalizeAwardName,
+  TEAM_AWARDS,
+  TWO_TEAM_AWARDS,
+} from '@/lib/awards';
+import type { SeasonWpa } from '@/lib/wpa/core';
+import type { SeasonComebacks, TeamComebackTotals } from '@/lib/wpa/comebacks';
+import type { SeasonRatings } from '@/lib/ratings/core';
 import type { MatchWpa } from '@/lib/wpa/core';
 import { computeMatchComeback, comebackDrivers } from '@/lib/wpa/comebacks';
 import {
@@ -36,7 +50,9 @@ import {
   CURRENT_SEASON_ID,
   currentSeason,
   getSeason,
+  megaBrawlName,
   normalizeSeasonId,
+  SEASONS,
   seasonsNewestFirst,
   type SeasonDef,
 } from '@/lib/seasons';
@@ -567,6 +583,7 @@ export function buildSchedule(
   opts: { status: ScheduleStatusFilter; team: string | null },
 ) {
   const matches = new Map(extractUniqueMatches(data.teamMatches).map((m) => [m.matchIndex, m]));
+  const playoffLabels = playoffLabelsFor(data);
   const entries = data.schedule
     .map((s) => {
       const m = s.matchIndex != null ? matches.get(s.matchIndex) ?? null : null;
@@ -587,6 +604,7 @@ export function buildSchedule(
         time: scheduleTime(s.time),
         status,
         season_phase: m ? m.phase : null,
+        playoff_round: m && m.phase === 'playoffs' ? playoffLabels.get(m.matchIndex) ?? null : null,
         venue: s.venueName || s.venueCity ? { name: s.venueName || null, city: s.venueCity || null } : null,
         team1,
         team2,
@@ -688,7 +706,12 @@ export function buildMatch(
 // ─── /teams/[slug] ─────────────────────────────────────────────────────────────
 export const KNOWN_TEAM_SLUGS = Object.values(SHOPIFY_TEAM_HANDLES);
 
-export function buildTeam(data: ParsedSheetData, slug: string, phase: ApiPhase) {
+export function buildTeam(
+  data: ParsedSheetData,
+  slug: string,
+  phase: ApiPhase,
+  comebacks: SeasonComebacks | null = null,
+) {
   const { ordered, matches } = rankedStandings(data, phase);
   const idx = ordered.findIndex((t) => teamHandleOf(t.team) === slug);
   if (idx < 0) return null;
@@ -706,6 +729,8 @@ export function buildTeam(data: ParsedSheetData, slug: string, phase: ApiPhase) 
       stats_url: `${SITE}/teams/${team.slug}`,
       standing: standingRow(team, idx + 1, matches),
       roster,
+      // Match log (newest first), next scheduled match, comeback totals, highlight links.
+      ...(teamExtras(data, slug, phase, comebacks) ?? { matches: [], next_match: null, comebacks: null, highlights: [] }),
     },
     meta: meta(data, phase),
   };
@@ -809,5 +834,431 @@ export function buildFighter(
       },
     },
     meta: meta(data, phase),
+  };
+}
+
+// ─── Shared season helpers ─────────────────────────────────────────────────────
+function seasonDefOf(data: ParsedSheetData): SeasonDef {
+  return getSeason(data.season ?? '') ?? currentSeason();
+}
+
+/** Playoff round names for a season: the final is "MegaBrawl <season number>". */
+export function playoffRoundNames(data: ParsedSheetData): Record<Round, string> {
+  return { QF: 'Quarterfinals', SF: 'Semifinals', F: megaBrawlName(seasonDefOf(data)) };
+}
+
+/** Match ID → playoff round name for one season. Never throws (the bracket is decoration). */
+export function playoffLabelsFor(data: ParsedSheetData): Map<number, string> {
+  try {
+    return playoffRoundLabelsByMatch(getBracketContext(data).bracket, playoffRoundNames(data));
+  } catch {
+    return new Map();
+  }
+}
+
+// ─── /fighters ─────────────────────────────────────────────────────────────────
+// Every fighter in the season, for the website's fighters directory. Sorted by
+// net points (the default on tblstats.com); the website sorts and filters.
+export function buildFighterList(data: ParsedSheetData, phase: ApiPhase) {
+  const rows = fightersForPhase(data, phase).map((f) => {
+    const fullHistory = data.fighterHistory[f.slug] ?? [];
+    const history = fullHistory.filter((h) => phase === 'all' || h.phase === phase);
+    const primary = getPrimaryWeightClass(f, fullHistory);
+    return {
+      ...fighterSummary(data, f),
+      primary_weight_class: primary || null,
+      // "Female Featherweight" etc. for classes with separate women's divisions.
+      division: divisionOf(primary, f.gender) || null,
+      instagram: f.instagram || null,
+      streak: calcFighterStreak(history) || null,
+      stats: { ...fighterStats(f), ko_pct: round3(f.koPct ?? 0) },
+    };
+  });
+  rows.sort((a, b) => b.stats.net_points - a.stats.net_points || a.name.localeCompare(b.name));
+
+  const teams = new Map<string, ReturnType<typeof teamRef>>();
+  rows.forEach((r) => teams.set(r.team.slug, r.team));
+  const divisionKey = (d: string) => d.replace(/^Female /, '');
+  const divisions = [...new Set(rows.map((r) => r.division).filter((d): d is string => !!d))].sort(
+    (a, b) => compareWeightClass(divisionKey(a), divisionKey(b)) || a.localeCompare(b),
+  );
+  const genders = [...new Set(rows.map((r) => r.gender).filter((g): g is string => !!g))].sort();
+
+  return {
+    data: rows,
+    meta: {
+      ...meta(data, phase),
+      count: rows.length,
+      filters: {
+        teams: [...teams.values()].sort((a, b) => a.short_name.localeCompare(b.short_name)),
+        divisions,
+        genders,
+      },
+    },
+  };
+}
+
+// ─── /playoffs ─────────────────────────────────────────────────────────────────
+// The playoff bracket, seeded from the final regular-season table — the same
+// bracket tblstats.com's Playoffs page shows. Before the regular season ends
+// it is a live projection ("if the playoffs started today").
+export function buildPlayoffs(data: ParsedSheetData) {
+  const regular = filterTeamMatchesByPhase(data.teamMatches, 'regular');
+  const { seeds, bracket } = getBracketContext(data);
+  const standings = sortStandings(data.teams, regular);
+  const names = playoffRoundNames(data);
+  const seasonId = data.season ?? CURRENT_SEASON_ID;
+  const fieldSet = bracket.anyPlayed || getDisplayedCurrentWeek(data.schedule) === null;
+
+  const seedRow = (t: TeamStanding, seed: number) => {
+    const row = standingRow(t, seed, regular);
+    return { seed, team: row.team, record: row.record, point_diff: row.point_diff, streak: row.streak };
+  };
+  const seedBySlug = new Map(seeds.map((s) => [s.team.slug, s.seed]));
+  const roundKey: Record<Round, string> = { QF: 'quarterfinal', SF: 'semifinal', F: 'final' };
+  const slot = (m: BracketMatch) => {
+    const side = (x: BracketMatch['a']) =>
+      x ? { seed: x.seed, team: teamRef(x.team.team), record: standingRow(x.team, x.seed, regular).record } : null;
+    const winner =
+      m.status === 'played' && m.winnerSlug
+        ? m.winnerSlug === m.a?.team.slug
+          ? 'team1'
+          : m.winnerSlug === m.b?.team.slug
+          ? 'team2'
+          : null
+        : null;
+    return {
+      round: roundKey[m.round],
+      label: names[m.round],
+      status: m.status, // 'played' | 'pending' (both teams known) | 'tbd'
+      team1: side(m.a),
+      team2: side(m.b),
+      score: m.score ? { team1: round3(m.score[0]), team2: round3(m.score[1]) } : null,
+      winner,
+      match_id: m.matchIndex ?? null,
+      season: m.matchIndex != null ? seasonId : null,
+    };
+  };
+
+  const champion = bracket.championSlug
+    ? seeds.find((x) => x.team.slug === bracket.championSlug)?.team ?? null
+    : null;
+
+  // Head-to-head tiebreaks between teams with the same record.
+  const nameBySlug = new Map(data.teams.map((t) => [t.slug, t.team]));
+  const tiebreaks = [...getH2HTiebreakerWinners(data.teams, regular).entries()]
+    .filter(([winner]) => nameBySlug.has(winner))
+    .map(([winner, beaten]) => ({
+      team: teamRef(nameBySlug.get(winner)!),
+      seed: seedBySlug.get(winner) ?? null,
+      won_tiebreak_over: beaten.map((n) => teamRef(n)),
+    }))
+    .sort((a, b) => (a.seed ?? 99) - (b.seed ?? 99));
+
+  return {
+    data: {
+      // 'projection' while the regular season is still going; 'set' once it
+      // has ended; 'underway' once a playoff match is played; 'complete' with a champion.
+      status: champion ? 'complete' : bracket.anyPlayed ? 'underway' : fieldSet ? 'set' : 'projection',
+      final_name: names.F,
+      playoff_spots: PLAYOFF_SPOTS,
+      seeds: seeds.map((x) => seedRow(x.team, x.seed)),
+      quarterfinals: bracket.qf.map(slot),
+      semifinals: bracket.sf.map(slot),
+      final: slot(bracket.final),
+      champion: champion ? teamRef(champion.team) : null,
+      on_the_bubble: fieldSet ? [] : standings.slice(PLAYOFF_SPOTS, PLAYOFF_SPOTS + 4).map((t, i) => seedRow(t, PLAYOFF_SPOTS + 1 + i)),
+      tiebreaks,
+    },
+    meta: meta(data, 'regular'),
+  };
+}
+
+// ─── /awards ───────────────────────────────────────────────────────────────────
+// Every season's awards, from the Awards tab of each season's sheet (each tab
+// may carry the full history; duplicates are merged). Grouped by award, in the
+// same order as tblstats.com's Awards page; winners newest first.
+function splitTeams(raw: string): string[] {
+  return raw
+    .split(/\s*(?:\/| vs\.? | & |,)\s*/i)
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
+/** The Awards tab's Season column: a year (2026) or a league season number (4). */
+function awardSeasonOf(value: number) {
+  const def = value >= 1900 ? SEASONS.find((x) => x.year === value) : SEASONS.find((x) => x.number === value);
+  return {
+    season: def?.id ?? null,
+    label: def?.label ?? (value >= 1900 ? String(value) : `Season ${value}`),
+    sort: def ? def.year : value >= 1900 ? value : value, // years and numbers are compared within one tab
+  };
+}
+
+export function buildAwards(seasons: readonly SeasonData[]) {
+  const newestFirst = [...seasons].sort((a, b) => b.season.year - a.season.year);
+  // Fighter lookup across seasons (newest wins), for linking winners to fighter pages.
+  const findFighter = (name: string) => {
+    const slug = toSlug(name);
+    for (const { data } of newestFirst) {
+      if (data.fighters.some((f) => f.slug === slug)) return { ...fighterIdOf(data, slug), name };
+    }
+    return null;
+  };
+
+  const seen = new Set<string>();
+  const groups = new Map<string, { entries: Array<{ value: number; a: ParsedSheetData['awards'][number] }> }>();
+  for (const { data } of newestFirst) {
+    for (const a of data.awards) {
+      const key = `${a.season}|${a.award.toLowerCase()}|${a.winner.toLowerCase()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const award = normalizeAwardName(a.award);
+      const g = groups.get(award) ?? { entries: [] };
+      g.entries.push({ value: a.season, a });
+      groups.set(award, g);
+    }
+  }
+
+  const data = [...groups.entries()]
+    .sort(([a], [b]) => awardOrderIndex(a) - awardOrderIndex(b) || a.localeCompare(b))
+    .map(([award, g]) => {
+      const isTeam = TEAM_AWARDS.has(award);
+      const isTwoTeam = TWO_TEAM_AWARDS.has(award);
+      const sorted = [...g.entries].sort((x, y) => y.value - x.value);
+      const latest = sorted[0]?.value;
+      return {
+        award,
+        kind: isTeam ? 'team' : 'fighter',
+        winners: sorted.map(({ value, a }) => {
+          const s = awardSeasonOf(value);
+          const teamNames = isTeam
+            ? [getTeamSlugByName(a.winner) ? a.winner : a.team || a.winner]
+            : isTwoTeam
+            ? splitTeams(a.team)
+            : a.team
+            ? [a.team]
+            : [];
+          return {
+            season: s.season,
+            season_label: s.label,
+            season_value: value,
+            is_latest: value === latest,
+            winner: a.winner,
+            fighter: isTeam ? null : findFighter(a.winner),
+            teams: teamNames.map((n) => teamRef(n)),
+            notes: a.notes || null,
+          };
+        }),
+      };
+    });
+
+  const newest = newestFirst[0]?.data;
+  return {
+    data,
+    meta: {
+      ...(newest ? meta(newest, 'all') : { generated_at: new Date().toISOString() }),
+      season: null,
+      seasons_included: seasons.map((x) => x.season.id),
+    },
+  };
+}
+
+// ─── /advanced ─────────────────────────────────────────────────────────────────
+// tblstats.com's Advanced page: the highest-stakes rounds, every fighter's win
+// probability added (WPA), leverage, clutch and opponent-adjusted rating, and
+// every decided match by how close the winner came to losing. Plus a few
+// headline picks for fan-friendly cards.
+const round4a = (n: number) => Math.round(n * 10000) / 10000;
+
+export function buildAdvanced(
+  data: ParsedSheetData,
+  phase: ApiPhase,
+  models: {
+    wpa: SeasonWpa;
+    ratings: SeasonRatings;
+    comebacks: SeasonComebacks;
+    wpaModelVersion: string;
+    ratingsModelVersion: string;
+    minRounds: number;
+    comebackThreshold: number;
+  },
+  opts: { roundsLimit: number },
+) {
+  const { wpa, ratings, comebacks } = models;
+  const seasonId = data.season ?? CURRENT_SEASON_ID;
+  const inPhase = (p: string) => phase === 'all' || p === phase;
+  const labels = playoffLabelsFor(data);
+
+  // ── Rounds by leverage (what was at stake) ──
+  const everyRound = [...wpa.byMatch.values()]
+    .filter((m) => inPhase(m.phase))
+    .flatMap((m) => m.rounds.filter((r) => !r.isDq).map((r) => ({ m, r })));
+  everyRound.sort((a, b) => b.r.li - a.r.li);
+  const roundsOut = everyRound.slice(0, opts.roundsLimit).map(({ m, r }) => ({
+    match_id: m.matchIndex,
+    season: seasonId,
+    date: isoDate(m.date),
+    playoff_round: m.phase === 'playoffs' ? labels.get(m.matchIndex) ?? null : null,
+    round: r.round,
+    rounds_to_go: m.scheduledRounds - r.round + 1,
+    team1: teamRef(m.team1),
+    team2: teamRef(m.team2),
+    team1_fighter: { ...fighterRef(data, r.fighter1), score: round3(r.score1) },
+    team2_fighter: { ...fighterRef(data, r.fighter2), score: round3(r.score2) },
+    winner: r.score1 > r.score2 ? 'team1' : r.score2 > r.score1 ? 'team2' : 'draw',
+    team1_lead_before: round3(r.diffBefore),
+    leverage: round3(r.li),
+    swing: round4a(Math.abs(r.teamWpa)),
+    method: r.method || null,
+  }));
+
+  // ── Fighters: WPA / leverage / clutch (phase) + ratings & WAR (season) ──
+  const statBySlug = new Map(fightersForPhase(data, phase).map((f) => [f.slug, f]));
+  const fullBySlug = new Map(data.fighters.map((f) => [f.slug, f]));
+  const pick = (f: SeasonWpa['byFighter'] extends Map<string, infer V> ? V : never) =>
+    phase === 'regular'
+      ? { matches: f.matchesRegular, rounds: f.roundsRegular, roundWins: f.roundWinsRegular, wpa: f.wpaRegular, liSum: f.liSumRegular, liRounds: f.liRoundsRegular, clutch: f.clutchRegular }
+      : phase === 'playoffs'
+      ? { matches: f.matchesPlayoffs, rounds: f.roundsPlayoffs, roundWins: f.roundWinsPlayoffs, wpa: f.wpaPlayoffs, liSum: f.liSumPlayoffs, liRounds: f.liRoundsPlayoffs, clutch: f.clutchPlayoffs }
+      : { matches: f.matches, rounds: f.rounds, roundWins: f.roundWins, wpa: f.wpa, liSum: f.liSum, liRounds: f.liRounds, clutch: f.clutch };
+
+  const fighters = [...wpa.byFighter.values()]
+    .map((f) => {
+      const p = pick(f);
+      if (p.rounds === 0) return null;
+      const stat = statBySlug.get(f.slug) ?? null;
+      const base = stat ?? fullBySlug.get(f.slug) ?? null;
+      const rating = ratings.byFighter.get(f.slug) ?? null;
+      return {
+        fighter: base ? fighterSummary(data, base) : { ...fighterRef(data, f.name), team: null },
+        matches: p.matches,
+        rounds: p.rounds,
+        round_wins: p.roundWins,
+        wpa: round4a(p.wpa),
+        wpa_per_round: p.rounds > 0 ? round4a(p.wpa / p.rounds) : 0,
+        avg_leverage: p.liRounds > 0 ? round3(p.liSum / p.liRounds) : 0,
+        clutch: round4a(p.clutch),
+        net_points: round3(stat?.netPts ?? 0),
+        nppr: round3(stat?.nppr ?? 0),
+        war: round3(stat?.war ?? 0),
+        // Opponent-adjusted rating — full season only (no phase split).
+        rating: rating
+          ? {
+              rounds: rating.rounds,
+              strength_of_schedule: rating.sos == null ? null : round3(rating.sos),
+              adjusted_nppr: round3(rating.anppr),
+              adjustment: round3(rating.delta),
+              low: round3(rating.lo),
+              high: round3(rating.hi),
+              uncertain: rating.uncertain,
+              qualified: rating.qualified,
+            }
+          : null,
+      };
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null)
+    .sort((a, b) => b.wpa - a.wpa || a.fighter.name.localeCompare(b.fighter.name));
+
+  // ── Matches by how close the winner came to losing ──
+  const matches = comebacks.matches
+    .filter((m) => inPhase(m.phase))
+    .map((m) => ({
+      match_id: m.matchIndex,
+      season: seasonId,
+      date: isoDate(m.date),
+      playoff_round: m.phase === 'playoffs' ? labels.get(m.matchIndex) ?? null : null,
+      winner: teamRef(m.winnerTeam),
+      loser: teamRef(m.loserTeam),
+      lowest_win_prob: round4a(m.comebackLow),
+      low_round: m.lowRound,
+      deficit_at_low: round3(m.deficitAtLow),
+      final_margin: round3(m.finalMargin),
+      is_comeback: m.isComeback,
+      note: m.footnote ?? null,
+    }));
+
+  // ── Headline picks for the fan cards ──
+  const qualified = fighters.filter((f) => f.rounds >= models.minRounds);
+  const by = <T,>(arr: T[], v: (x: T) => number) => arr.reduce<T | null>((best, x) => (best === null || v(x) > v(best) ? x : best), null);
+  const rated = fighters.filter((f) => f.rating?.qualified && !f.rating.uncertain);
+  const headlines = {
+    biggest_comeback: matches.find((m) => m.is_comeback) ?? null,
+    highest_stakes_round: roundsOut[0] ?? null,
+    most_clutch: by(qualified, (f) => f.clutch),
+    best_adjusted: by(rated, (f) => f.rating!.adjusted_nppr),
+    toughest_schedule: by(
+      fighters.filter((f) => f.rating?.qualified && f.rating.strength_of_schedule != null),
+      (f) => f.rating!.strength_of_schedule!,
+    ),
+  };
+
+  return {
+    data: { headlines, rounds: roundsOut, fighters, matches },
+    meta: {
+      ...meta(data, phase),
+      wpa_model_version: models.wpaModelVersion,
+      ratings_model_version: models.ratingsModelVersion,
+      min_rounds: models.minRounds,
+      comeback_threshold: models.comebackThreshold,
+      comeback_count: matches.filter((m) => m.is_comeback).length,
+      decided_matches: matches.length,
+      rounds_limit: opts.roundsLimit,
+    },
+  };
+}
+
+// ─── /teams/{slug} extras ──────────────────────────────────────────────────────
+export function teamExtras(
+  data: ParsedSheetData,
+  slug: string,
+  phase: ApiPhase,
+  comebacks: SeasonComebacks | null,
+) {
+  const teamName = data.teams.find((t) => teamHandleOf(t.team) === slug)?.team;
+  if (!teamName) return null;
+  const key = teamKeyOf(teamName);
+  const seasonId = data.season ?? CURRENT_SEASON_ID;
+  const labels = playoffLabelsFor(data);
+  const matchKey =
+    Object.keys(data.teamMatches).find((k) => (key ? teamKeyOf(k) === key : k === teamName)) ?? teamName;
+  const weekByMatch = new Map<number, number>();
+  for (const s of data.schedule) if (s.matchIndex != null && s.week > 0) weekByMatch.set(s.matchIndex, s.week);
+
+  const matches = (data.teamMatches[matchKey] ?? [])
+    .filter((m) => phase === 'all' || m.phase === phase)
+    .sort((a, b) => b.matchIndex - a.matchIndex)
+    .map((m) => ({
+      match_id: m.matchIndex,
+      season: seasonId,
+      date: isoDate(m.date),
+      week: weekByMatch.get(m.matchIndex) ?? null,
+      season_phase: m.phase,
+      playoff_round: m.phase === 'playoffs' ? labels.get(m.matchIndex) ?? null : null,
+      opponent: teamRef(m.opponent),
+      result: m.result,
+      points_for: round3(m.pf),
+      points_against: round3(m.pa),
+    }));
+
+  const next = buildSchedule(data, phase, { status: 'upcoming', team: slug }).data.next;
+  const cb: TeamComebackTotals | null = comebacks?.byTeam.get(key) ?? comebacks?.byTeam.get(toSlug(teamName)) ?? null;
+  const siteSlug = toSlug(teamName);
+  const highlights = data.highlights
+    .filter((h) => h.page === slug || h.page === siteSlug || (key && h.page === key))
+    .map((h) => ({ label: h.label || null, url: h.url, type: h.type || null }));
+
+  return {
+    matches,
+    next_match: next,
+    comebacks: cb
+      ? {
+          comeback_wins: cb.comebackWins,
+          deepest_hole: cb.deepestHole == null ? null : round4a(cb.deepestHole),
+          blown_leads: cb.blownLeads,
+          highest_lead_blown: cb.highestLeadBlown == null ? null : round4a(cb.highestLeadBlown),
+        }
+      : null,
+    highlights,
   };
 }
